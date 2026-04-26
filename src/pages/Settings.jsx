@@ -1,6 +1,6 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { LogOut, Info, ChevronRight } from 'lucide-react'
+import { LogOut, Info, ChevronRight, BarChart2 } from 'lucide-react'
 import { signOut } from '../services/supabase'
 import { useAuth } from '../hooks/useAuth'
 
@@ -8,6 +8,14 @@ export default function Settings() {
   const { user } = useAuth()
   const navigate = useNavigate()
   const [loggingOut, setLoggingOut] = useState(false)
+  const [includeBE, setIncludeBE] = useState(() => {
+    return localStorage.getItem('winrate_include_be') === 'true'
+  })
+
+  useEffect(() => {
+    localStorage.setItem('winrate_include_be', includeBE)
+    window.dispatchEvent(new Event('winrate_setting_changed'))
+  }, [includeBE])
 
   const handleLogout = async () => {
     setLoggingOut(true)
@@ -15,22 +23,21 @@ export default function Settings() {
     navigate('/login')
   }
 
-  const meta       = user?.user_metadata || {}
-  const avatarUrl  = meta.avatar_url || null
-  const username   = meta.username || null
+  const meta        = user?.user_metadata || {}
+  const avatarUrl   = meta.avatar_url || null
+  const username    = meta.username || null
   const displayName = username || user?.email?.split('@')[0] || 'Trader'
 
   return (
     <div className="page">
       <h1 className="text-lg font-medium mb-6">Réglages</h1>
 
-      {/* Profile card — cliquable */}
+      {/* Profile card */}
       <div
         className="card mb-4 cursor-pointer hover:border-forge-muted/30 active:scale-[0.99] transition-all"
         onClick={() => navigate('/profile')}
       >
         <div className="flex items-center gap-3">
-          {/* Avatar */}
           <div className="w-12 h-12 rounded-2xl overflow-hidden flex-shrink-0 flex items-center justify-center"
             style={{ background: 'rgba(247,183,49,0.15)', border: '2px solid rgba(247,183,49,0.3)' }}>
             {avatarUrl ? (
@@ -41,18 +48,43 @@ export default function Settings() {
               </span>
             )}
           </div>
-
-          {/* Infos */}
           <div className="flex-1 min-w-0">
             <p className="text-sm font-semibold truncate">{displayName}</p>
-            {username && (
-              <p className="text-xs text-forge-muted truncate">@{username}</p>
-            )}
+            {username && <p className="text-xs text-forge-muted truncate">@{username}</p>}
             <p className="text-xs text-forge-muted truncate">{user?.email}</p>
           </div>
-
           <ChevronRight size={15} className="text-forge-muted flex-shrink-0" />
         </div>
+      </div>
+
+      {/* Calcul Win Rate */}
+      <div className="card mb-4">
+        <div className="flex items-center gap-2 mb-3">
+          <BarChart2 size={14} className="text-forge-accent" />
+          <p className="text-sm font-medium">Calcul du Win Rate</p>
+        </div>
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-sm text-white">Inclure les BE</p>
+            <p className="text-xs text-forge-muted mt-0.5">
+              {includeBE ? 'BE comptés comme victoires' : 'BE exclus du calcul'}
+            </p>
+          </div>
+          <button
+            onClick={() => setIncludeBE(v => !v)}
+            className="relative w-11 h-6 rounded-full transition-all duration-200 flex-shrink-0"
+            style={{ background: includeBE ? '#F7B731' : 'rgba(255,255,255,0.1)' }}
+          >
+            <div className="absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-all duration-200"
+              style={{ left: includeBE ? '22px' : '2px' }} />
+          </button>
+        </div>
+        <p className="text-[10px] text-forge-muted mt-3 leading-relaxed">
+          {includeBE
+            ? 'Formule : TP + BE / (TP + SL + BE)'
+            : 'Formule : TP / (TP + SL + BE)'}
+          {' '}— Les Missed sont toujours exclus.
+        </p>
       </div>
 
       {/* Supabase config */}
@@ -75,7 +107,7 @@ export default function Settings() {
         <div className="space-y-3">
           <div className="flex justify-between text-sm">
             <span className="text-forge-muted">Version</span>
-            <span className="font-mono">2.0.0</span>
+            <span className="font-mono">2.1.0</span>
           </div>
           <div className="flex justify-between text-sm">
             <span className="text-forge-muted">Stack</span>

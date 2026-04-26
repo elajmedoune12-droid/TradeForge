@@ -3,9 +3,13 @@ import { fr } from 'date-fns/locale'
 
 // ─── STATS ──────────────────────────────────────────────
 export const calcWinRate = (trades) => {
-  if (!trades.length) return 0
-  const wins = trades.filter(t => t.result === 'tp').length
-  return Math.round((wins / trades.length) * 100)
+  const includeBE = localStorage.getItem('winrate_include_be') === 'true'
+  const activeTrades = trades.filter(t => t.result === 'tp' || t.result === 'sl' || t.result === 'be')
+  if (!activeTrades.length) return 0
+  const tp = activeTrades.filter(t => t.result === 'tp').length
+  const be = activeTrades.filter(t => t.result === 'be').length
+  const wins = includeBE ? tp + be : tp
+  return Math.round((wins / activeTrades.length) * 100)
 }
 
 export const calcAvgRR = (trades) => {
@@ -38,13 +42,15 @@ export const getMonthlyStats = (trades, year, month) => {
     const d = parseISO(t.date)
     return isWithinInterval(d, { start, end })
   })
+  const tp     = monthly.filter(t => t.result === 'tp').length
+  const sl     = monthly.filter(t => t.result === 'sl').length
+  const be     = monthly.filter(t => t.result === 'be').length
+  const missed = monthly.filter(t => t.result === 'missed').length
+  const active = tp + sl + be
   return {
     total: monthly.length,
-    tp: monthly.filter(t => t.result === 'tp').length,
-    sl: monthly.filter(t => t.result === 'sl').length,
-    be: monthly.filter(t => t.result === 'be').length,
-    missed: monthly.filter(t => t.result === 'missed').length,
-    winRate: calcWinRate(monthly),
+    tp, sl, be, missed,
+    winRate: active ? calcWinRate(monthly) : 0,
     avgRR: calcAvgRR(monthly),
     profit: +calcTotalProfit(monthly).toFixed(2),
     trades: monthly,
