@@ -81,7 +81,7 @@ useEffect(() => {
 <p className="text-[10px] text-forge-muted mt-2">
   {beMode === 'win' ? 'Formule : (TP + BE) / (TP + SL + BE)'
     : beMode === 'loss' ? 'Formule : TP / (TP + SL + BE) — BE = perte'
-    : 'Formule : TP / (TP + SL + BE) — BE neutre'}
+    : 'Formule : TP / (TP + SL) — BE exclu'}
   {' '}— Missed toujours exclus.
 </p>
       </div>

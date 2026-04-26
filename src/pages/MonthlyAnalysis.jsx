@@ -6,7 +6,7 @@ import {
 } from 'recharts'
 import { useTrades } from '../hooks/useTrades'
 import { useMonthlyGoal } from '../hooks/useMonthlyGoal'
-import { getMonthlyStats, generateFeedback, fmtMonth, calcDisciplineScore, calcAvgRR } from '../utils'
+import { getMonthlyStats, generateFeedback, fmtMonth, calcDisciplineScore, calcAvgRR, calcWinRate } from '../utils'
 import { format, addMonths, subMonths } from 'date-fns'
 import { fr } from 'date-fns/locale'
 import AIAssistant from '../components/AIAssistant'
@@ -164,15 +164,15 @@ export default function MonthlyAnalysis() {
     const map = {}
     stats.trades.forEach(t => {
       if (!t.day) return
-      if (!map[t.day]) map[t.day] = { wins: 0, total: 0, profit: 0 }
-      map[t.day].total++
-      if (t.result === 'tp') map[t.day].wins++
+      if (!map[t.day]) map[t.day] = { wins: 0, total: 0, profit: 0, trades: [] }
+map[t.day].total++
+map[t.day].trades.push(t)
       if (t.result === 'tp') map[t.day].profit += (t.rr_won || 0)
       if (t.result === 'sl') map[t.day].profit -= 1
     })
     return Object.entries(map).map(([day, d]) => ({
       name: day.slice(0, 3),
-      winRate: Math.round((d.wins / d.total) * 100),
+      winRate: calcWinRate(d.trades),
       profit: +d.profit.toFixed(2),
       total: d.total,
     })).sort((a, b) => b.profit - a.profit)
@@ -184,13 +184,14 @@ export default function MonthlyAnalysis() {
     const map = {}
     stats.trades.forEach(t => {
       if (!t.session) return
-      if (!map[t.session]) map[t.session] = { wins: 0, total: 0, profit: 0 }
+      if (!map[t.session]) map[t.session] = { wins: 0, total: 0, profit: 0, trades: [] }
+map[t.session].trades.push(t)
       map[t.session].total++
       if (t.result === 'tp') { map[t.session].wins++; map[t.session].profit += (t.rr_won || 0) }
       if (t.result === 'sl') map[t.session].profit -= 1
     })
     return Object.entries(map)
-      .map(([s, d]) => ({ name: s, wr: Math.round((d.wins / d.total) * 100), profit: +d.profit.toFixed(2), total: d.total }))
+      .map(([s, d]) => ({ name: s, wr: calcWinRate(d.trades), profit: +d.profit.toFixed(2), total: d.total }))
       .sort((a, b) => b.profit - a.profit)
   }, [stats])
 
@@ -508,9 +509,24 @@ export default function MonthlyAnalysis() {
               style={{ background: 'rgba(16,20,28,0.8)', border: '1px solid rgba(255,255,255,0.07)' }}>
               <p className="text-xs font-medium text-forge-muted uppercase tracking-wide mb-3">Conclusions</p>
               <div className="space-y-2">
-                {feedback.split('\n').map((line, i) => (
-                  <p key={i} className="text-sm leading-relaxed">{line}</p>
-                ))}
+                {feedback.split('\n').map((line, i) => {
+  const isGood = line.startsWith('✅')
+  const isWarn = line.startsWith('⚠️')
+  const isBad  = line.startsWith('❌')
+  const color  = isGood ? '#2EA043' : isWarn ? '#F7B731' : isBad ? '#F85149' : '#8B949E'
+  const clean  = line.replace(/^[✅⚠️❌]\s*/, '')
+  const dot    = isGood ? '✓' : isWarn ? '!' : isBad ? '✗' : '·'
+  return (
+    <div key={i} className="flex items-start gap-2.5 p-2.5 rounded-xl"
+      style={{ background: `${color}0D`, border: `1px solid ${color}20` }}>
+      <span className="text-xs font-bold flex-shrink-0 mt-0.5 w-4 h-4 rounded-full flex items-center justify-center"
+        style={{ background: `${color}20`, color }}>
+        {dot}
+      </span>
+      <p className="text-sm leading-relaxed" style={{ color: '#E6EDF3' }}>{clean}</p>
+    </div>
+  )
+})}
               </div>
             </div>
           )}

@@ -406,8 +406,11 @@ useEffect(() => {
           <p className="text-xs font-medium text-forge-muted uppercase tracking-wide">Psychologie</p>
         </div>
         <InfoRow label="Émotion"         value={trade.emotion} />
-        <InfoRow label="Respect du plan" value={trade.respect_plan ? '✅ Oui' : '❌ Non'} />
-        <InfoRow label="Discipline"      value={trade.discipline_score ? `${trade.discipline_score}/10` : null} mono
+        <InfoRow
+  label="Respect du plan"
+  value={trade.respect_plan ? '✓ Respecté' : '✗ Non respecté'}
+  color={trade.respect_plan ? '#2EA043' : '#F85149'}
+/>        <InfoRow label="Discipline"      value={trade.discipline_score ? `${trade.discipline_score}/10` : null} mono
           color={trade.discipline_score >= 7 ? '#2EA043' : trade.discipline_score >= 5 ? '#F7B731' : '#F85149'} />
         {trade.notes && (
           <div className="mt-3 pt-3 border-t" style={{ borderColor: 'rgba(255,255,255,0.06)' }}>

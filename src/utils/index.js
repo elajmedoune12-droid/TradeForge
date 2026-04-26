@@ -4,12 +4,21 @@ import { fr } from 'date-fns/locale'
 // ─── STATS ──────────────────────────────────────────────
 export const calcWinRate = (trades) => {
   const beSetting = localStorage.getItem('winrate_be_mode') || 'neutral'
-  const activeTrades = trades.filter(t => t.result === 'tp' || t.result === 'sl' || t.result === 'be')
-  if (!activeTrades.length) return 0
-  const tp = activeTrades.filter(t => t.result === 'tp').length
-  const be = activeTrades.filter(t => t.result === 'be').length
-  if (beSetting === 'win') return Math.round(((tp + be) / activeTrades.length) * 100)
-  return Math.round((tp / activeTrades.length) * 100)
+  const tp = trades.filter(t => t.result === 'tp').length
+  const sl = trades.filter(t => t.result === 'sl').length
+  const be = trades.filter(t => t.result === 'be').length
+
+  if (beSetting === 'win') {
+    const denom = tp + sl + be
+    return denom ? Math.round(((tp + be) / denom) * 100) : 0
+  }
+  if (beSetting === 'loss') {
+    const denom = tp + sl + be
+    return denom ? Math.round((tp / denom) * 100) : 0
+  }
+  // neutre : BE ignoré des deux côtés
+  const denom = tp + sl
+  return denom ? Math.round((tp / denom) * 100) : 0
 }
 
 export const calcAvgRR = (trades) => {

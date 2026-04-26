@@ -6,7 +6,7 @@ import {
   ResponsiveContainer, ReferenceLine, CartesianGrid, Cell
 } from 'recharts'
 import { useTrades } from '../hooks/useTrades'
-import { fmtDate, MARKETS } from '../utils'
+import { fmtDate, MARKETS, calcWinRate } from '../utils'
 import { format, parseISO } from 'date-fns'
 
 const RESULTS_OPTIONS = [
@@ -187,7 +187,7 @@ export default function TradesList() {
     const sl     = filtered.filter(t => t.result === 'sl').length
     const be     = filtered.filter(t => t.result === 'be').length
     const missed = filtered.filter(t => t.result === 'missed').length
-    const winRate = Math.round((tp / total) * 100)
+    const winRate = calcWinRate(filtered)
     const profit = +filtered.reduce((sum, t) => {
       if (t.result === 'tp') return sum + (t.rr_won || 0)
       if (t.result === 'sl') return sum + (t.rr_won || -1)

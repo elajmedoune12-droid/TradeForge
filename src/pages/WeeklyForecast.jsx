@@ -36,7 +36,8 @@ const calcStats = (trades) => {
   const sl     = trades.filter(t => t.result === 'sl').length
   const be     = trades.filter(t => t.result === 'be').length
   const missed = trades.filter(t => t.result === 'missed').length
-  const winRate = total ? Math.round((tp / total) * 100) : 0
+  const activeTrades = trades.filter(t => t.result === 'tp' || t.result === 'sl' || t.result === 'be')
+const winRate = activeTrades.length ? Math.round((tp / activeTrades.length) * 100) : 0
   const rr = +trades.reduce((acc, t) => {
     if (t.result === 'tp') return acc + (t.rr_won || 0)
     if (t.result === 'sl') return acc - 1
