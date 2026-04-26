@@ -393,19 +393,22 @@ export default function Profile() {
                 Annuler
               </button>
               <button disabled={deleteConfirm !== 'SUPPRIMER'}
-                onClick={async () => {
-  const { data: { session } } = await supabase.auth.getSession()
-  await fetch('/api/delete-account', {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${session.access_token}` }
-  })
-  await supabase.auth.signOut()
-  navigate('/login')
-}}
-                className="flex-1 py-2 rounded-xl text-xs font-medium transition-all active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed"
-                style={{ background: 'rgba(248,81,73,0.15)', color: '#F85149', border: '1px solid rgba(248,81,73,0.3)' }}>
-                Confirmer
-              </button>
+  onClick={async () => {
+    const { data: { session } } = await supabase.auth.getSession()
+    console.log('Token:', session?.access_token)
+    const res = await fetch('/api/delete-account', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${session.access_token}` }
+    })
+    const data = await res.json()
+    console.log('Réponse API:', data)
+    await supabase.auth.signOut()
+    navigate('/login')
+  }}
+  className="flex-1 py-2 rounded-xl text-xs font-medium transition-all active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed"
+  style={{ background: 'rgba(248,81,73,0.15)', color: '#F85149', border: '1px solid rgba(248,81,73,0.3)' }}>
+  Confirmer
+</button>
             </div>
           </div>
         )}
