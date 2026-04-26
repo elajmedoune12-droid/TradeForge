@@ -4,7 +4,7 @@ import { X, Plus, Check, Upload, BookOpen, ChevronDown, Link, Image, ExternalLin
 import { uploadImage, supabase } from '../services/supabase'
 import { useAuth } from '../hooks/useAuth'
 
-const DEFAULT_TIMEFRAMES = ['1m', '5m', '15m', '30m', '1h', '2h', '4h', '1j', '1sem', '1mois']
+const DEFAULT_TIMEFRAMES = ['Monthly', 'Weekly', 'Daily', 'H4', 'H2', 'H1', 'M30', 'M15', 'M5', 'M3', 'M1']
 const DEFAULT_MARKETS = ['EURUSD', 'GBPUSD', 'DXY', 'NAS100', 'S&P 500', 'XAUUSD', 'XAGUSD', 'USDJPY']
 const TF_KEY = 'tf_custom'
 const MKT_KEY = 'mkt_custom'
