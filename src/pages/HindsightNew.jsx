@@ -1,0 +1,312 @@
+import { useState, useRef, useCallback } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { X, Plus, Check, Upload, BookOpen, ChevronDown, Link, Image, ExternalLink, ChevronLeft } from 'lucide-react'
+import { uploadImage, supabase } from '../services/supabase'
+import { useAuth } from '../hooks/useAuth'
+
+const DEFAULT_TIMEFRAMES = ['1m', '5m', '15m', '30m', '1h', '2h', '4h', '1j', '1sem', '1mois']
+const DEFAULT_MARKETS = ['Forex', 'Crypto', 'Actions', 'Indices', 'Matières premières', 'Obligations']
+const TF_KEY = 'tf_custom'
+const MKT_KEY = 'mkt_custom'
+
+function loadExtra(key) {
+  try { return JSON.parse(localStorage.getItem(key) || '[]') } catch { return [] }
+}
+function saveExtra(key, arr) { localStorage.setItem(key, JSON.stringify(arr)) }
+
+// ── Field wrapper ─────────────────────────────────────────
+const Field = ({ label, children }) => (
+  <div>
+    <label className="label">{label}</label>
+    {children}
+  </div>
+)
+
+// ── Tag group ─────────────────────────────────────────────
+function TagGroup({ label, options, selected, onToggle, onAdd }) {
+  const [adding, setAdding] = useState(false)
+  const [input, setInput] = useState('')
+
+  const handleAdd = () => {
+    const val = input.trim()
+    if (val && !options.includes(val)) { onAdd(val); onToggle(val) }
+    setInput(''); setAdding(false)
+  }
+
+  return (
+    <Field label={label}>
+      <div className="flex flex-wrap gap-2">
+        {options.map(opt => {
+          const active = selected.includes(opt)
+          return (
+            <button key={opt} type="button" onClick={() => onToggle(opt)}
+              className="px-3 py-1.5 rounded-xl text-xs font-medium border transition-all select-none active:scale-95"
+              style={active
+                ? { background: 'rgba(247,183,49,0.15)', color: '#F7B731', borderColor: 'rgba(247,183,49,0.45)', boxShadow: '0 0 10px rgba(247,183,49,0.2)' }
+                : { background: 'rgba(255,255,255,0.04)', color: '#8B949E', borderColor: 'rgba(255,255,255,0.1)' }
+              }>
+              {active && <Check size={10} className="inline mr-1" />}{opt}
+            </button>
+          )
+        })}
+        {adding ? (
+          <div className="flex items-center gap-1">
+            <input autoFocus value={input} onChange={e => setInput(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && handleAdd()}
+              placeholder="Ex: 2h" className="w-20 text-xs" />
+            <button type="button" onClick={handleAdd} className="text-forge-accent"><Check size={13} /></button>
+            <button type="button" onClick={() => setAdding(false)} className="text-forge-muted"><X size={13} /></button>
+          </div>
+        ) : (
+          <button type="button" onClick={() => setAdding(true)}
+            className="px-3 py-1.5 rounded-xl text-xs font-medium border border-dashed transition-all hover:border-white/30 hover:text-white"
+            style={{ borderColor: 'rgba(255,255,255,0.15)', color: '#8B949E' }}>
+            <Plus size={10} className="inline mr-1" />Autre
+          </button>
+        )}
+      </div>
+    </Field>
+  )
+}
+
+// ── AddCapturePanel (photo ou lien TradingView) ───────────
+function AddCapturePanel({ allTF, onAdd }) {
+  const [mode, setMode] = useState('image')
+  const [url, setUrl]   = useState('')
+  const [label, setLabel] = useState('')
+  const [tf, setTf]     = useState('')
+
+  const handleAddLink = () => {
+    if (!url.trim()) return
+    onAdd({ type: 'link', url: url.trim(), label: label.trim() || tf || 'TradingView', timeframe: tf })
+    setUrl(''); setLabel('')
+  }
+
+  return (
+    <div className="rounded-xl p-3 space-y-2 mb-2"
+      style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)' }}>
+      {/* Mode toggle */}
+      <div className="flex gap-1">
+        {[['image', 'Image'], ['link', 'Lien TradingView']].map(([v, l]) => (
+          <button key={v} type="button" onClick={() => setMode(v)}
+            className="flex-1 py-1.5 rounded-lg text-xs font-medium border transition-all"
+            style={mode === v
+              ? { background: 'rgba(247,183,49,0.12)', color: '#F7B731', borderColor: 'rgba(247,183,49,0.3)' }
+              : { background: 'rgba(255,255,255,0.03)', color: '#8B949E', borderColor: 'rgba(255,255,255,0.08)' }
+            }>
+            {l}
+          </button>
+        ))}
+      </div>
+
+      {/* Timeframe */}
+      <div>
+        <p className="text-[10px] text-forge-muted mb-1">Timeframe</p>
+        <select value={tf} onChange={e => setTf(e.target.value)} className="w-full text-xs py-1.5">
+          <option value="">— Choisir —</option>
+          {allTF.map(t => <option key={t}>{t}</option>)}
+        </select>
+      </div>
+
+      {mode === 'image' ? (
+        <label className="flex items-center justify-center gap-2 py-3 rounded-xl cursor-pointer text-xs text-forge-muted hover:text-white transition-colors"
+          style={{ border: '2px dashed rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.02)' }}>
+          <Upload size={13} /> Choisir une image
+          <input type="file" accept="image/*" multiple className="hidden"
+            onChange={e => {
+              Array.from(e.target.files).forEach(file => {
+                onAdd({ type: 'file', file, preview: URL.createObjectURL(file), timeframe: tf })
+              })
+              e.target.value = ''
+            }} />
+        </label>
+      ) : (
+        <div className="space-y-2">
+          <input value={url} onChange={e => setUrl(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), handleAddLink())}
+            placeholder="https://www.tradingview.com/chart/..."
+            className="w-full text-xs" />
+          <div className="flex gap-2">
+            <input value={label} onChange={e => setLabel(e.target.value)}
+              placeholder="Label (ex: Entrée H4)"
+              className="flex-1 text-xs" />
+            <button type="button" onClick={handleAddLink} disabled={!url.trim()}
+              className="px-3 py-1.5 rounded-lg text-xs font-medium transition-all disabled:opacity-40"
+              style={{ background: 'rgba(247,183,49,0.12)', color: '#F7B731', border: '1px solid rgba(247,183,49,0.25)' }}>
+              <Check size={12} />
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ── CaptureItem ───────────────────────────────────────────
+function CaptureItem({ cap, allTF, onRemove, onChangeTF }) {
+  return (
+    <div className="flex items-center gap-2 rounded-xl p-2"
+      style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
+      {cap.type === 'link' ? (
+        <div className="w-12 h-12 rounded-lg flex items-center justify-center flex-shrink-0"
+          style={{ background: 'rgba(88,166,255,0.1)', border: '1px solid rgba(88,166,255,0.2)' }}>
+          <ExternalLink size={16} style={{ color: '#58a6ff' }} />
+        </div>
+      ) : (
+        <img src={cap.preview || cap.url} alt=""
+          className="w-12 h-12 object-cover rounded-lg flex-shrink-0" />
+      )}
+      <div className="flex-1 min-w-0">
+        {cap.type === 'link' && (
+          <a href={cap.url} target="_blank" rel="noopener noreferrer"
+            className="text-xs truncate block mb-1 hover:underline"
+            style={{ color: '#58a6ff' }}>
+            {cap.label || cap.url}
+          </a>
+        )}
+        <select value={cap.timeframe || ''} onChange={e => onChangeTF(e.target.value)}
+          className="w-full text-xs py-1.5">
+          <option value="">— Timeframe —</option>
+          {allTF.map(tf => <option key={tf}>{tf}</option>)}
+        </select>
+      </div>
+      <button type="button" onClick={onRemove}
+        className="text-forge-muted hover:text-forge-red transition-colors flex-shrink-0">
+        <X size={16} />
+      </button>
+    </div>
+  )
+}
+
+// ── Main ─────────────────────────────────────────────────
+export default function HindsightNew() {
+  const navigate = useNavigate()
+  const { user } = useAuth()
+
+  const [customTF, setCustomTF]   = useState(() => loadExtra(TF_KEY))
+  const [customMkt, setCustomMkt] = useState(() => loadExtra(MKT_KEY))
+  const allTF  = [...DEFAULT_TIMEFRAMES, ...customTF]
+  const allMkt = [...DEFAULT_MARKETS, ...customMkt]
+
+  const [selectedMkt, setSelectedMkt] = useState([])
+  const [captures, setCaptures]       = useState([])
+  const [notes, setNotes]             = useState('')
+  const [saving, setSaving]           = useState(false)
+  const [progress, setProgress]       = useState('')
+  const [showAddPanel, setShowAddPanel] = useState(false)
+
+  const toggleMkt = (m) => setSelectedMkt(s => s.includes(m) ? s.filter(x => x !== m) : [...s, m])
+  const addMkt    = (m) => { const next = [...customMkt, m]; setCustomMkt(next); saveExtra(MKT_KEY, next) }
+
+  const addCapture = (cap) => { setCaptures(c => [...c, cap]); setShowAddPanel(false) }
+  const removeCapture = (i) => setCaptures(c => c.filter((_, idx) => idx !== i))
+  const updateTF = (i, tf) => setCaptures(c => c.map((cap, idx) => idx === i ? { ...cap, timeframe: tf } : cap))
+
+  const handleSave = async () => {
+    if (!captures.length && !notes.trim() && !selectedMkt.length) return
+    setSaving(true)
+    try {
+      const uploadedImages = []
+      for (let i = 0; i < captures.length; i++) {
+        const cap = captures[i]
+        if (cap.type === 'file') {
+          setProgress(`Upload ${i + 1}/${captures.length}…`)
+          const path = `${user.id}/hindsights/${Date.now()}_${i}_${cap.file.name}`
+          const url = await uploadImage(cap.file, path)
+          uploadedImages.push({ url, path, timeframe: cap.timeframe || null })
+        } else {
+          uploadedImages.push({ url: cap.url, timeframe: cap.timeframe || null, label: cap.label || '', isLink: true })
+        }
+      }
+      setProgress('Sauvegarde…')
+      await supabase.from('hindsights_standalone').insert({
+        user_id:    user.id,
+        timeframes: [...new Set(uploadedImages.map(i => i.timeframe).filter(Boolean))],
+        markets:    selectedMkt,
+        notes:      notes.trim() || null,
+        images:     uploadedImages,
+      })
+      navigate('/hindsights')
+    } catch (err) {
+      alert('Erreur: ' + err.message)
+    } finally {
+      setSaving(false); setProgress('')
+    }
+  }
+
+  const isEmpty = !captures.length && !notes.trim() && !selectedMkt.length
+
+  return (
+    <div className="page">
+
+      {/* Header */}
+      <div className="flex items-center gap-3 mb-6">
+        <button onClick={() => navigate(-1)} className="text-forge-muted hover:text-white transition-colors">
+  <ChevronLeft size={20} />
+</button>
+        <h1 className="text-lg font-semibold">Nouveau Hindsight</h1>
+      </div>
+
+      <div className="space-y-4">
+
+        {/* ── Marchés ── */}
+        <div className="card">
+          <p className="section-title mb-3">Marchés</p>
+          <TagGroup label="" options={allMkt} selected={selectedMkt}
+            onToggle={toggleMkt} onAdd={addMkt} />
+        </div>
+
+        {/* ── Captures & liens ── */}
+        <div className="card">
+          <p className="section-title mb-3">
+            Captures & liens
+            <span className="text-forge-muted normal-case tracking-normal font-normal ml-1">(optionnel)</span>
+          </p>
+
+          {captures.length > 0 && (
+            <div className="space-y-2 mb-3">
+              {captures.map((cap, i) => (
+                <CaptureItem key={i} cap={cap} allTF={allTF}
+                  onRemove={() => removeCapture(i)}
+                  onChangeTF={tf => updateTF(i, tf)} />
+              ))}
+            </div>
+          )}
+
+          {showAddPanel && (
+            <AddCapturePanel allTF={allTF} onAdd={addCapture} />
+          )}
+
+          <button type="button"
+            onClick={() => setShowAddPanel(v => !v)}
+            className="w-full flex items-center justify-center gap-2 rounded-xl p-3.5 transition-all text-forge-muted text-sm hover:text-white"
+            style={{
+              border: `2px dashed ${showAddPanel ? 'rgba(247,183,49,0.3)' : 'rgba(255,255,255,0.12)'}`,
+              background: 'rgba(255,255,255,0.02)',
+            }}>
+            {showAddPanel ? <X size={15} /> : <Upload size={15} />}
+            {showAddPanel ? 'Fermer' : 'Ajouter image ou lien'}
+          </button>
+        </div>
+
+        {/* ── Notes ── */}
+        <div className="card">
+          <p className="section-title mb-3">
+            Notes libres
+            <span className="text-forge-muted normal-case tracking-normal font-normal ml-1">(optionnel)</span>
+          </p>
+          <textarea value={notes} onChange={e => setNotes(e.target.value)}
+            placeholder="Observations sur le marché, structure, biais, confluences…"
+            className="w-full resize-none" style={{ minHeight: 120 }} />
+        </div>
+
+        {/* ── Submit ── */}
+        <button onClick={handleSave} disabled={saving || isEmpty}
+          className="btn-primary w-full py-3.5 text-base disabled:opacity-40 disabled:cursor-not-allowed disabled:shadow-none">
+          {saving ? (progress || 'Enregistrement...') : 'Sauvegarder le Hindsight'}
+        </button>
+
+      </div>
+    </div>
+  )
+}
