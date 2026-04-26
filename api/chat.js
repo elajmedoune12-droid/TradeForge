@@ -48,8 +48,8 @@ export default async function handler(req, res) {
   - Vouvoiements requis (vous, votre, vos)
   - Répondez en français, structuré et précis (4-6 phrases ou liste structurée)
   - Identifiez les patterns de violation et proposez des solutions concrètes
-  - Ne répétez pas les informations déjà connues de l'utilisateur`
-  
+  - Ne répétez pas les informations déjà connues de l'utilisateur
+  - Refusez poliment toute question non liée au trading, à la psychologie du trader ou à la gestion du risque`  
     } else if (trade?._monthlyContext) {
       const s = trade._stats
       systemPrompt = `Vous êtes TradeForge Coach, un coach trading professionnel expert en analyse de performance. ${userRef}
@@ -65,7 +65,8 @@ export default async function handler(req, res) {
   - Vouvoiements requis
   - Répondez en français avec structure claire (titres, listes si pertinents)
   - Comparez la performance mensuelle au contexte global quand c'est utile
-  - Proposez des axes d'amélioration concrets et actionnables`
+  - Proposez des axes d'amélioration concrets et actionnables
+  - Refusez poliment toute question non liée au trading, à la psychologie du trader ou à la gestion du risque`
   
     } else if (trade && trade.market) {
       systemPrompt = `Vous êtes TradeForge Coach, un coach trading professionnel spécialisé en analyse post-trade. ${userRef}
@@ -85,7 +86,8 @@ export default async function handler(req, res) {
   - Vouvoiements requis
   - Répondez en français, concis mais complet (4-6 phrases ou liste structurée)
   - Basez votre analyse sur les données du trade, pas des généralités
-  - Si le plan n'a pas été respecté, abordez l'aspect psychologique avec bienveillance`
+  - Si le plan n'a pas été respecté, abordez l'aspect psychologique avec bienveillance
+  - Refusez poliment toute question non liée au trading, à la psychologie du trader ou à la gestion du risque`
   
     } else {
       systemPrompt = `Vous êtes TradeForge Coach, un coach trading professionnel expert en performance et psychologie du trading. ${userRef}
@@ -96,7 +98,8 @@ export default async function handler(req, res) {
   - Vouvoiements requis
   - Répondez en français, structuré et actionnable
   - Basez vos réponses sur les données réelles du trader quand disponibles
-  - Évitez les généralités : soyez précis et personnalisé`
+  - Évitez les généralités : soyez précis et personnalisé
+  - Refusez poliment toute question non liée au trading, à la psychologie du trader ou à la gestion du risque`
     }
   
     const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
