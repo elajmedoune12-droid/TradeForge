@@ -11,19 +11,36 @@ export default async function handler(req, res) {
   if (!authHeader) return res.status(401).json({ error: 'Token manquant' })
 
   const supabaseUrl = process.env.VITE_SUPABASE_URL
+  const anonKey     = process.env.VITE_SUPABASE_ANON_KEY
   const serviceKey  = process.env.SUPABASE_SERVICE_ROLE_KEY
 
   if (!serviceKey) return res.status(500).json({ error: 'SUPABASE_SERVICE_ROLE_KEY manquante' })
 
   // Vérifier l'utilisateur avec son token
-  const userSupabase = createClient(supabaseUrl, process.env.VITE_SUPABASE_ANON_KEY)
+  const userSupabase = createClient(supabaseUrl, anonKey)
   const { data: { user }, error: userError } = await userSupabase.auth.getUser(authHeader.replace('Bearer ', ''))
   if (userError || !user) return res.status(401).json({ error: 'Token invalide' })
 
-  // Supprimer avec la clé service
+  const uid = user.id
   const adminSupabase = createClient(supabaseUrl, serviceKey)
-  const { error } = await adminSupabase.auth.admin.deleteUser(user.id)
 
+  // Supprimer toutes les données (ordre important pour les clés étrangères)
+  await adminSupabase.from('backtest_sessions').delete().eq('user_id', uid)
+  await adminSupabase.from('backtest_goals').delete().eq('user_id', uid)
+  await adminSupabase.from('backtest_cycles').delete().eq('user_id', uid)
+  await adminSupabase.from('push_subscriptions').delete().eq('user_id', uid)
+  await adminSupabase.from('journal_entries').delete().eq('user_id', uid)
+  await adminSupabase.from('monthly_goals').delete().eq('user_id', uid)
+  await adminSupabase.from('rules').delete().eq('user_id', uid)
+  await adminSupabase.from('hindsights_standalone').delete().eq('user_id', uid)
+  await adminSupabase.from('hindsight').delete().eq('user_id', uid)
+  await adminSupabase.from('weekly_forecasts').delete().eq('user_id', uid)
+  await adminSupabase.from('trades').delete().eq('user_id', uid)
+  await adminSupabase.from('profiles').delete().eq('id', uid)
+
+  // Supprimer le compte auth
+  const { error } = await adminSupabase.auth.admin.deleteUser(uid)
   if (error) return res.status(500).json({ error: error.message })
+
   return res.status(200).json({ success: true })
 }
