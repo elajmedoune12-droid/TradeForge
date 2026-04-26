@@ -5,7 +5,7 @@ import { uploadImage, supabase } from '../services/supabase'
 import { useAuth } from '../hooks/useAuth'
 
 const DEFAULT_TIMEFRAMES = ['1m', '5m', '15m', '30m', '1h', '2h', '4h', '1j', '1sem', '1mois']
-const DEFAULT_MARKETS = ['Forex', 'Crypto', 'Actions', 'Indices', 'Matières premières', 'Obligations']
+const DEFAULT_MARKETS = ['EURUSD', 'GBPUSD', 'DXY', 'NAS100', 'S&P 500', 'XAUUSD', 'XAGUSD', 'USDJPY']
 const TF_KEY = 'tf_custom'
 const MKT_KEY = 'mkt_custom'
 
@@ -53,7 +53,7 @@ function TagGroup({ label, options, selected, onToggle, onAdd }) {
           <div className="flex items-center gap-1">
             <input autoFocus value={input} onChange={e => setInput(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && handleAdd()}
-              placeholder="Ex: 2h" className="w-20 text-xs" />
+              placeholder="Ex: EURGBP" className="w-20 text-xs" />
             <button type="button" onClick={handleAdd} className="text-forge-accent"><Check size={13} /></button>
             <button type="button" onClick={() => setAdding(false)} className="text-forge-muted"><X size={13} /></button>
           </div>
