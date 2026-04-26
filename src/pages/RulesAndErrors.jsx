@@ -278,6 +278,25 @@ function TabBacktest({ user }) {
   const leftMin  = Math.max(0, goalMin - totalMin)
   const progress = Math.min(100, Math.round((totalMin / goalMin) * 100))
   const done     = totalMin >= goalMin
+useEffect(() => {
+  if (!done) return
+  if (!('Notification' in window)) return
+  if (Notification.permission === 'granted') {
+    new Notification('TradeForge 🎉', {
+      body: `Objectif de ${currentCycle?.goal_hours}h de backtest atteint !`,
+      icon: '/icons/icon-192.png',
+    })
+  } else if (Notification.permission !== 'denied') {
+    Notification.requestPermission().then(perm => {
+      if (perm === 'granted') {
+        new Notification('TradeForge 🎉', {
+          body: `Objectif de ${currentCycle?.goal_hours}h de backtest atteint !`,
+          icon: '/icons/icon-192.png',
+        })
+      }
+    })
+  }
+}, [done])
   const weeks    = getWeeks(currentCycle?.sessions)
 
   if (loading) return (
