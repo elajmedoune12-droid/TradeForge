@@ -3,13 +3,13 @@ import { fr } from 'date-fns/locale'
 
 // ─── STATS ──────────────────────────────────────────────
 export const calcWinRate = (trades) => {
-  const includeBE = localStorage.getItem('winrate_include_be') === 'true'
+  const beSetting = localStorage.getItem('winrate_be_mode') || 'neutral'
   const activeTrades = trades.filter(t => t.result === 'tp' || t.result === 'sl' || t.result === 'be')
   if (!activeTrades.length) return 0
   const tp = activeTrades.filter(t => t.result === 'tp').length
   const be = activeTrades.filter(t => t.result === 'be').length
-  const wins = includeBE ? tp + be : tp
-  return Math.round((wins / activeTrades.length) * 100)
+  if (beSetting === 'win') return Math.round(((tp + be) / activeTrades.length) * 100)
+  return Math.round((tp / activeTrades.length) * 100)
 }
 
 export const calcAvgRR = (trades) => {

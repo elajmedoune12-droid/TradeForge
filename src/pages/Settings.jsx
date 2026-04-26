@@ -8,14 +8,12 @@ export default function Settings() {
   const { user } = useAuth()
   const navigate = useNavigate()
   const [loggingOut, setLoggingOut] = useState(false)
-  const [includeBE, setIncludeBE] = useState(() => {
-    return localStorage.getItem('winrate_include_be') === 'true'
-  })
+const [beMode, setBeMode] = useState(() => localStorage.getItem('winrate_be_mode') || 'neutral')
 
-  useEffect(() => {
-    localStorage.setItem('winrate_include_be', includeBE)
-    window.dispatchEvent(new Event('winrate_setting_changed'))
-  }, [includeBE])
+useEffect(() => {
+  localStorage.setItem('winrate_be_mode', beMode)
+  window.dispatchEvent(new Event('winrate_setting_changed'))
+}, [beMode])
 
   const handleLogout = async () => {
     setLoggingOut(true)
@@ -63,28 +61,29 @@ export default function Settings() {
           <BarChart2 size={14} className="text-forge-accent" />
           <p className="text-sm font-medium">Calcul du Win Rate</p>
         </div>
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-sm text-white">Inclure les BE</p>
-            <p className="text-xs text-forge-muted mt-0.5">
-              {includeBE ? 'BE comptés comme victoires' : 'BE exclus du calcul'}
-            </p>
-          </div>
-          <button
-            onClick={() => setIncludeBE(v => !v)}
-            className="relative w-11 h-6 rounded-full transition-all duration-200 flex-shrink-0"
-            style={{ background: includeBE ? '#F7B731' : 'rgba(255,255,255,0.1)' }}
-          >
-            <div className="absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-all duration-200"
-              style={{ left: includeBE ? '22px' : '2px' }} />
-          </button>
-        </div>
-        <p className="text-[10px] text-forge-muted mt-3 leading-relaxed">
-          {includeBE
-            ? 'Formule : TP + BE / (TP + SL + BE)'
-            : 'Formule : TP / (TP + SL + BE)'}
-          {' '}— Les Missed sont toujours exclus.
-        </p>
+       <p className="text-sm text-white mb-2">Compter les BE comme</p>
+<div className="flex gap-2">
+  {[
+    { value: 'loss', label: 'Perte' },
+    { value: 'neutral', label: 'Neutre' },
+    { value: 'win', label: 'Victoire' },
+  ].map(opt => (
+    <button key={opt.value} onClick={() => setBeMode(opt.value)}
+      className="flex-1 py-2 rounded-xl text-xs font-medium border transition-all"
+      style={beMode === opt.value
+        ? { background: 'rgba(247,183,49,0.15)', color: '#F7B731', borderColor: 'rgba(247,183,49,0.4)' }
+        : { background: 'rgba(255,255,255,0.04)', color: '#8B949E', borderColor: 'rgba(255,255,255,0.08)' }
+      }>
+      {opt.label}
+    </button>
+  ))}
+</div>
+<p className="text-[10px] text-forge-muted mt-2">
+  {beMode === 'win' ? 'Formule : (TP + BE) / (TP + SL + BE)'
+    : beMode === 'loss' ? 'Formule : TP / (TP + SL + BE) — BE = perte'
+    : 'Formule : TP / (TP + SL + BE) — BE neutre'}
+  {' '}— Missed toujours exclus.
+</p>
       </div>
 
       {/* Supabase config */}
