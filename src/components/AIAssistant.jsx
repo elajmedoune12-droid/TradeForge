@@ -376,28 +376,19 @@ export default function AIAssistant({ trade, onClose }) {
       const systemPrompt = buildSystemPrompt(trade, trades, displayName)
 
 // PAR ça :
-const apiKey = import.meta.env.VITE_GROQ_API_KEY
-if (!apiKey) throw new Error('VITE_GROQ_API_KEY manquante dans .env')
-
-const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+const res = await fetch('/api/chat', {
   method: 'POST',
-  headers: {
-    'Content-Type': 'application/json',
-    'Authorization': `Bearer ${apiKey}`,
-  },
+  headers: { 'Content-Type': 'application/json' },
   body: JSON.stringify({
-    model: 'llama-3.3-70b-versatile',
-    max_tokens: 1024,
-    temperature: 0.7,
-    messages: [
-      { role: 'system', content: systemPrompt },
-      ...newMessages.map(m => ({ role: m.role, content: m.content })),
-    ],
+    messages: newMessages.map(m => ({ role: m.role, content: m.content })),
+    trade,
+    allTrades: trades,
+    userName: displayName,
   }),
 })
-if (!res.ok) throw new Error(`Erreur Groq ${res.status}`)
+if (!res.ok) throw new Error(`Erreur API ${res.status}`)
 const data = await res.json()
-const content = data.choices?.[0]?.message?.content || ''
+const content = data.reply || ''
 
       setMessages(prev => [...prev, { role: 'assistant', content }])
     } catch (err) {
