@@ -465,11 +465,11 @@ export default function WeeklyForecast() {
         <div className="flex gap-4">
           {editMode ? (
             <>
-              <BiasSelector label="Forecast (EU)" value={form.bias_forecast} onChange={v => setForm(f => ({ ...f, bias_forecast: v }))} />
-              <BiasSelector label="Bias réel (EU)" value={form.bias_real} onChange={v => setForm(f => ({ ...f, bias_real: v }))} />
+              <BiasSelector label="Forecast (DXY)" value={form.bias_forecast} onChange={v => setForm(f => ({ ...f, bias_forecast: v }))} />
+              <BiasSelector label="Bias réel (DXY)" value={form.bias_real} onChange={v => setForm(f => ({ ...f, bias_real: v }))} />
             </>
           ) : (
-            [['Forecast (EU)', display.bias_forecast], ['Bias réel (EU)', display.bias_real]].map(([label, val]) => (
+            [['Forecast (DXY)', display.bias_forecast], ['Bias réel (DXY)', display.bias_real]].map(([label, val]) => (
               <div key={label} className="flex-1">
                 <p className="text-[10px] text-forge-muted uppercase tracking-wide mb-2">{label}</p>
                 {val
