@@ -375,22 +375,27 @@ export default function AIAssistant({ trade, onClose }) {
     try {
       const systemPrompt = buildSystemPrompt(trade, trades, displayName)
 
-// PAR ça :
-const res = await fetch('/api/chat', {
-  method: 'POST',
-  headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify({
-    messages: newMessages.map(m => ({ role: m.role, content: m.content })),
-    trade,
-    allTrades: trades,
-    userName: displayName,
-  }),
-})
-if (!res.ok) throw new Error(`Erreur API ${res.status}`)
-const data = await res.json()
-const content = data.reply || ''
+      const res = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          messages: newMessages.map(m => ({ role: m.role, content: m.content })),
+          systemPrompt,
+          trade,
+          allTrades: trades,
+          userName: displayName,
+        }),
+      })
+
+      if (!res.ok) {
+        const errData = await res.json()
+        throw new Error(`Erreur API ${res.status}: ${JSON.stringify(errData)}`)
+      }
+      const data = await res.json()
+      const content = data.reply || ''
 
       setMessages(prev => [...prev, { role: 'assistant', content }])
+
     } catch (err) {
       setError(`Impossible de contacter le coach : ${err.message}`)
       setMessages(prev => prev.slice(0, -1))
