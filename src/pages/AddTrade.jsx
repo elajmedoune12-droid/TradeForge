@@ -111,7 +111,7 @@ const RESULT_PILLS = [
   { value: 'missed', label: 'Missed',      color: { active: { background: 'rgba(139,148,158,0.15)', color: '#8B949E', borderColor: 'rgba(139,148,158,0.5)' } } },
 ]
 
-const REQUIRED_FIELDS = ['date', 'market', 'type', 'result', 'rr_planned', 'emotion', 'discipline_score', 'trend', 'day', 'session', 'style', 'market_structure']
+const REQUIRED_FIELDS = ['date', 'market', 'type', 'rr_planned', 'emotion', 'discipline_score', 'trend', 'session', 'style', 'market_structure']
 
 function ImageItem({ img, onRemove, onTimeframeChange }) {
   const isLink = img.isLink
@@ -283,25 +283,13 @@ if (k === 'date' && v) {
   }
 
   const validate = () => {
-    const errs = {}
-    REQUIRED_FIELDS.forEach(f => {
-      if (form[f] === '' || form[f] === null || form[f] === undefined) errs[f] = true
-    })
-
-    // ── Validation croisée RR / Résultat ──
-    if (form.result === 'sl' && form.rr_won !== '' && +form.rr_won < -1) {
-  errs.rr_won = 'Le SL ne peut pas dépasser -1R'
+  const errs = {}
+  REQUIRED_FIELDS.forEach(f => {
+    if (form[f] === '' || form[f] === null || form[f] === undefined) errs[f] = true
+  })
+  setErrors(errs)
+  return Object.keys(errs).length === 0
 }
-if (form.result === 'sl' && form.rr_won !== '' && +form.rr_won >= 0) {
-  errs.rr_won = 'SL doit avoir un RR négatif (ex: -1)'
-}
-    if (form.result === 'tp' && form.rr_won !== '' && +form.rr_won <= 0) {
-      errs.rr_won = 'TP doit avoir un RR positif (ex: 2.5)'
-    }
-
-    setErrors(errs)
-    return Object.keys(errs).length === 0
-  }
 
   const addItem = (item) => { setImages(imgs => [...imgs, item]); setShowAddPanel(false) }
   const removeNewImage = (i) => setImages(imgs => imgs.filter((_, idx) => idx !== i))
@@ -325,7 +313,7 @@ if (form.result === 'sl' && form.rr_won !== '' && +form.rr_won >= 0) {
         type:             form.type,
         rr_planned:       form.rr_planned !== '' ? +form.rr_planned : null,
         rr_won:           form.rr_won     !== '' ? +form.rr_won     : null,
-        result:           form.result,
+        result:           form.result || null,
         emotion:          form.emotion    || null,
         respect_plan:     form.respect_plan,
         discipline_score: +form.discipline_score,
@@ -481,7 +469,7 @@ if (form.result === 'sl' && form.rr_won !== '' && +form.rr_won >= 0) {
 
         {/* ── 2. Résultat ── */}
         <div className="card">
-          <p className="section-title mb-3">Résultat <span className="text-forge-red">*</span></p>
+          <p className="section-title mb-3">Résultat <span className="text-forge-muted text-xs normal-case">(optionnel)</span></p>
           <PillGroup options={RESULT_PILLS} value={form.result}
             onChange={v => set('result', v)} disabledValues={disabledResults} />
         </div>
@@ -514,11 +502,10 @@ if (form.result === 'sl' && form.rr_won !== '' && +form.rr_won >= 0) {
           </Field>
 
           <div className="grid grid-cols-2 gap-3">
-            <Field label="Jour" required>
-              <SelectInput value={form.day} onChange={v => set('day', v)}
-                options={DAYS} placeholder="Jour..." required />
-              {errors.day && <p className="text-xs text-forge-red mt-1">Obligatoire</p>}
-            </Field>
+            <Field label="Jour">
+  <input value={form.day} readOnly className="w-full opacity-60 cursor-default"
+    placeholder="Auto depuis la date" />
+</Field>
             <Field label="Style" required>
               <SelectInput value={form.style} onChange={v => set('style', v)}
                 options={STYLES} placeholder="Style..." required />
