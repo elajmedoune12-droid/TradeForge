@@ -620,7 +620,6 @@ export default function Layout() {
   const handleBell = (anchor) => {
     setNotifAnchor(anchor)
     setShowNotif(v => !v)
-    if (!showNotif) markAllRead()
   }
 
   const handleLogoutConfirmed = () => { setShowLogoutConfirm(false); signOut?.() }

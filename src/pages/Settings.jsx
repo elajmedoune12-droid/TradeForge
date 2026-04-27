@@ -1,19 +1,21 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { LogOut, Info, ChevronRight, BarChart2 } from 'lucide-react'
+import { LogOut, Info, ChevronRight, BarChart2, Bell, BellOff } from 'lucide-react'
 import { signOut } from '../services/supabase'
 import { useAuth } from '../hooks/useAuth'
+import { useNotifications } from '../hooks/useNotifications'
 
 export default function Settings() {
   const { user } = useAuth()
   const navigate = useNavigate()
   const [loggingOut, setLoggingOut] = useState(false)
-const [beMode, setBeMode] = useState(() => localStorage.getItem('winrate_be_mode') || 'neutral')
+  const [beMode, setBeMode] = useState(() => localStorage.getItem('winrate_be_mode') || 'neutral')
+  const { permission, subscribed, loading: notifLoading, subscribe, unsubscribe } = useNotifications()
 
-useEffect(() => {
-  localStorage.setItem('winrate_be_mode', beMode)
-  window.dispatchEvent(new Event('winrate_setting_changed'))
-}, [beMode])
+  useEffect(() => {
+    localStorage.setItem('winrate_be_mode', beMode)
+    window.dispatchEvent(new Event('winrate_setting_changed'))
+  }, [beMode])
 
   const handleLogout = async () => {
     setLoggingOut(true)
@@ -25,6 +27,8 @@ useEffect(() => {
   const avatarUrl   = meta.avatar_url || null
   const username    = meta.username || null
   const displayName = username || user?.email?.split('@')[0] || 'Trader'
+
+  const notifSupported = 'serviceWorker' in navigator && 'PushManager' in window
 
   return (
     <div className="page">
@@ -55,35 +59,78 @@ useEffect(() => {
         </div>
       </div>
 
+      {/* Notifications */}
+      <div className="card mb-4">
+        <div className="flex items-center gap-2 mb-3">
+          <Bell size={14} className="text-forge-accent" />
+          <p className="text-sm font-medium">Notifications Push</p>
+        </div>
+
+        {!notifSupported ? (
+          <p className="text-xs text-forge-muted">
+            Non supporté sur ce navigateur. Utilise Safari sur iPhone (iOS 16.4+) ou Chrome.
+          </p>
+        ) : permission === 'denied' ? (
+          <p className="text-xs text-forge-red">
+            Notifications bloquées. Autorise-les dans les réglages de ton navigateur.
+          </p>
+        ) : (
+          <>
+            <p className="text-xs text-forge-muted mb-3">
+              {subscribed
+                ? 'Tu recevras des rappels pour journaliser tes trades.'
+                : 'Active les notifications pour recevoir des rappels trading.'}
+            </p>
+            <button
+              onClick={subscribed ? unsubscribe : subscribe}
+              disabled={notifLoading}
+              className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-medium transition-all"
+              style={subscribed
+                ? { background: 'rgba(248,81,73,0.1)', border: '1px solid rgba(248,81,73,0.3)', color: '#F85149' }
+                : { background: 'rgba(247,183,49,0.1)', border: '1px solid rgba(247,183,49,0.3)', color: '#F7B731' }
+              }
+            >
+              {notifLoading ? (
+                <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+              ) : subscribed ? (
+                <><BellOff size={15} /> Désactiver les notifications</>
+              ) : (
+                <><Bell size={15} /> Activer les notifications</>
+              )}
+            </button>
+          </>
+        )}
+      </div>
+
       {/* Calcul Win Rate */}
       <div className="card mb-4">
         <div className="flex items-center gap-2 mb-3">
           <BarChart2 size={14} className="text-forge-accent" />
           <p className="text-sm font-medium">Calcul du Win Rate</p>
         </div>
-       <p className="text-sm text-white mb-2">Compter les BE comme</p>
-<div className="flex gap-2">
-  {[
-    { value: 'loss', label: 'Perte' },
-    { value: 'neutral', label: 'Neutre' },
-    { value: 'win', label: 'Victoire' },
-  ].map(opt => (
-    <button key={opt.value} onClick={() => setBeMode(opt.value)}
-      className="flex-1 py-2 rounded-xl text-xs font-medium border transition-all"
-      style={beMode === opt.value
-        ? { background: 'rgba(247,183,49,0.15)', color: '#F7B731', borderColor: 'rgba(247,183,49,0.4)' }
-        : { background: 'rgba(255,255,255,0.04)', color: '#8B949E', borderColor: 'rgba(255,255,255,0.08)' }
-      }>
-      {opt.label}
-    </button>
-  ))}
-</div>
-<p className="text-[10px] text-forge-muted mt-2">
-  {beMode === 'win' ? 'Formule : (TP + BE) / (TP + SL + BE)'
-    : beMode === 'loss' ? 'Formule : TP / (TP + SL + BE) — BE = perte'
-    : 'Formule : TP / (TP + SL) — BE exclu'}
-  {' '}— Missed toujours exclus.
-</p>
+        <p className="text-sm text-white mb-2">Compter les BE comme</p>
+        <div className="flex gap-2">
+          {[
+            { value: 'loss', label: 'Perte' },
+            { value: 'neutral', label: 'Neutre' },
+            { value: 'win', label: 'Victoire' },
+          ].map(opt => (
+            <button key={opt.value} onClick={() => setBeMode(opt.value)}
+              className="flex-1 py-2 rounded-xl text-xs font-medium border transition-all"
+              style={beMode === opt.value
+                ? { background: 'rgba(247,183,49,0.15)', color: '#F7B731', borderColor: 'rgba(247,183,49,0.4)' }
+                : { background: 'rgba(255,255,255,0.04)', color: '#8B949E', borderColor: 'rgba(255,255,255,0.08)' }
+              }>
+              {opt.label}
+            </button>
+          ))}
+        </div>
+        <p className="text-[10px] text-forge-muted mt-2">
+          {beMode === 'win' ? 'Formule : (TP + BE) / (TP + SL + BE)'
+            : beMode === 'loss' ? 'Formule : TP / (TP + SL + BE) — BE = perte'
+            : 'Formule : TP / (TP + SL) — BE exclu'}
+          {' '}— Missed toujours exclus.
+        </p>
       </div>
 
       {/* Supabase config */}
