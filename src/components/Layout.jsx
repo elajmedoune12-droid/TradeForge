@@ -5,6 +5,7 @@ import {
   Plus, BarChart2, BookMarked, X, Bell, LogOut, User, SlidersHorizontal,
   Calendar, CheckCheck, Zap, Clock, AlertCircle, Trash2,
   TrendingDown, Target, Award, AlertTriangle, Timer, ChevronRight,
+  ChevronLeft,  // ← ajoute ici
 } from 'lucide-react'
 import { useAuth } from '../hooks/useAuth'
 import { useTrades } from '../hooks/useTrades'
@@ -535,6 +536,7 @@ function NewMenu({ onClose }) {
 
 // ── Layout ────────────────────────────────────────────────────
 export default function Layout() {
+  const [sidebarOpen, setSidebarOpen] = useState(true)
   const [showMenu, setShowMenu]                   = useState(false)
   const [showNotif, setShowNotif]                 = useState(false)
   const [showUserPopup, setShowUserPopup]         = useState(false)
@@ -694,55 +696,99 @@ useEffect(() => {
   return (
     <div className="min-h-screen">
 
-      {/* Cloche desktop */}
-      <div className="hidden lg:flex fixed top-4 right-4 z-50">
-        <NotifBell onClick={() => handleBell('top-right')} count={unreadCount} urgentCount={urgentCount} />
-      </div>
+      {/* Cloche desktop — visible seulement si sidebar fermée */}
+<div className="hidden lg:flex fixed top-4 right-4 z-50">
+  <NotifBell onClick={() => handleBell('top-right')} count={unreadCount} urgentCount={urgentCount} />
+</div>
 
-      {/* Sidebar desktop */}
-      <aside className="hidden lg:flex fixed left-0 top-0 bottom-0 w-56 z-40 flex-col"
-        style={{ background: 'rgba(10,14,20,0.85)', backdropFilter: 'blur(20px)', borderRight: '1px solid rgba(255,255,255,0.06)' }}>
-        <div className="px-5 py-5 mb-2">
-          <span className="font-mono text-lg font-semibold tracking-tight">
-            <span className="text-forge-accent">TRADE</span><span className="text-white">FORGE</span>
-          </span>
-          <p className="text-[10px] text-forge-muted mt-0.5 font-mono">Journal avancé</p>
+{/* Sidebar desktop */}
+<aside className="hidden lg:flex fixed left-0 top-0 bottom-0 z-40 flex-col transition-all duration-300"
+  style={{
+    width: sidebarOpen ? '224px' : '64px',
+    background: 'rgba(10,14,20,0.85)',
+    backdropFilter: 'blur(20px)',
+    borderRight: '1px solid rgba(255,255,255,0.06)',
+  }}>
+
+{/* Logo + toggle */}
+<div className="px-3 py-5 mb-2 flex items-center justify-between overflow-hidden">
+{sidebarOpen && (
+  <div>
+    <span className="font-mono text-lg font-semibold tracking-tight whitespace-nowrap">
+      <span className="text-forge-accent">TRADE</span><span className="text-white">FORGE</span>
+    </span>
+    <p className="text-[10px] text-forge-muted mt-0.5 font-mono">Journal avancé</p>
+  </div>
+)}
+  <button onClick={() => setSidebarOpen(v => !v)}
+      className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 transition-all hover:bg-white/5"
+      style={{ border: '1px solid rgba(255,255,255,0.08)', marginLeft: sidebarOpen ? '0' : 'auto' }}>
+      {sidebarOpen
+        ? <ChevronLeft size={13} className="text-forge-muted" />
+        : <ChevronRight size={13} className="text-forge-muted" />
+      }
+    </button>
+  </div>
+
+  {/* Bouton Nouveau */}
+  <div className="px-3 mb-4">
+    {sidebarOpen ? (
+      <button onClick={() => setShowMenu(v => !v)} className="btn-primary w-full flex items-center justify-center gap-2">
+        <Plus size={15} /> Nouveau
+      </button>
+    ) : (
+      <button onClick={() => setShowMenu(v => !v)}
+        className="w-10 h-10 rounded-xl flex items-center justify-center mx-auto transition-all active:scale-95"
+        style={{ background: '#F7B731', color: '#070A0F', boxShadow: '0 0 16px rgba(247,183,49,0.35)' }}>
+        <Plus size={18} strokeWidth={2.5} />
+      </button>
+    )}
+  </div>
+
+  {/* Nav */}
+  <nav className="flex-1 px-2 space-y-0.5 overflow-y-auto overflow-x-hidden">
+    {navItems.map(({ to, icon: Icon, label }) => (
+      <NavLink key={to} to={to}
+        className={({ isActive }) =>
+          `flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all text-sm font-medium overflow-hidden ${
+            isActive
+              ? 'text-forge-accent bg-forge-accent/10 border border-forge-accent/20'
+              : 'text-forge-muted hover:text-white hover:bg-white/5'
+          }`}
+        title={!sidebarOpen ? label : undefined}>
+        <Icon size={16} strokeWidth={1.5} className="flex-shrink-0" />
+        {sidebarOpen && <span className="truncate">{label}</span>}
+      </NavLink>
+    ))}
+  </nav>
+
+  {/* User */}
+  <div className="px-3 pb-5 pt-2 border-t" style={{ borderColor: 'rgba(255,255,255,0.05)' }}>
+    {sidebarOpen ? (
+      <div role="button" tabIndex={0}
+        onClick={() => { setUserPopupAnchor('desktop'); setShowUserPopup(v => !v) }}
+        onKeyDown={e => e.key === 'Enter' && (setUserPopupAnchor('desktop'), setShowUserPopup(v => !v))}
+        className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl transition-all hover:bg-white/5 active:scale-[0.98] cursor-pointer"
+        style={{ border: '1px solid rgba(255,255,255,0.06)' }}>
+        <Avatar user={user} profile={profile} size="sm" asDiv onClick={() => {}} />
+        <div className="flex-1 text-left min-w-0">
+          <p className="text-xs font-medium truncate text-white">{displayName}</p>
+          <p className="text-[10px] text-forge-muted truncate">{user?.email}</p>
         </div>
-        <div className="px-3 mb-4">
-          <button onClick={() => setShowMenu(v => !v)} className="btn-primary w-full flex items-center justify-center gap-2">
-            <Plus size={15} /> Nouveau
-          </button>
+        <div className="text-forge-muted opacity-40">
+          <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+            <path d="M2 4L5 7L8 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
         </div>
-        <nav className="flex-1 px-2 space-y-0.5 overflow-y-auto">
-          {navItems.map(({ to, icon: Icon, label }) => (
-            <NavLink key={to} to={to}
-              className={({ isActive }) =>
-                `flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all text-sm font-medium ${
-                  isActive ? 'text-forge-accent bg-forge-accent/10 border border-forge-accent/20' : 'text-forge-muted hover:text-white hover:bg-white/5'
-                }`}>
-              <Icon size={16} strokeWidth={1.5} />{label}
-            </NavLink>
-          ))}
-        </nav>
-        <div className="px-3 pb-5 pt-2 border-t" style={{ borderColor: 'rgba(255,255,255,0.05)' }}>
-          <div role="button" tabIndex={0}
-            onClick={() => { setUserPopupAnchor('desktop'); setShowUserPopup(v => !v) }}
-            onKeyDown={e => e.key === 'Enter' && (setUserPopupAnchor('desktop'), setShowUserPopup(v => !v))}
-            className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl transition-all hover:bg-white/5 active:scale-[0.98] cursor-pointer"
-            style={{ border: '1px solid rgba(255,255,255,0.06)' }}>
-            <Avatar user={user} profile={profile} size="sm" asDiv onClick={() => {}} />
-            <div className="flex-1 text-left min-w-0">
-              <p className="text-xs font-medium truncate text-white">{displayName}</p>
-              <p className="text-[10px] text-forge-muted truncate">{user?.email}</p>
-            </div>
-            <div className="text-forge-muted opacity-40">
-              <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
-                <path d="M2 4L5 7L8 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-              </svg>
-            </div>
-          </div>
-        </div>
-      </aside>
+      </div>
+    ) : (
+      <div className="flex flex-col items-center gap-2">
+  <Avatar user={user} profile={profile} size="sm"
+    onClick={() => { setUserPopupAnchor('desktop'); setShowUserPopup(v => !v) }} />
+</div>
+    )}
+  </div>
+</aside>
 
       {/* Mobile top bar */}
       <div className="lg:hidden fixed top-0 left-0 right-0 z-40"
@@ -759,11 +805,29 @@ useEffect(() => {
         </div>
       </div>
 
-      {/* Content */}
-      <div className="lg:pl-56"
-        style={{ paddingTop: 'calc(env(safe-area-inset-top) + 48px)', paddingBottom: 'calc(env(safe-area-inset-bottom) + 64px)' }}>
-        <Outlet />
-      </div>
+{/* Header desktop — visible seulement si sidebar fermée */}
+{!sidebarOpen && (
+  <div className="hidden lg:flex fixed top-0 left-16 right-0 h-14 z-30 items-center justify-center"
+    style={{ background: 'rgba(10,14,20,0.85)', backdropFilter: 'blur(20px)', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+    <span className="font-mono text-lg font-bold tracking-tight">
+      <span className="text-forge-accent">TRADE</span><span className="text-white">FORGE</span>
+    </span>
+  </div>
+)}
+
+
+{/* Content */}
+<div className="transition-all duration-300"
+  style={{
+    paddingTop: window.innerWidth >= 1024
+      ? (!sidebarOpen ? '56px' : '0')
+      : 'calc(env(safe-area-inset-top) + 48px)',
+    paddingBottom: 'calc(env(safe-area-inset-bottom) + 64px)',
+  }}>
+  <div style={{ paddingLeft: window.innerWidth >= 1024 ? (sidebarOpen ? '224px' : '64px') : '0' }}>
+    <Outlet />
+  </div>
+</div>
 
       {/* Mobile bottom nav */}
       <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-40"

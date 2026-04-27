@@ -32,8 +32,9 @@ export default async function handler(req, res) {
 
   const payload = JSON.stringify({ title, body, url, tag: 'tradeforge' })
 
-  const results = await Promise.allSettled(
-    subs.map(sub =>
+  // APRÈS — correct
+const results = await Promise.allSettled(
+  subs.map(sub =>
       webpush.sendNotification(
         { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
         payload

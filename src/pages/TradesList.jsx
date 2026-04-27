@@ -1,13 +1,18 @@
 import { useState, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Plus, Search, SlidersHorizontal, X, ChevronDown, BarChart2, Target, TrendingUp, TrendingDown, Zap, Clock } from 'lucide-react'
+import {
+  Plus, Search, SlidersHorizontal, X, ChevronDown,
+  BarChart2, Target, TrendingUp, TrendingDown, Clock,
+  ChevronLeft, ChevronRight, Calendar, List,
+} from 'lucide-react'
 import {
   AreaChart, Area, BarChart, Bar, XAxis, YAxis, Tooltip,
   ResponsiveContainer, ReferenceLine, CartesianGrid, Cell
 } from 'recharts'
 import { useTrades } from '../hooks/useTrades'
-import { fmtDate, MARKETS, calcWinRate } from '../utils'
-import { format, parseISO } from 'date-fns'
+import { fmtDate, MARKETS, calcWinRate, calcPnl } from '../utils'
+import { format, parseISO, startOfMonth, endOfMonth, eachDayOfInterval, getDay, addMonths, subMonths, isSameMonth } from 'date-fns'
+import { fr } from 'date-fns/locale'
 
 const RESULTS_OPTIONS = [
   { value: 'tp',     label: 'Take Profit', color: '#2EA043' },
@@ -15,26 +20,24 @@ const RESULTS_OPTIONS = [
   { value: 'be',     label: 'Breakeven',   color: '#58a6ff' },
   { value: 'missed', label: 'Missed',      color: '#8B949E' },
 ]
-
 const TYPE_OPTIONS = [
   { value: 'buy',  label: '↑ BUY',  color: '#2EA043' },
   { value: 'sell', label: '↓ SELL', color: '#F85149' },
 ]
-
 const SORT_OPTIONS = [
-  { value: 'date_desc',       label: 'Date (récent)' },
-  { value: 'date_asc',        label: 'Date (ancien)' },
-  { value: 'rr_desc',         label: 'RR (élevé)' },
-  { value: 'discipline_desc', label: 'Discipline (élevé)' },
+  { value: 'date_desc',       label: 'Date (récent)'     },
+  { value: 'date_asc',        label: 'Date (ancien)'     },
+  { value: 'rr_desc',         label: 'RR (élevé)'        },
+  { value: 'discipline_desc', label: 'Discipline (élevé)'},
 ]
-
 const CHART_MODES = [
-  { value: 'equity',  label: 'Courbe' },
-  { value: 'rr',      label: 'RR / Trade' },
+  { value: 'equity',  label: 'Courbe'    },
+  { value: 'rr',      label: 'RR / Trade'},
   { value: 'results', label: 'Résultats' },
 ]
+const DAYS_FR = ['Dim', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam']
 
-// ── StatCard — identique au Dashboard ─────────────────────
+// ── StatCard ──────────────────────────────────────────────────
 const StatCard = ({ label, value, sub, color, icon: Icon, glow }) => (
   <div className="card flex flex-col gap-1 relative overflow-hidden"
     style={{ borderColor: glow ? `${glow}33` : undefined }}>
@@ -52,7 +55,7 @@ const StatCard = ({ label, value, sub, color, icon: Icon, glow }) => (
 )
 
 const Badge = ({ result }) => {
-  const map = { tp: 'badge-tp', sl: 'badge-sl', be: 'badge-be', missed: 'badge-missed' }
+  const map    = { tp: 'badge-tp', sl: 'badge-sl', be: 'badge-be', missed: 'badge-missed' }
   const labels = { tp: 'TP', sl: 'SL', be: 'BE', missed: 'Missed' }
   return <span className={map[result] || 'badge-missed'}>{labels[result]}</span>
 }
@@ -111,6 +114,324 @@ const ResultsTooltip = ({ active, payload, label }) => {
   )
 }
 
+// ── Calendrier ────────────────────────────────────────────────
+function TradeCalendar({ trades, onDayClick }) {
+  const [currentMonth, setCurrentMonth] = useState(new Date())
+
+  const monthStart = startOfMonth(currentMonth)
+  const monthEnd   = endOfMonth(currentMonth)
+  const days       = eachDayOfInterval({ start: monthStart, end: monthEnd })
+  const startDow   = getDay(monthStart)
+  const blanks     = Array(startDow).fill(null)
+
+  const byDate = useMemo(() => {
+    const map = {}
+    trades.forEach(t => {
+      if (!map[t.date]) map[t.date] = []
+      map[t.date].push(t)
+    })
+    return map
+  }, [trades])
+
+  const getDayProfit = (ts) => {
+    if (!ts?.length) return null
+    return +ts.reduce((acc, t) => acc + calcPnl(t), 0).toFixed(2)
+  }
+
+  const weeks = useMemo(() => {
+    const all = [...blanks.map(() => null), ...days]
+    const result = []
+    for (let i = 0; i < all.length; i += 7) {
+      const chunk = all.slice(i, i + 7).filter(Boolean)
+      if (!chunk.length) continue
+      let profit = 0, count = 0
+      chunk.forEach(d => {
+        const ts = byDate[format(d, 'yyyy-MM-dd')] || []
+        ts.forEach(t => { count++; profit += calcPnl(t) })
+      })
+      result.push({ profit: +profit.toFixed(2), count })
+    }
+    return result
+  }, [days, byDate, blanks.length])
+
+  const monthStats = useMemo(() => {
+    const ts = trades.filter(t => t.date.startsWith(format(currentMonth, 'yyyy-MM')))
+    const profit = ts.reduce((acc, t) => acc + calcPnl(t), 0)
+    return {
+      count: ts.length,
+      profit: +profit.toFixed(2),
+      days: new Set(ts.map(t => t.date)).size,
+      winRate: calcWinRate(ts),
+    }
+  }, [trades, currentMonth])
+
+  const today = format(new Date(), 'yyyy-MM-dd')
+  const allCells = [...blanks, ...days]
+  const weekRows = []
+  for (let i = 0; i < allCells.length; i += 7) weekRows.push(allCells.slice(i, i + 7))
+
+  return (
+    <div className="mb-4 rounded-2xl overflow-hidden"
+      style={{
+        background: 'linear-gradient(180deg, rgba(12,16,24,0.98) 0%, rgba(8,11,18,0.98) 100%)',
+        border: '1px solid rgba(255,255,255,0.07)',
+        boxShadow: '0 20px 60px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.05)',
+      }}>
+
+      {/* Header */}
+      <div className="px-4 pt-4 pb-4"
+        style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', background: 'rgba(255,255,255,0.01)' }}>
+
+        {/* Navigation mois */}
+        <div className="flex items-center justify-between mb-4">
+          <button onClick={() => setCurrentMonth(d => subMonths(d, 1))}
+            className="w-9 h-9 rounded-xl flex items-center justify-center transition-all active:scale-95 hover:bg-white/5"
+            style={{ border: '1px solid rgba(255,255,255,0.08)' }}>
+            <ChevronLeft size={16} style={{ color: '#8B949E' }} />
+          </button>
+
+          <div className="text-center">
+            <p className="text-base font-bold capitalize text-white tracking-wide">
+              {format(currentMonth, 'MMMM yyyy', { locale: fr })}
+            </p>
+          </div>
+
+          <button onClick={() => setCurrentMonth(d => addMonths(d, 1))}
+            disabled={isSameMonth(currentMonth, new Date())}
+            className="w-9 h-9 rounded-xl flex items-center justify-center transition-all active:scale-95 hover:bg-white/5 disabled:opacity-20"
+            style={{ border: '1px solid rgba(255,255,255,0.08)' }}>
+            <ChevronRight size={16} style={{ color: '#8B949E' }} />
+          </button>
+        </div>
+
+        {/* Stats 4 cards */}
+        <div className="grid grid-cols-4 gap-2">
+          {[
+            { label: 'Trades',   value: monthStats.count || '—',  color: '#fff' },
+            { label: 'Jours',    value: monthStats.days || '—',    color: '#fff' },
+            { label: 'Win Rate', value: monthStats.count ? `${monthStats.winRate}%` : '—',
+              color: !monthStats.count ? '#8B949E' : monthStats.winRate >= 50 ? '#2EA043' : '#F85149',
+              glow:  !monthStats.count ? null : monthStats.winRate >= 50 ? 'rgba(46,160,67,0.15)' : 'rgba(248,81,73,0.15)' },
+            { label: 'Profit',   value: monthStats.count ? `${monthStats.profit >= 0 ? '+' : ''}${monthStats.profit}R` : '—',
+              color: !monthStats.count ? '#8B949E' : monthStats.profit >= 0 ? '#2EA043' : '#F85149',
+              glow:  !monthStats.count ? null : monthStats.profit >= 0 ? 'rgba(46,160,67,0.15)' : 'rgba(248,81,73,0.15)' },
+          ].map(s => (
+            <div key={s.label} className="relative text-center rounded-xl py-2.5 overflow-hidden"
+              style={{
+                background: s.glow ? s.glow : 'rgba(255,255,255,0.03)',
+                border: `1px solid ${s.glow ? s.color + '33' : 'rgba(255,255,255,0.06)'}`,
+              }}>
+              <p className="text-[9px] font-semibold uppercase tracking-widest mb-1"
+                style={{ color: 'rgba(139,148,158,0.7)' }}>{s.label}</p>
+              <p className="text-sm font-mono font-black leading-none" style={{ color: s.color }}>{s.value}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Corps */}
+      <div className="p-3">
+        <div className="flex gap-1.5">
+          {/* Calendrier */}
+          <div className="flex-1 min-w-0">
+
+            {/* En-têtes jours */}
+            <div className="grid grid-cols-7 gap-1 mb-1.5">
+              {DAYS_FR.map((d, i) => (
+                <div key={d} className="text-center text-[9px] font-bold uppercase tracking-wider py-1.5 rounded-lg"
+                  style={{
+                    color: i === 0 ? 'rgba(247,183,49,0.7)' : 'rgba(139,148,158,0.5)',
+                    background: i === 0 ? 'rgba(247,183,49,0.05)' : 'transparent',
+                  }}>{d}</div>
+              ))}
+            </div>
+
+            {/* Semaines */}
+            {weekRows.map((week, wi) => (
+              <div key={wi} className="grid grid-cols-7 gap-1 mb-1">
+                {week.map((day, di) => {
+                  if (!day) return <div key={di} />
+                  const iso     = format(day, 'yyyy-MM-dd')
+                  const ts      = byDate[iso]
+                  const profit  = getDayProfit(ts)
+                  const isToday = iso === today
+                  const isPos   = profit !== null && profit > 0
+                  const isNeg   = profit !== null && profit < 0
+                  const isBreak = profit !== null && profit === 0 && ts?.length
+                  const hasTrade = ts?.length > 0
+                  const isSun   = di === 0
+
+                  return (
+                    <button key={di}
+                      onClick={() => hasTrade && onDayClick(ts)}
+                      className="relative rounded-xl flex flex-col items-center justify-start overflow-hidden transition-all"
+                      style={{
+                        aspectRatio: '1',
+                        cursor: hasTrade ? 'pointer' : 'default',
+                        padding: '5px 2px 4px',
+                        background: isPos   ? 'linear-gradient(135deg, rgba(46,160,67,0.18), rgba(46,160,67,0.08))'
+                          : isNeg   ? 'linear-gradient(135deg, rgba(248,81,73,0.18), rgba(248,81,73,0.08))'
+                          : isBreak ? 'linear-gradient(135deg, rgba(88,166,255,0.12), rgba(88,166,255,0.05))'
+                          : isSun   ? 'rgba(247,183,49,0.03)'
+                          : 'rgba(255,255,255,0.02)',
+                        border: `1px solid ${
+                          isToday ? '#F7B731'
+                          : isPos ? 'rgba(46,160,67,0.35)'
+                          : isNeg ? 'rgba(248,81,73,0.35)'
+                          : isBreak ? 'rgba(88,166,255,0.25)'
+                          : isSun ? 'rgba(247,183,49,0.1)'
+                          : 'rgba(255,255,255,0.04)'
+                        }`,
+                        boxShadow: isToday ? '0 0 12px rgba(247,183,49,0.25), inset 0 1px 0 rgba(247,183,49,0.2)'
+                          : isPos ? '0 2px 8px rgba(46,160,67,0.15)'
+                          : isNeg ? '0 2px 8px rgba(248,81,73,0.15)'
+                          : 'none',
+                      }}>
+
+                      {/* Numéro du jour */}
+                      <span className="text-[10px] font-bold leading-none"
+                        style={{
+                          color: isToday ? '#F7B731'
+                            : hasTrade ? (isPos ? '#2EA043' : isNeg ? '#F85149' : '#58a6ff')
+                            : isSun ? 'rgba(247,183,49,0.4)'
+                            : 'rgba(139,148,158,0.35)',
+                        }}>
+                        {format(day, 'd')}
+                      </span>
+
+                      {/* Profit */}
+                      {hasTrade && profit !== null && (
+                        <span className="text-[8px] font-mono font-black mt-0.5 leading-none"
+                          style={{ color: isPos ? '#2EA043' : isNeg ? '#F85149' : '#58a6ff' }}>
+                          {profit > 0 ? '+' : ''}{profit.toFixed(1)}
+                        </span>
+                      )}
+
+                      {/* Nb trades */}
+                      {hasTrade && (
+                        <span className="text-[7px] leading-none mt-0.5 font-medium"
+                          style={{ color: 'rgba(139,148,158,0.5)' }}>
+                          {ts.length}t
+                        </span>
+                      )}
+
+                      {/* Barre colorée en bas */}
+                      {hasTrade && (
+                        <div className="absolute bottom-0 left-0 right-0 h-0.5 rounded-b-xl"
+                          style={{ background: isPos ? '#2EA043' : isNeg ? '#F85149' : '#58a6ff', opacity: 0.6 }} />
+                      )}
+
+                      {/* Dot aujourd'hui */}
+                      {isToday && !hasTrade && (
+                        <div className="absolute bottom-1.5 w-1 h-1 rounded-full" style={{ background: '#F7B731' }} />
+                      )}
+                    </button>
+                  )
+                })}
+              </div>
+            ))}
+          </div>
+
+          {/* Colonne semaines */}
+          <div className="flex flex-col w-[52px] flex-shrink-0 gap-1">
+            <div className="text-[9px] font-bold uppercase tracking-wider text-center py-1.5 rounded-lg mb-0.5"
+              style={{ color: 'rgba(139,148,158,0.5)' }}>Sem</div>
+            {weeks.map((w, i) => (
+              <div key={i} className="flex-1 flex flex-col items-center justify-center rounded-xl"
+                style={{
+                  minHeight: '40px',
+                  background: w.count === 0 ? 'rgba(255,255,255,0.02)'
+                    : w.profit > 0 ? 'linear-gradient(135deg, rgba(46,160,67,0.12), rgba(46,160,67,0.05))'
+                    : w.profit < 0 ? 'linear-gradient(135deg, rgba(248,81,73,0.12), rgba(248,81,73,0.05))'
+                    : 'rgba(88,166,255,0.07)',
+                  border: `1px solid ${
+                    w.count === 0 ? 'rgba(255,255,255,0.04)'
+                    : w.profit > 0 ? 'rgba(46,160,67,0.2)'
+                    : w.profit < 0 ? 'rgba(248,81,73,0.2)'
+                    : 'rgba(88,166,255,0.2)'
+                  }`,
+                  boxShadow: w.count > 0 && w.profit > 0 ? '0 2px 8px rgba(46,160,67,0.1)'
+                    : w.count > 0 && w.profit < 0 ? '0 2px 8px rgba(248,81,73,0.1)'
+                    : 'none',
+                }}>
+                {w.count > 0 ? (
+                  <>
+                    <span className="text-[9px] font-mono font-black leading-none"
+                      style={{ color: w.profit > 0 ? '#2EA043' : w.profit < 0 ? '#F85149' : '#58a6ff' }}>
+                      {w.profit > 0 ? '+' : ''}{w.profit}R
+                    </span>
+                    <span className="text-[7px] mt-0.5 font-medium"
+                      style={{ color: 'rgba(139,148,158,0.5)' }}>{w.count}t</span>
+                  </>
+                ) : (
+                  <span className="text-[8px]" style={{ color: 'rgba(255,255,255,0.06)' }}>—</span>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ── Modal trades du jour ──────────────────────────────────────
+function DayTradesModal({ trades, onClose, navigate }) {
+  if (!trades?.length) return null
+  const date = trades[0].date
+
+  return (
+    <>
+      <div className="fixed inset-0 z-40" style={{ background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)' }} onClick={onClose} />
+      <div className="fixed z-50 left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-sm rounded-2xl overflow-hidden"
+        style={{ background: 'rgba(14,18,26,0.99)', border: '1px solid rgba(255,255,255,0.12)', boxShadow: '0 24px 64px rgba(0,0,0,0.7)', maxHeight: '80vh' }}>
+        <div className="flex items-center justify-between px-4 pt-4 pb-3 border-b" style={{ borderColor: 'rgba(255,255,255,0.07)' }}>
+          <div>
+            <p className="text-sm font-semibold text-white">{fmtDate(date)}</p>
+            <p className="text-[10px] text-forge-muted mt-0.5">{trades.length} trade{trades.length > 1 ? 's' : ''}</p>
+          </div>
+          <button onClick={onClose} className="text-forge-muted hover:text-white transition-colors"><X size={16} /></button>
+        </div>
+        <div className="overflow-y-auto p-3 space-y-2" style={{ maxHeight: 'calc(80vh - 60px)' }}>
+          {trades.map(t => {
+            const colors = { tp: '#2EA043', sl: '#F85149', be: '#58a6ff', missed: '#8B949E' }
+            const color  = colors[t.result] || '#8B949E'
+            return (
+              <button key={t.id}
+                onClick={() => { onClose(); navigate(`/trades/${t.id}`) }}
+                className="w-full flex items-center gap-3 p-3 rounded-xl text-left transition-all active:scale-[0.98] hover:bg-white/5"
+                style={{ border: `1px solid ${color}25`, background: `${color}08` }}>
+                <div className="w-2 h-8 rounded-full flex-shrink-0" style={{ background: color }} />
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-semibold text-white">{t.market}</span>
+                    <span className="text-xs font-mono" style={{ color: t.type === 'buy' ? '#2EA043' : '#F85149' }}>
+                      {t.type?.toUpperCase()}
+                    </span>
+                  </div>
+                  {t.session && <p className="text-[10px] text-forge-muted mt-0.5">{t.session}</p>}
+                </div>
+                <div className="text-right flex-shrink-0">
+                  <span className="text-xs font-semibold px-2 py-0.5 rounded-lg"
+                    style={{ background: `${color}20`, color }}>
+                    {t.result?.toUpperCase()}
+                  </span>
+                  {t.rr_won != null && (
+                    <p className="text-xs font-mono mt-0.5" style={{ color }}>
+                      {t.rr_won >= 0 ? '+' : ''}{t.rr_won}R
+                    </p>
+                  )}
+                </div>
+              </button>
+            )
+          })}
+        </div>
+      </div>
+    </>
+  )
+}
+
+// ── Page principale ───────────────────────────────────────────
 export default function TradesList() {
   const navigate = useNavigate()
   const { trades, loading } = useTrades()
@@ -125,7 +446,8 @@ export default function TradesList() {
   const [sortBy, setSortBy]                 = useState('date_desc')
   const [panelOpen, setPanelOpen]           = useState(false)
   const [chartMode, setChartMode]           = useState('equity')
-  const [showChart, setShowChart]           = useState(true)
+  const [viewMode, setViewMode]             = useState('calendar') // 'calendar' | 'list'
+  const [dayTrades, setDayTrades]           = useState(null)
 
   const filtered = useMemo(() => {
     let list = trades.filter(t => {
@@ -149,16 +471,14 @@ export default function TradesList() {
 
   const chartData = useMemo(() => {
     const sorted = [...filtered].sort((a, b) => a.date.localeCompare(b.date))
-
     if (chartMode === 'equity') {
       let cum = 0
       return sorted.map(t => {
-        const pnl = t.result === 'tp' ? (t.rr_won || 0) : t.result === 'sl' ? (t.rr_won || -1) : 0
+        const pnl = calcPnl(t)
         cum += pnl
         return { label: format(parseISO(t.date), 'dd/MM'), equity: +cum.toFixed(2) }
       })
     }
-
     if (chartMode === 'rr') {
       return sorted.map((t, i) => ({
         label: `#${i + 1}`,
@@ -166,7 +486,6 @@ export default function TradesList() {
         result: t.result,
       }))
     }
-
     if (chartMode === 'results') {
       const byMonth = {}
       sorted.forEach(t => {
@@ -176,23 +495,18 @@ export default function TradesList() {
       })
       return Object.values(byMonth)
     }
-
     return []
   }, [filtered, chartMode])
 
   const kpis = useMemo(() => {
     const total = filtered.length
     if (total === 0) return null
-    const tp     = filtered.filter(t => t.result === 'tp').length
-    const sl     = filtered.filter(t => t.result === 'sl').length
-    const be     = filtered.filter(t => t.result === 'be').length
-    const missed = filtered.filter(t => t.result === 'missed').length
+    const tp      = filtered.filter(t => t.result === 'tp').length
+    const sl      = filtered.filter(t => t.result === 'sl').length
+    const be      = filtered.filter(t => t.result === 'be').length
+    const missed  = filtered.filter(t => t.result === 'missed').length
     const winRate = calcWinRate(filtered)
-    const profit = +filtered.reduce((sum, t) => {
-      if (t.result === 'tp') return sum + (t.rr_won || 0)
-      if (t.result === 'sl') return sum + (t.rr_won || -1)
-      return sum
-    }, 0).toFixed(2)
+    const profit = +filtered.reduce((sum, t) => sum + calcPnl(t), 0).toFixed(2)
     const avgRR = tp > 0
       ? +(filtered.filter(t => t.result === 'tp').reduce((s, t) => s + (t.rr_won || 0), 0) / tp).toFixed(2)
       : 0
@@ -211,11 +525,11 @@ export default function TradesList() {
 
   const activeFilters = [
     filterResult   && { label: RESULTS_OPTIONS.find(r => r.value === filterResult)?.label, clear: () => setFilterResult('') },
-    filterMarket   && { label: filterMarket, clear: () => setFilterMarket('') },
-    filterType     && { label: filterType.toUpperCase(), clear: () => setFilterType('') },
-    filterMonth    && { label: filterMonth, clear: () => setFilterMonth('') },
-    filterDateFrom && { label: `Depuis ${filterDateFrom}`, clear: () => setFilterDateFrom('') },
-    filterDateTo   && { label: `Jusqu'au ${filterDateTo}`, clear: () => setFilterDateTo('') },
+    filterMarket   && { label: filterMarket,          clear: () => setFilterMarket('')   },
+    filterType     && { label: filterType.toUpperCase(), clear: () => setFilterType('')  },
+    filterMonth    && { label: filterMonth,            clear: () => setFilterMonth('')    },
+    filterDateFrom && { label: `Depuis ${filterDateFrom}`,    clear: () => setFilterDateFrom('') },
+    filterDateTo   && { label: `Jusqu'au ${filterDateTo}`,   clear: () => setFilterDateTo('')   },
   ].filter(Boolean)
 
   const hasFilters = activeFilters.length > 0 || search
@@ -235,7 +549,7 @@ export default function TradesList() {
   return (
     <div className="page">
 
-      {/* ── Header ── */}
+      {/* Header */}
       <div className="flex items-center justify-between mb-4">
         <h1 className="text-lg font-medium">Trades</h1>
         <button onClick={() => navigate('/trades/new')} className="btn-primary flex items-center gap-1.5">
@@ -243,7 +557,7 @@ export default function TradesList() {
         </button>
       </div>
 
-      {/* ── Search + filter toggle ── */}
+      {/* Search + filtres */}
       <div className="flex gap-2 mb-3">
         <div className="relative flex-1">
           <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-forge-muted pointer-events-none" />
@@ -267,7 +581,7 @@ export default function TradesList() {
         </button>
       </div>
 
-      {/* ── Active chips ── */}
+      {/* Chips filtres actifs */}
       {activeFilters.length > 0 && (
         <div className="flex flex-wrap gap-1.5 mb-3">
           {activeFilters.map((f, i) => (
@@ -279,43 +593,28 @@ export default function TradesList() {
         </div>
       )}
 
-      {/* ── KPIs — style Dashboard ── */}
+      {/* KPIs */}
       {kpis && (
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-5">
-          <StatCard
-            label="Win Rate"
-            value={`${kpis.winRate}%`}
-            sub={`${kpis.tp} TP / ${kpis.sl} SL`}
+          <StatCard label="Win Rate" value={`${kpis.winRate}%`} sub={`${kpis.tp} TP / ${kpis.sl} SL`}
             color={kpis.winRate >= 50 ? 'text-forge-green' : 'text-forge-red'}
-            icon={Target}
-            glow={kpis.winRate >= 50 ? '#2EA043' : '#F85149'}
-          />
-          <StatCard
-            label="Profit total"
+            icon={Target} glow={kpis.winRate >= 50 ? '#2EA043' : '#F85149'} />
+          <StatCard label="Profit total"
             value={kpis.profit >= 0 ? `+${kpis.profit}R` : `${kpis.profit}R`}
             sub={`${kpis.total} trade${kpis.total !== 1 ? 's' : ''}${hasFilters ? ` / ${trades.length}` : ''}`}
             color={kpis.profit >= 0 ? 'text-forge-green' : 'text-forge-red'}
             icon={kpis.profit >= 0 ? TrendingUp : TrendingDown}
-            glow={kpis.profit >= 0 ? '#2EA043' : '#F85149'}
-          />
-          <StatCard
-            label="RR Moyen"
-            value={kpis.avgRR > 0 ? `${kpis.avgRR}R` : '—'}
-            sub="sur trades gagnants"
-            icon={BarChart2}
-          />
-          <StatCard
-            label="Meilleure session"
+            glow={kpis.profit >= 0 ? '#2EA043' : '#F85149'} />
+          <StatCard label="RR Moyen" value={kpis.avgRR > 0 ? `${kpis.avgRR}R` : '—'}
+            sub="sur trades gagnants" icon={BarChart2} />
+          <StatCard label="Meilleure session"
             value={kpis.bestSession ? kpis.bestSession.split(' ')[0] : '—'}
-            sub={kpis.bestSession || 'Aucune donnée'}
-            color="text-forge-accent"
-            icon={Clock}
-            glow="#F7B731"
-          />
+            sub={kpis.bestSession || 'Aucune donnée'} color="text-forge-accent"
+            icon={Clock} glow="#F7B731" />
         </div>
       )}
 
-      {/* ── Graphique ── */}
+      {/* Graphique */}
       {filtered.length > 1 && (
         <div className="card mb-4"
           style={{ borderColor: chartMode === 'equity' ? (isUp ? 'rgba(46,160,67,0.2)' : 'rgba(248,81,73,0.2)') : 'rgba(255,255,255,0.07)' }}>
@@ -338,7 +637,6 @@ export default function TradesList() {
             </div>
           </div>
 
-          {/* Equity */}
           {chartMode === 'equity' && (
             <>
               <div className="flex items-baseline gap-2 mb-3">
@@ -372,7 +670,6 @@ export default function TradesList() {
             </>
           )}
 
-          {/* RR par trade */}
           {chartMode === 'rr' && (
             <>
               <p className="text-xs text-forge-muted mb-3">RR réalisé par trade</p>
@@ -393,7 +690,6 @@ export default function TradesList() {
             </>
           )}
 
-          {/* Résultats par mois */}
           {chartMode === 'results' && (
             <>
               <p className="text-xs text-forge-muted mb-3">Distribution des résultats par mois</p>
@@ -422,7 +718,33 @@ export default function TradesList() {
         </div>
       )}
 
-      {/* ── Filter panel ── */}
+      {/* Toggle vue calendrier / liste */}
+      <div className="flex items-center justify-between mb-3">
+        <p className="text-xs text-forge-muted">
+          {filtered.length} trade{filtered.length !== 1 ? 's' : ''}
+          {hasFilters ? ` sur ${trades.length}` : ''}
+        </p>
+        <div className="flex gap-1 p-1 rounded-xl" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)' }}>
+          <button onClick={() => setViewMode('calendar')}
+            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all"
+            style={viewMode === 'calendar'
+              ? { background: 'rgba(247,183,49,0.15)', color: '#F7B731' }
+              : { color: '#8B949E' }
+            }>
+            <Calendar size={12} /> Calendrier
+          </button>
+          <button onClick={() => setViewMode('list')}
+            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all"
+            style={viewMode === 'list'
+              ? { background: 'rgba(247,183,49,0.15)', color: '#F7B731' }
+              : { color: '#8B949E' }
+            }>
+            <List size={12} /> Liste
+          </button>
+        </div>
+      </div>
+
+      {/* Panneau filtres */}
       {panelOpen && (
         <div className="card mb-4 space-y-5"
           style={{ border: '1px solid rgba(247,183,49,0.15)', background: 'rgba(16,20,28,0.9)' }}>
@@ -497,60 +819,80 @@ export default function TradesList() {
         </div>
       )}
 
-      {/* ── Trade list ── */}
-      <div className="space-y-2">
-        {filtered.length === 0 && (
-          <div className="text-center py-16">
-            <p className="text-forge-muted text-sm">
-              {trades.length === 0 ? 'Aucun trade. Ajoutez votre premier !' : 'Aucun résultat pour ces filtres.'}
-            </p>
-            {hasFilters && trades.length > 0 && (
-              <button onClick={clearAll} className="mt-2 text-xs text-forge-accent hover:underline">
-                Effacer les filtres
-              </button>
-            )}
-          </div>
-        )}
+      {/* Vue Calendrier */}
+      {viewMode === 'calendar' && filtered.length > 0 && (
+        <TradeCalendar trades={filtered} onDayClick={setDayTrades} />
+      )}
 
-        {filtered.map(t => (
-          <div key={t.id} onClick={() => navigate(`/trades/${t.id}`)}
-            className="card flex items-center gap-3 cursor-pointer hover:border-forge-muted/30 active:scale-[0.99] transition-all">
-            <div className={`w-1.5 h-10 rounded-full flex-shrink-0 ${
-              t.result === 'tp' ? 'bg-forge-green'
-              : t.result === 'sl' ? 'bg-forge-red'
-              : t.result === 'be' ? 'bg-blue-400'
-              : 'bg-forge-muted'
-            }`} />
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2">
-                <p className="text-sm font-medium">{t.market}</p>
-                <span className={`text-xs font-mono ${t.type === 'buy' ? 'text-forge-green' : 'text-forge-red'}`}>
-                  {t.type?.toUpperCase()}
-                </span>
-                {t.session && <span className="text-[10px] text-forge-muted hidden sm:inline">{t.session}</span>}
-              </div>
-              <p className="text-xs text-forge-muted">{fmtDate(t.date)}</p>
-            </div>
-            <div className="text-right flex-shrink-0">
-              <Badge result={t.result} />
-              {t.rr_won != null && (
-                <p className="text-xs mt-0.5 font-mono"
-                  style={{ color: t.rr_won >= 0 ? '#2EA043' : '#F85149' }}>
-                  {t.rr_won >= 0 ? '+' : ''}{t.rr_won}R
-                </p>
+      {/* Vue Liste */}
+      {viewMode === 'list' && (
+        <div className="space-y-2">
+          {filtered.length === 0 && (
+            <div className="text-center py-16">
+              <p className="text-forge-muted text-sm">
+                {trades.length === 0 ? 'Aucun trade. Ajoutez votre premier !' : 'Aucun résultat pour ces filtres.'}
+              </p>
+              {hasFilters && trades.length > 0 && (
+                <button onClick={clearAll} className="mt-2 text-xs text-forge-accent hover:underline">
+                  Effacer les filtres
+                </button>
               )}
             </div>
-          </div>
-        ))}
-      </div>
+          )}
+          {filtered.map(t => (
+            <div key={t.id} onClick={() => navigate(`/trades/${t.id}`)}
+              className="card flex items-center gap-3 cursor-pointer hover:border-forge-muted/30 active:scale-[0.99] transition-all">
+              <div className={`w-1.5 h-10 rounded-full flex-shrink-0 ${
+                t.result === 'tp' ? 'bg-forge-green'
+                : t.result === 'sl' ? 'bg-forge-red'
+                : t.result === 'be' ? 'bg-blue-400'
+                : 'bg-forge-muted'
+              }`} />
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2">
+                  <p className="text-sm font-medium">{t.market}</p>
+                  <span className={`text-xs font-mono ${t.type === 'buy' ? 'text-forge-green' : 'text-forge-red'}`}>
+                    {t.type?.toUpperCase()}
+                  </span>
+                  {t.session && <span className="text-[10px] text-forge-muted hidden sm:inline">{t.session}</span>}
+                </div>
+                <p className="text-xs text-forge-muted">{fmtDate(t.date)}</p>
+              </div>
+              <div className="text-right flex-shrink-0">
+                <Badge result={t.result} />
+                {t.rr_won != null && (
+                  <p className="text-xs mt-0.5 font-mono"
+                    style={{ color: t.rr_won >= 0 ? '#2EA043' : '#F85149' }}>
+                    {t.rr_won >= 0 ? '+' : ''}{t.rr_won}R
+                  </p>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
 
-      {filtered.length > 0 && (
-        <p className="text-xs text-center text-forge-muted mt-4">
-          {hasFilters
-            ? `${filtered.length} trade${filtered.length !== 1 ? 's' : ''} sur ${trades.length}`
-            : `${filtered.length} trade${filtered.length !== 1 ? 's' : ''}`
-          }
-        </p>
+      {/* Empty state calendrier */}
+      {viewMode === 'calendar' && filtered.length === 0 && (
+        <div className="text-center py-16">
+          <p className="text-forge-muted text-sm">
+            {trades.length === 0 ? 'Aucun trade. Ajoutez votre premier !' : 'Aucun résultat pour ces filtres.'}
+          </p>
+          {hasFilters && trades.length > 0 && (
+            <button onClick={clearAll} className="mt-2 text-xs text-forge-accent hover:underline">
+              Effacer les filtres
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* Modal trades du jour */}
+      {dayTrades && (
+        <DayTradesModal
+          trades={dayTrades}
+          onClose={() => setDayTrades(null)}
+          navigate={navigate}
+        />
       )}
     </div>
   )

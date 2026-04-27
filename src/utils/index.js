@@ -2,6 +2,7 @@ import { format, startOfMonth, endOfMonth, isWithinInterval, parseISO } from 'da
 import { fr } from 'date-fns/locale'
 
 // ─── STATS ──────────────────────────────────────────────
+
 export const calcWinRate = (trades) => {
   const beSetting = localStorage.getItem('winrate_be_mode') || 'neutral'
   const tp = trades.filter(t => t.result === 'tp').length
@@ -28,12 +29,15 @@ export const calcAvgRR = (trades) => {
   return +(sum / withRR.length).toFixed(2)
 }
 
+// TP → rr_won, SL → rr_won si renseigné sinon -1 (max -1R), BE/Missed → 0
+export const calcPnl = (trade) => {
+  if (trade.result === 'tp') return trade.rr_won || 0
+  if (trade.result === 'sl') return trade.rr_won != null ? Math.max(trade.rr_won, -1) : -1
+  return 0 // BE et Missed
+}
+
 export const calcTotalProfit = (trades) => {
-  return trades.reduce((acc, t) => {
-    if (t.result === 'tp') return acc + (t.rr_won || 0)
-    if (t.result === 'sl') return acc - 1
-    return acc
-  }, 0)
+  return trades.reduce((acc, t) => acc + calcPnl(t), 0)
 }
 
 export const calcDisciplineScore = (trades) => {
@@ -80,10 +84,10 @@ export const getTopErrors = (trades) => {
 }
 
 // ─── AI / PATTERN DETECTION ─────────────────────────────
+
 export const detectPatterns = (trades) => {
   const patterns = []
 
-  // Pattern 1: pertes quand discipline basse
   const lowDiscipline = trades.filter(t => t.discipline_score != null && t.discipline_score <= 5)
   const lowDisciplineLosses = lowDiscipline.filter(t => t.result === 'sl').length
   if (lowDiscipline.length >= 3) {
@@ -97,7 +101,6 @@ export const detectPatterns = (trades) => {
     }
   }
 
-  // Pattern 2: gains quand respect du plan
   const respectPlan = trades.filter(t => t.respect_plan === true)
   const respectPlanWins = respectPlan.filter(t => t.result === 'tp').length
   if (respectPlan.length >= 3) {
@@ -111,7 +114,6 @@ export const detectPatterns = (trades) => {
     }
   }
 
-  // Pattern 3: emotion FOMO
   const fomo = trades.filter(t => t.emotion === 'FOMO')
   const fomoLosses = fomo.filter(t => t.result === 'sl').length
   if (fomo.length >= 2 && fomoLosses / fomo.length >= 0.5) {
@@ -154,9 +156,9 @@ export const fmtMonth = (y, m) => format(new Date(y, m - 1), 'MMMM yyyy', { loca
 export const EMOTIONS = ['Neutre', 'Confiant', 'Anxieux', 'FOMO', 'Revenge', 'Impatient', 'Euphorique']
 export const MARKETS = ['EUR/USD', 'GBP/USD', 'USD/JPY', 'XAU/USD', 'NAS100', 'SP500', 'BTC/USD', 'Autre']
 export const RESULTS = [
-  { value: 'tp', label: 'Take Profit', color: 'text-forge-green' },
-  { value: 'sl', label: 'Stop Loss', color: 'text-forge-red' },
-  { value: 'be', label: 'Breakeven', color: 'text-blue-400' },
-  { value: 'missed', label: 'Missed', color: 'text-forge-muted' },
+  { value: 'tp',     label: 'Take Profit', color: 'text-forge-green' },
+  { value: 'sl',     label: 'Stop Loss',   color: 'text-forge-red'   },
+  { value: 'be',     label: 'Breakeven',   color: 'text-blue-400'    },
+  { value: 'missed', label: 'Missed',      color: 'text-forge-muted' },
 ]
 export const TIMEFRAMES = ['Daily', 'H4', 'H1', 'M30', 'M15', 'M5', 'M1', 'Entrée', 'Clôture']

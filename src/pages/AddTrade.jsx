@@ -291,6 +291,24 @@ if (k === 'date' && v) {
   REQUIRED_FIELDS.forEach(f => {
     if (form[f] === '' || form[f] === null || form[f] === undefined) errs[f] = true
   })
+
+if (form.result === 'tp') {
+    if (form.rr_won === '' || +form.rr_won <= 0) 
+      errs.rr_won = 'Take Profit : le RR gagné doit être positif (> 0)'
+  }
+ if (form.result === 'sl') {
+  if (form.rr_won === '' || +form.rr_won >= 0 || +form.rr_won < -1)
+    errs.rr_won = 'Stop Loss : le RR gagné doit être entre -1 et 0 (ex: -1, -0.5)'
+}
+  if (form.result === 'be') {
+    if (form.rr_won === '' || +form.rr_won !== 0) 
+      errs.rr_won = 'Breakeven : le RR gagné doit être 0'
+  }
+  if (form.result === 'missed') {
+    if (form.rr_won === '' || +form.rr_won !== 0) 
+      errs.rr_won = 'Missed : le RR gagné doit être 0'
+  }
+
   setErrors(errs)
   return Object.keys(errs).length === 0
 }
