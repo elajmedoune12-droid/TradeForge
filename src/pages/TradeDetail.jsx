@@ -370,6 +370,14 @@ useEffect(() => {
                 <p className="text-xs font-medium text-white truncate max-w-[80px]">{trade.session}</p>
               </div>
             )}
+
+            {trade.day && (
+  <div className="text-center">
+    <p className="text-[10px] text-forge-muted">Jour</p>
+    <p className="text-xs font-medium text-white">{trade.day}</p>
+  </div>
+)}
+
             {trade.trend && (
               <div className="text-center">
                 <p className="text-[10px] text-forge-muted">Tendance</p>
