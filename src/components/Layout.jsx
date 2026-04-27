@@ -563,26 +563,92 @@ export default function Layout() {
   }, [user])
 
   // Charger le backtest actuel
-  useEffect(() => {
-    if (!user) return
-    const load = async () => {
-      const { data } = await supabase
-        .from('backtest_cycles')
-        .select('*, backtest_sessions(*)')
-        .eq('user_id', user.id)
-        .is('ended_at', null)
-        .single()
-      if (data) {
-        const totalMin = (data.backtest_sessions || []).reduce((a, s) => a + s.minutes, 0)
-        const goalMin  = data.goal_hours * 60
-        if (totalMin >= goalMin) {
-          setBacktestDone(true)
-          setBacktestHours(data.goal_hours)
-        }
+useEffect(() => {
+  if (!user) return
+  const load = async () => {
+    const { data } = await supabase
+      .from('backtest_cycles')
+      .select('*, backtest_sessions(*)')
+      .eq('user_id', user.id)
+      .is('ended_at', null)
+      .single()
+    if (data) {
+      const totalMin = (data.backtest_sessions || []).reduce((a, s) => a + s.minutes, 0)
+      const goalMin  = data.goal_hours * 60
+      if (totalMin >= goalMin) {
+        setBacktestDone(true)
+        setBacktestHours(data.goal_hours)
       }
     }
-    load()
-  }, [user])
+  }
+  load()
+}, [user])
+
+// Notifications push automatiques
+useEffect(() => {
+  if (!user || !trades.length) return
+
+  const sentKey = `tf_sent_notifs_${new Date().toISOString().slice(0, 10)}`
+  const sent = JSON.parse(localStorage.getItem(sentKey) || '[]')
+
+  const sendPush = async (id, title, body, url = '/') => {
+    if (sent.includes(id)) return
+    await fetch('/api/send-notification', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ user_id: user.id, title, body, url })
+    })
+    const next = [...sent, id]
+    localStorage.setItem(sentKey, JSON.stringify(next))
+    sent.push(id)
+  }
+
+  const last5 = trades.slice(0, 5)
+  const last3 = trades.slice(0, 3)
+  const last10 = trades.slice(0, 10)
+
+  const slStreak = last5.filter(t => t.result === 'sl').length
+  if (slStreak >= 3)
+    sendPush('sl_streak', '⚠️ 3 pertes consécutives', 'Arrêtez de trader. Revoyez votre plan.', '/trades')
+
+  const horsSession = last3.filter(t => t.session === 'Hors session').length
+  if (horsSession >= 2)
+    sendPush('hors_session', '⚠️ Trades hors session', 'Vous tradez en dehors des sessions optimales.', '/rules')
+
+  const lowDisc = last5.filter(t => t.discipline_score != null && t.discipline_score <= 4)
+  if (lowDisc.length >= 2)
+    sendPush('low_disc', '📉 Discipline en baisse', 'Score moyen faible sur vos derniers trades.', '/rules')
+
+  const noplan = last5.filter(t => t.respect_plan === false).length
+  if (noplan >= 3)
+    sendPush('no_plan', '❌ Plan non respecté', 'Relisez vos règles avant chaque trade.', '/rules')
+
+  const revenge = last5.filter(t => t.emotion === 'Revenge').length
+  if (revenge >= 2)
+    sendPush('revenge', '😤 Revenge trading', 'Détecté sur vos derniers trades. Faites une pause.', '/trades')
+
+  if (last10.length >= 5) {
+    const wr = Math.round((last10.filter(t => t.result === 'tp').length / last10.length) * 100)
+    if (wr >= 65)
+      sendPush('wr_good', '🔥 Excellent win rate', `${wr}% sur vos 10 derniers trades !`, '/monthly')
+  }
+
+  const respectStreak = trades.slice(0, 7).filter(t => t.respect_plan === true).length
+  if (respectStreak >= 5)
+    sendPush('respect_streak', '✅ Super discipline', `${respectStreak} trades avec plan respecté !`, '/rules')
+
+  const noHindsight = trades.slice(0, 10).filter(t => !t.hindsight?.length).length
+  if (noHindsight >= 3)
+    sendPush('no_hindsight', '📝 After Trade manquant', `${noHindsight} trades sans analyse post-trade.`, '/hindsights')
+
+  if (backtestDone && backtestHours)
+    sendPush('backtest_done', '🎯 Objectif backtest atteint', `${backtestHours}h complétées ! Lancez un nouveau cycle.`, '/rules')
+
+  const diffDays = Math.floor((new Date() - new Date(trades[0].date)) / (1000 * 60 * 60 * 24))
+  if (diffDays >= 5)
+    sendPush('inactive', '💤 Inactivité détectée', `${diffDays} jours sans trade journalisé.`, '/trades/new')
+
+}, [trades, user, backtestDone, backtestHours])
 
   const allNotifs = useMemo(
     () => buildNotifications(trades, backtestDone, backtestHours),

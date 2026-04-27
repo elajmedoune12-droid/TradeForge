@@ -259,8 +259,13 @@ export default function AddTrade() {
 
       // ── Quand on sélectionne SL → vider RR si positif ou nul ──
       if (k === 'result' && v === 'sl') {
-        if (next.rr_won === '' || +next.rr_won >= 0) next.rr_won = ''
-      }
+  if (next.rr_won === '' || +next.rr_won >= 0) next.rr_won = '-1'
+}
+
+if (k === 'date' && v) {
+      const jours = ['Dimanche','Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi']
+      next.day = jours[new Date(v + 'T12:00:00').getDay()]
+    }
 
       // ── Quand on sélectionne TP → vider RR si négatif ──
       if (k === 'result' && v === 'tp') {
@@ -283,13 +288,13 @@ export default function AddTrade() {
       if (form[f] === '' || form[f] === null || form[f] === undefined) errs[f] = true
     })
 
-    const allowed = getAllowedResults(form.rr_won)
-    if (allowed && form.result && !allowed.includes(form.result)) errs.result = true
-
     // ── Validation croisée RR / Résultat ──
-    if (form.result === 'sl' && form.rr_won !== '' && +form.rr_won >= 0) {
-      errs.rr_won = 'SL doit avoir un RR négatif (ex: -1)'
-    }
+    if (form.result === 'sl' && form.rr_won !== '' && +form.rr_won < -1) {
+  errs.rr_won = 'Le SL ne peut pas dépasser -1R'
+}
+if (form.result === 'sl' && form.rr_won !== '' && +form.rr_won >= 0) {
+  errs.rr_won = 'SL doit avoir un RR négatif (ex: -1)'
+}
     if (form.result === 'tp' && form.rr_won !== '' && +form.rr_won <= 0) {
       errs.rr_won = 'TP doit avoir un RR positif (ex: 2.5)'
     }
@@ -479,7 +484,6 @@ export default function AddTrade() {
           <p className="section-title mb-3">Résultat <span className="text-forge-red">*</span></p>
           <PillGroup options={RESULT_PILLS} value={form.result}
             onChange={v => set('result', v)} disabledValues={disabledResults} />
-          {errors.result && <p className="text-xs text-forge-red mt-2">Veuillez remplir le résultat</p>}
         </div>
 
         {/* ── 3. Contexte de marché ── */}
