@@ -442,12 +442,15 @@ useEffect(() => {
               <div className="grid grid-cols-3 gap-2">
                 {items.map((img, i) => (
                   img.isLink ? (
-                    <a key={i} href={img.url} target="_blank" rel="noopener noreferrer"
-                      className="aspect-square rounded-xl flex flex-col items-center justify-center gap-1 transition-all hover:scale-[1.02] active:scale-95"
-                      style={{ background: 'rgba(88,166,255,0.08)', border: '1px solid rgba(88,166,255,0.2)' }}>
-                      <ExternalLink size={18} style={{ color: '#58a6ff' }} />
-                      <span className="text-[9px] text-forge-muted text-center px-1 leading-tight">TradingView</span>
-                    </a>
+  <a key={i} href={img.url} target="_blank" rel="noopener noreferrer"
+    className="flex items-center gap-2.5 px-3 py-2 rounded-xl transition-all hover:scale-[1.01] active:scale-95 col-span-3"
+    style={{ background: 'rgba(88,166,255,0.08)', border: '1px solid rgba(88,166,255,0.2)' }}>
+    <ExternalLink size={13} style={{ color: '#58a6ff', flexShrink: 0 }} />
+    <div className="min-w-0 flex-1">
+      <p className="text-[10px] text-forge-muted">{img.timeframe}</p>
+      <p className="text-xs truncate" style={{ color: '#58a6ff' }}>{img.label || img.url}</p>
+    </div>
+  </a>
                   ) : (
                     <button key={i}
                       onClick={() => setLightbox({ images: imgOnly, startIndex: imgOnly.indexOf(img) })}
