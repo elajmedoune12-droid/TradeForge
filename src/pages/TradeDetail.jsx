@@ -439,7 +439,7 @@ useEffect(() => {
           {Object.entries(byTF).map(([tf, items]) => (
             <div key={tf} className="mb-4 last:mb-0">
               <p className="text-[10px] font-mono text-forge-accent mb-2 uppercase tracking-widest">{tf}</p>
-              <div className="grid grid-cols-3 gap-2">
+              <div className="grid grid-cols-4 gap-1.5">
                 {items.map((img, i) => (
                   img.isLink ? (
   <a key={i} href={img.url} target="_blank" rel="noopener noreferrer"
@@ -452,12 +452,12 @@ useEffect(() => {
     </div>
   </a>
                   ) : (
-                    <button key={i}
-                      onClick={() => setLightbox({ images: imgOnly, startIndex: imgOnly.indexOf(img) })}
-                      className="aspect-square rounded-xl overflow-hidden border transition-all hover:scale-[1.02] active:scale-95"
-                      style={{ borderColor: 'rgba(255,255,255,0.1)' }}>
-                      <img src={img.url} alt={tf} className="w-full h-full object-cover" />
-                    </button>
+                   <button key={i}
+  onClick={() => setLightbox({ images: imgOnly, startIndex: imgOnly.indexOf(img) })}
+  className="rounded-lg overflow-hidden border transition-all hover:scale-[1.02] active:scale-95"
+  style={{ borderColor: 'rgba(255,255,255,0.1)', aspectRatio: '16/9', height: '60px' }}>
+  <img src={img.url} alt={tf} className="w-full h-full object-cover" />
+</button>
                   )
                 ))}
               </div>
