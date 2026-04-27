@@ -27,22 +27,26 @@ const TRENDS = [
   { value: 'neutre',  label: '— Neutre',  color: { active: { background: 'rgba(139,148,158,0.15)', color: '#8B949E', borderColor: 'rgba(139,148,158,0.5)' } } },
 ]
 
-const EMPTY_FORM = {
-  date: format(new Date(), 'yyyy-MM-dd'),
-  market: '',
-  type: 'buy',
-  rr_planned: '',
-  rr_won: '',
-  result: '',
-  emotion: '',
-  respect_plan: true,
-  discipline_score: 7,
-  notes: '',
-  trend: '',
-  day: '',
-  session: '',
-  style: '',
-  market_structure: '',
+const getEmptyForm = () => {
+  const jours = ['Dimanche','Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi']
+  const today = new Date()
+  return {
+    date: format(today, 'yyyy-MM-dd'),
+    market: '',
+    type: 'buy',
+    rr_planned: '',
+    rr_won: '',
+    result: '',
+    emotion: '',
+    respect_plan: true,
+    discipline_score: 7,
+    notes: '',
+    trend: '',
+    day: jours[today.getDay()],
+    session: '',
+    style: '',
+    market_structure: '',
+  }
 }
 
 const getAllowedResults = (rr_won) => {
@@ -210,7 +214,7 @@ export default function AddTrade() {
   const [loading, setLoading]               = useState(false)
   const [loadingTrade, setLoadingTrade]     = useState(isEdit)
   const [uploadProgress, setUploadProgress] = useState('')
-  const [form, setForm]                     = useState(EMPTY_FORM)
+const [form, setForm] = useState(getEmptyForm)
   const [images, setImages]                 = useState([])
   const [existingImages, setExistingImages] = useState([])
   const [removedImages, setRemovedImages]   = useState([])
