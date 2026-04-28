@@ -10,6 +10,7 @@ import { getMonthlyStats, generateFeedback, fmtMonth, calcDisciplineScore, calcA
 import { format, addMonths, subMonths } from 'date-fns'
 import { fr } from 'date-fns/locale'
 import AIAssistant from '../components/AIAssistant'
+import { SkeletonCard } from '../components/Skeleton'
 
 // ── Helpers ─────────────────────────────────────────────────
 const clamp = (v, min, max) => Math.min(max, Math.max(min, v))
@@ -236,10 +237,25 @@ map[t.session].trades.push(t)
   }), [stats, goal, disciplineAvg, year, month])
 
   if (tradesLoading || goalLoading) return (
-    <div className="page flex items-center justify-center h-64">
-      <div className="w-6 h-6 border-2 border-forge-accent border-t-transparent rounded-full animate-spin" />
+  <div className="page space-y-4">
+    {/* Nav mois */}
+    <div className="flex items-center justify-between mb-5">
+      <div className="w-9 h-9 rounded-xl animate-pulse" style={{ background: 'rgba(255,255,255,0.07)' }} />
+      <div className="h-5 w-36 rounded-lg animate-pulse" style={{ background: 'rgba(255,255,255,0.07)' }} />
+      <div className="w-9 h-9 rounded-xl animate-pulse" style={{ background: 'rgba(255,255,255,0.07)' }} />
     </div>
-  )
+    {/* Objectifs */}
+    <div className="rounded-2xl animate-pulse" style={{ background: 'rgba(255,255,255,0.04)', height: '180px' }} />
+    {/* KPIs */}
+    <div className="grid grid-cols-2 gap-2">
+      <SkeletonCard /><SkeletonCard />
+      <SkeletonCard /><SkeletonCard />
+    </div>
+    {/* Graphique */}
+    <div className="rounded-2xl animate-pulse" style={{ background: 'rgba(255,255,255,0.04)', height: '160px' }} />
+    <SkeletonCard />
+  </div>
+)
 
   return (
     <div className="page">

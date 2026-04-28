@@ -8,6 +8,7 @@ import { getRules, createRule, updateRule, deleteRule, supabase } from '../servi
 import { useAuth } from '../hooks/useAuth'
 import { useTrades } from '../hooks/useTrades'
 import AIAssistant from '../components/AIAssistant'
+import { SkeletonCard } from '../components/Skeleton'
 
 // ── Catégories ───────────────────────────────────────────────
 const CATEGORIES = [
@@ -300,10 +301,13 @@ useEffect(() => {
   const weeks    = getWeeks(currentCycle?.sessions)
 
   if (loading) return (
-    <div className="flex items-center justify-center h-40">
-      <div className="w-5 h-5 border-2 border-forge-accent border-t-transparent rounded-full animate-spin" />
-    </div>
-  )
+  <div className="space-y-2">
+    {[...Array(4)].map((_, i) => (
+      <div key={i} className="rounded-2xl p-4 animate-pulse"
+        style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)', height: '72px' }} />
+    ))}
+  </div>
+)
 
   // ── Premier lancement — pas encore de cycle ───────────────
   if (!currentCycle) return (
@@ -655,10 +659,12 @@ function TabRules({ user, trades }) {
   }
 
   if (loading) return (
-    <div className="flex items-center justify-center h-40">
-      <div className="w-5 h-5 border-2 border-forge-accent border-t-transparent rounded-full animate-spin" />
-    </div>
-  )
+  <div className="space-y-3">
+    <div className="rounded-2xl animate-pulse" style={{ background: 'rgba(255,255,255,0.04)', height: '160px' }} />
+    <div className="rounded-2xl animate-pulse" style={{ background: 'rgba(255,255,255,0.04)', height: '100px' }} />
+    <SkeletonCard />
+  </div>
+)
 
   return (
     <div>
@@ -1019,11 +1025,16 @@ export default function RulesAndErrors({ defaultTab = 'rules' }) {
         ))}
       </div>
 
-      {tradesLoading ? (
-        <div className="flex items-center justify-center h-40">
-          <div className="w-5 h-5 border-2 border-forge-accent border-t-transparent rounded-full animate-spin" />
-        </div>
-      ) : (
+     {tradesLoading ? (
+  <div className="space-y-3">
+    <div className="grid grid-cols-3 gap-2">
+      <SkeletonCard /><SkeletonCard /><SkeletonCard />
+    </div>
+    <SkeletonCard />
+    <SkeletonCard />
+    <SkeletonCard />
+  </div>
+) : (
         <>
           {activeTab === 'rules'    && <TabRules    user={user} trades={trades} />}
           {activeTab === 'errors'   && <TabErrors   trades={trades} />}

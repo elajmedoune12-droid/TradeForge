@@ -15,6 +15,7 @@ import {
   isWithinInterval, parseISO,
 } from 'date-fns'
 import { fr } from 'date-fns/locale'
+import { SkeletonCard } from '../components/Skeleton'
 
 // ── Helpers ──────────────────────────────────────────────────
 const wStart = (date) => startOfWeek(date, { weekStartsOn: 0 })
@@ -404,11 +405,25 @@ export default function WeeklyForecast() {
     }
   }
 
-  if (tradesLoading || fcLoading) return (
-    <div className="page flex items-center justify-center h-64">
-      <div className="w-6 h-6 border-2 border-forge-accent border-t-transparent rounded-full animate-spin" />
+if (tradesLoading || fcLoading) return (
+  <div className="page space-y-4">
+    {/* Nav */}
+    <div className="flex items-center justify-between mb-5">
+      <div className="w-9 h-9 rounded-xl animate-pulse" style={{ background: 'rgba(255,255,255,0.07)' }} />
+      <div className="h-5 w-48 rounded-lg animate-pulse" style={{ background: 'rgba(255,255,255,0.07)' }} />
+      <div className="w-9 h-9 rounded-xl animate-pulse" style={{ background: 'rgba(255,255,255,0.07)' }} />
     </div>
-  )
+    {/* Bouton */}
+    <div className="h-10 rounded-xl animate-pulse mb-5" style={{ background: 'rgba(255,255,255,0.07)' }} />
+    {/* Sections */}
+    <SkeletonCard />
+    <SkeletonCard />
+    <div className="grid grid-cols-2 gap-2">
+      <SkeletonCard /><SkeletonCard />
+      <SkeletonCard /><SkeletonCard />
+    </div>
+  </div>
+)
 
   return (
     <div className="page">

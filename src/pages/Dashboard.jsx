@@ -10,6 +10,7 @@ import {
   getTopErrors, detectPatterns, fmtDate
 } from '../utils'
 import { format, subDays } from 'date-fns'
+import { SkeletonCard } from '../components/Skeleton'
 
 // ── Custom tooltip ──────────────────────────────────────────
 const CustomTooltip = ({ active, payload, label }) => {
@@ -53,10 +54,40 @@ export default function Dashboard() {
   const navigate = useNavigate()
 
   if (loading) return (
-    <div className="page flex items-center justify-center h-64">
-      <div className="w-6 h-6 border-2 border-forge-accent border-t-transparent rounded-full animate-spin" />
+  <div className="page space-y-4">
+    {/* Header */}
+    <div className="flex items-center justify-between mb-5">
+      <div className="space-y-1.5">
+        <div className="h-6 w-32 rounded-lg animate-pulse" style={{ background: 'rgba(255,255,255,0.07)' }} />
+        <div className="h-3 w-24 rounded-lg animate-pulse" style={{ background: 'rgba(255,255,255,0.04)' }} />
+      </div>
+      <div className="h-4 w-16 rounded-lg animate-pulse" style={{ background: 'rgba(255,255,255,0.04)' }} />
     </div>
-  )
+    {/* KPIs */}
+    <div className="grid grid-cols-2 gap-3">
+      <SkeletonCard /><SkeletonCard />
+      <SkeletonCard /><SkeletonCard />
+    </div>
+    {/* Graphique */}
+    <div className="rounded-2xl animate-pulse" style={{ background: 'rgba(255,255,255,0.04)', height: '200px' }} />
+    {/* Distribution */}
+    <SkeletonCard />
+    {/* Trades récents */}
+    <div className="space-y-2">
+      {[...Array(3)].map((_, i) => (
+        <div key={i} className="rounded-2xl flex items-center gap-3 p-4 animate-pulse"
+          style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}>
+          <div className="w-1.5 h-9 rounded-full flex-shrink-0" style={{ background: 'rgba(255,255,255,0.07)' }} />
+          <div className="flex-1 space-y-1.5">
+            <div className="h-3 w-20 rounded" style={{ background: 'rgba(255,255,255,0.07)' }} />
+            <div className="h-2.5 w-16 rounded" style={{ background: 'rgba(255,255,255,0.04)' }} />
+          </div>
+          <div className="h-5 w-10 rounded-lg" style={{ background: 'rgba(255,255,255,0.05)' }} />
+        </div>
+      ))}
+    </div>
+  </div>
+)
 
   const winRate   = calcWinRate(trades)
   const avgRR     = calcAvgRR(trades)

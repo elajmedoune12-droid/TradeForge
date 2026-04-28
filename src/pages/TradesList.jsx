@@ -13,6 +13,7 @@ import { useTrades } from '../hooks/useTrades'
 import { fmtDate, MARKETS, calcWinRate, calcPnl } from '../utils'
 import { format, parseISO, startOfMonth, endOfMonth, eachDayOfInterval, getDay, addMonths, subMonths, isSameMonth } from 'date-fns'
 import { fr } from 'date-fns/locale'
+import { SkeletonCard, SkeletonList, SkeletonCalendar } from '../components/Skeleton'
 
 const RESULTS_OPTIONS = [
   { value: 'tp',     label: 'Take Profit', color: '#2EA043' },
@@ -540,11 +541,16 @@ export default function TradesList() {
     setSearch('')
   }
 
-  if (loading) return (
-    <div className="page flex items-center justify-center h-64">
-      <div className="w-6 h-6 border-2 border-forge-accent border-t-transparent rounded-full animate-spin" />
+if (loading) return (
+  <div className="page space-y-4">
+    <div className="grid grid-cols-2 gap-3">
+      <SkeletonCard /><SkeletonCard />
+      <SkeletonCard /><SkeletonCard />
     </div>
-  )
+    <SkeletonCalendar />
+    <SkeletonList />
+  </div>
+)
 
   return (
     <div className="page">

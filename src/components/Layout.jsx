@@ -1,5 +1,5 @@
 import { Outlet, NavLink, useNavigate } from 'react-router-dom'
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import {
   LayoutDashboard, List, TrendingUp, Shield,
   Plus, BarChart2, BookMarked, X, Bell, LogOut, User, SlidersHorizontal,
@@ -10,6 +10,9 @@ import {
 import { useAuth } from '../hooks/useAuth'
 import { useTrades } from '../hooks/useTrades'
 import { supabase } from '../services/supabase'
+import { AnimatePresence } from 'framer-motion'
+import PageTransition from '../components/PageTransition'
+import { useLocation } from 'react-router-dom'
 
 const navItems = [
   { to: '/dashboard',       icon: LayoutDashboard, label: 'Dashboard'  },
@@ -536,7 +539,14 @@ function NewMenu({ onClose }) {
 
 // ── Layout ────────────────────────────────────────────────────
 export default function Layout() {
-  const [sidebarOpen, setSidebarOpen] = useState(true)
+const [sidebarOpen, setSidebarOpen] = useState(() => {
+  return localStorage.getItem('sidebar_open') !== 'false'
+})
+
+useEffect(() => {
+  localStorage.setItem('sidebar_open', sidebarOpen)
+}, [sidebarOpen])
+
   const [showMenu, setShowMenu]                   = useState(false)
   const [showNotif, setShowNotif]                 = useState(false)
   const [showUserPopup, setShowUserPopup]         = useState(false)
@@ -595,11 +605,15 @@ useEffect(() => {
 
   const sendPush = async (id, title, body, url = '/') => {
     if (sent.includes(id)) return
-    await fetch('/api/send-notification', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ user_id: user.id, title, body, url })
-    })
+    try {
+      await fetch('/api/send-notification', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user_id: user.id, title, body, url })
+      })
+    } catch (e) {
+      // Silently ignore — API may not be available
+    }
     const next = [...sent, id]
     localStorage.setItem(sentKey, JSON.stringify(next))
     sent.push(id)
@@ -692,6 +706,18 @@ useEffect(() => {
 
   const handleLogoutConfirmed = () => { setShowLogoutConfirm(false); signOut?.() }
   const displayName = profile?.username || profile?.full_name || 'Trader'
+  const contentRef = useRef(null)
+
+useEffect(() => {
+  const update = () => {
+    if (!contentRef.current) return
+    contentRef.current.style.paddingLeft =
+      window.innerWidth >= 1024 ? `${sidebarOpen ? 224 : 64}px` : '0px'
+  }
+  update()
+  window.addEventListener('resize', update)
+  return () => window.removeEventListener('resize', update)
+}, [sidebarOpen])
 
   return (
     <div className="min-h-screen">
@@ -817,15 +843,18 @@ useEffect(() => {
 
 
 {/* Content */}
-<div className="transition-all duration-300"
+<div
+  className="transition-all duration-300"
   style={{
-    paddingTop: window.innerWidth >= 1024
-      ? (!sidebarOpen ? '56px' : '0')
-      : 'calc(env(safe-area-inset-top) + 48px)',
+    paddingTop: 'calc(env(safe-area-inset-top) + 48px)',
     paddingBottom: 'calc(env(safe-area-inset-bottom) + 64px)',
   }}>
-  <div style={{ paddingLeft: window.innerWidth >= 1024 ? (sidebarOpen ? '224px' : '64px') : '0' }}>
-    <Outlet />
+  <div ref={contentRef} className="transition-all duration-300">
+    <AnimatePresence mode="wait">
+      <PageTransition key={location.pathname}>
+        <Outlet />
+      </PageTransition>
+    </AnimatePresence>
   </div>
 </div>
 
