@@ -1,4 +1,4 @@
-import { Outlet, NavLink, useNavigate } from 'react-router-dom'
+import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom'
 import { useState, useEffect, useMemo, useRef } from 'react'
 import {
   LayoutDashboard, List, TrendingUp, Shield,
@@ -10,9 +10,6 @@ import {
 import { useAuth } from '../hooks/useAuth'
 import { useTrades } from '../hooks/useTrades'
 import { supabase } from '../services/supabase'
-import { AnimatePresence } from 'framer-motion'
-import PageTransition from '../components/PageTransition'
-import { useLocation } from 'react-router-dom'
 
 const navItems = [
   { to: '/dashboard',       icon: LayoutDashboard, label: 'Dashboard'  },
@@ -631,7 +628,8 @@ function NewMenu({ onClose }) {
 
 // ── Layout ────────────────────────────────────────────────────
 export default function Layout() {
-const [sidebarOpen, setSidebarOpen] = useState(() => {
+  const location = useLocation()
+  const [sidebarOpen, setSidebarOpen] = useState(() => {
   return localStorage.getItem('sidebar_open') !== 'false'
 })
 
@@ -710,15 +708,15 @@ useEffect(() => {
     weekStart.setDate(weekStart.getDate() - ((weekStart.getDay() + 6) % 7))
     const weekISO = weekStart.toISOString().slice(0, 10)
     const { data: forecast } = await supabase
-      .from('weekly_forecasts')
-      .select('id')
-      .eq('user_id', user.id)
-      .eq('week_start', weekISO)
-      .single()
-    setHasWeeklyForecast(!!forecast)
+  .from('weekly_forecasts')
+  .select('id')
+  .eq('user_id', user.id)
+  .eq('week_start', weekISO)
+  .maybeSingle()
+setHasWeeklyForecast(!!forecast)
   }
   load()
-}, [user])
+}, [user?.id])
 
 // Notifications push automatiques
 useEffect(() => {
@@ -975,12 +973,8 @@ useEffect(() => {
     paddingBottom: 'calc(env(safe-area-inset-bottom) + 64px)',
   }}>
   <div ref={contentRef} className="transition-all duration-300">
-    <AnimatePresence mode="wait">
-      <PageTransition key={location.pathname}>
-        <Outlet />
-      </PageTransition>
-    </AnimatePresence>
-  </div>
+  <Outlet />
+</div>
 </div>
 
       {/* Mobile bottom nav */}
