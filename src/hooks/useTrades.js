@@ -23,17 +23,17 @@ export const useTrades = () => {
 
   useEffect(() => { fetch() }, [fetch])
 
-  useEffect(() => {
-    if (!user) return
-    const channel = supabase
-      .channel('trades_changes')
-      .on('postgres_changes',
-        { event: '*', schema: 'public', table: 'trades', filter: `user_id=eq.${user.id}` },
-        () => fetch()
-      )
-      .subscribe()
-    return () => supabase.removeChannel(channel)
-  }, [user, fetch])
+ useEffect(() => {
+  if (!user) return
+  const channel = supabase
+    .channel(`trades_changes_${user.id}`)
+    .on('postgres_changes',
+      { event: '*', schema: 'public', table: 'trades', filter: `user_id=eq.${user.id}` },
+      () => fetch()
+    )
+    .subscribe()
+  return () => supabase.removeChannel(channel)
+}, [user, fetch])
 
   useEffect(() => {
     const onVisible = () => {
