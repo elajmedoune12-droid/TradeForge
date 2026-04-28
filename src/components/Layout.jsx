@@ -26,189 +26,281 @@ const mobileLeft  = navItems.slice(0, 3)
 const mobileRight = navItems.slice(3, 6)
 
 // ── Notifications builder ─────────────────────────────────────
-function buildNotifications(trades, backtestDone, backtestHours) {
-  if (!trades?.length) return []
+function buildNotifications(trades, backtestDone, backtestHours, lastBacktestDate, hasWeeklyForecast) {
   const notifs = []
   const today = new Date().toISOString().slice(0, 10)
+  const todayDate = new Date()
 
-  // 🔴 URGENT — SL streak
+  // ── 🔴 URGENT ──────────────────────────────────────────
+
+  // SL streak
   const last5 = trades.slice(0, 5)
   const slStreak = last5.filter(t => t.result === 'sl').length
-  if (slStreak >= 3) {
-    notifs.push({
-      id: 'sl_streak',
-      priority: 'urgent',
-      icon: 'warning',
-      color: '#F85149',
-      title: `${slStreak} pertes consécutives`,
-      body: 'Stoppez le trading maintenant. Revoyez votre plan et votre état psychologique avant de continuer.',
-      action: '/trades',
-      actionLabel: 'Voir trades',
-    })
-  }
+  if (slStreak >= 3) notifs.push({
+    id: 'sl_streak', priority: 'urgent', icon: 'warning', color: '#F85149',
+    title: `${slStreak} pertes consécutives`,
+    body: 'Stoppez le trading maintenant. Revoyez votre plan et votre état psychologique.',
+    action: '/trades', actionLabel: 'Voir trades',
+  })
 
-  // 🔴 URGENT — Hors session streak
+  // Hors session streak
   const last3 = trades.slice(0, 3)
   const horsSession = last3.filter(t => t.session === 'Hors session').length
-  if (horsSession >= 2) {
-    notifs.push({
-      id: 'hors_session',
-      priority: 'urgent',
-      icon: 'warning',
-      color: '#F85149',
-      title: `${horsSession} trades hors session`,
-      body: 'Vous tradez en dehors des sessions optimales. Risque élevé de pertes.',
-      action: '/rules',
-      actionLabel: 'Voir règles',
+  if (horsSession >= 2) notifs.push({
+    id: 'hors_session', priority: 'urgent', icon: 'warning', color: '#F85149',
+    title: `${horsSession} trades hors session`,
+    body: 'Vous tradez en dehors des sessions optimales. Risque élevé de pertes.',
+    action: '/rules', actionLabel: 'Voir règles',
+  })
+
+  // Perte journalière ≥ 2R
+  if (trades.length > 0) {
+    const todayTrades = trades.filter(t => t.date === today)
+    const dailyLoss = todayTrades.reduce((acc, t) => {
+      if (t.result === 'sl') return acc - 1
+      if (t.result === 'tp') return acc + (t.rr_won || 0)
+      return acc
+    }, 0)
+    if (dailyLoss <= -2) notifs.push({
+      id: 'daily_loss_limit', priority: 'urgent', icon: 'warning', color: '#F85149',
+      title: `${Math.abs(dailyLoss).toFixed(1)}R perdus aujourd'hui`,
+      body: "Limite de perte journalière atteinte. Arrêtez de trader pour aujourd'hui.",
+      action: '/trades', actionLabel: 'Voir trades',
     })
   }
 
-  // 🟡 ALERTE — Discipline en baisse
+  // ── 🟡 ALERTE ──────────────────────────────────────────
+
+  // Discipline en baisse
   const recentLowDisc = trades.slice(0, 5).filter(t => t.discipline_score != null && t.discipline_score <= 4)
-  if (recentLowDisc.length >= 2) {
-    notifs.push({
-      id: 'low_disc',
-      priority: 'warning',
-      icon: 'disc',
-      color: '#F7B731',
-      title: 'Discipline en chute libre',
-      body: `Score moyen de ${Math.round(recentLowDisc.reduce((a, t) => a + t.discipline_score, 0) / recentLowDisc.length)}/10 sur vos ${recentLowDisc.length} derniers trades. Analysez vos émotions.`,
-      action: '/rules',
-      actionLabel: 'Analyser',
-    })
-  }
+  if (recentLowDisc.length >= 2) notifs.push({
+    id: 'low_disc', priority: 'warning', icon: 'disc', color: '#F7B731',
+    title: 'Discipline en chute libre',
+    body: `Score moyen de ${Math.round(recentLowDisc.reduce((a, t) => a + t.discipline_score, 0) / recentLowDisc.length)}/10 sur vos ${recentLowDisc.length} derniers trades.`,
+    action: '/rules', actionLabel: 'Analyser',
+  })
 
-  // 🟡 ALERTE — Plan non respecté streak
+  // Plan non respecté
   const noplan = trades.slice(0, 5).filter(t => t.respect_plan === false).length
-  if (noplan >= 3) {
-    notifs.push({
-      id: 'no_plan',
-      priority: 'warning',
-      icon: 'warning',
-      color: '#F7B731',
-      title: 'Plan non respecté x' + noplan,
-      body: 'Vous avez ignoré votre plan trading plusieurs fois. Relisez vos règles avant chaque trade.',
-      action: '/rules',
-      actionLabel: 'Mes règles',
-    })
-  }
+  if (noplan >= 3) notifs.push({
+    id: 'no_plan', priority: 'warning', icon: 'warning', color: '#F7B731',
+    title: 'Plan non respecté x' + noplan,
+    body: 'Vous avez ignoré votre plan trading plusieurs fois. Relisez vos règles.',
+    action: '/rules', actionLabel: 'Mes règles',
+  })
 
-  // 🟡 ALERTE — Revenge trading détecté
+  // Revenge trading
   const revenge = trades.slice(0, 5).filter(t => t.emotion === 'Revenge').length
-  if (revenge >= 2) {
-    notifs.push({
-      id: 'revenge',
-      priority: 'warning',
-      icon: 'disc',
-      color: '#F7B731',
-      title: 'Revenge trading détecté',
-      body: `${revenge} trades sous émotion "Revenge". Le revenge trading est l'une des principales causes de pertes.`,
-      action: '/trades',
-      actionLabel: 'Voir trades',
+  if (revenge >= 2) notifs.push({
+    id: 'revenge', priority: 'warning', icon: 'disc', color: '#F7B731',
+    title: 'Revenge trading détecté',
+    body: `${revenge} trades sous émotion "Revenge". Faites une pause.`,
+    action: '/trades', actionLabel: 'Voir trades',
+  })
+
+  // RR moyen faible
+  const last5tp = trades.slice(0, 10).filter(t => t.result === 'tp' && t.rr_won != null)
+  if (last5tp.length >= 3) {
+    const avgRR = last5tp.reduce((a, t) => a + t.rr_won, 0) / last5tp.length
+    if (avgRR < 1) notifs.push({
+      id: 'low_rr', priority: 'warning', icon: 'disc', color: '#F7B731',
+      title: `RR moyen de ${avgRR.toFixed(2)} sur trades gagnants`,
+      body: 'Votre RR est trop faible. Visez de meilleures cibles ou coupez vos pertes plus tôt.',
+      action: '/trades', actionLabel: 'Voir trades',
     })
   }
 
-  // 🟢 SUCCÈS — Win rate élevé
+  // Missed streak
+  const missedStreak = trades.slice(0, 5).filter(t => t.result === 'missed').length
+  if (missedStreak >= 3) notifs.push({
+    id: 'missed_streak', priority: 'warning', icon: 'clock', color: '#F7B731',
+    title: `${missedStreak} setups ratés récemment`,
+    body: 'Vous manquez trop de setups. Revoyez vos critères d\'entrée.',
+    action: '/trades', actionLabel: 'Voir trades',
+  })
+
+  // FOMO détecté
+  const fomo = trades.slice(0, 5).filter(t => t.emotion === 'FOMO').length
+  if (fomo >= 2) notifs.push({
+    id: 'fomo_detected', priority: 'warning', icon: 'warning', color: '#F7B731',
+    title: 'FOMO détecté',
+    body: `${fomo} trades récents sous émotion FOMO. Attendez le prochain setup.`,
+    action: '/trades', actionLabel: 'Voir trades',
+  })
+
+  // Overtrading
+  if (trades.length > 0) {
+    const todayCount = trades.filter(t => t.date === today).length
+    if (todayCount >= 5) notifs.push({
+      id: 'overtrading', priority: 'warning', icon: 'warning', color: '#F7B731',
+      title: `${todayCount} trades aujourd'hui`,
+      body: 'Attention à l\'overtrading. Qualité > quantité.',
+      action: '/trades', actionLabel: 'Voir trades',
+    })
+  }
+
+  // ── 🟢 SUCCÈS ──────────────────────────────────────────
+
+  // Win rate élevé
   const last10 = trades.slice(0, 10)
   if (last10.length >= 5) {
     const tp10 = last10.filter(t => t.result === 'tp').length
     const active10 = last10.filter(t => ['tp','sl','be'].includes(t.result)).length
     const wr = active10 ? Math.round((tp10 / active10) * 100) : 0
-    if (wr >= 65) {
-      notifs.push({
-        id: 'wr_good',
-        priority: 'success',
-        icon: 'fire',
-        color: '#2EA043',
-        title: `${wr}% win rate sur 10 trades`,
-        body: 'Performance excellente ! Restez discipliné et continuez à respecter votre plan.',
-        action: '/monthly',
-        actionLabel: 'Voir stats',
-      })
-    }
-  }
-
-  // 🟢 SUCCÈS — Backtest cycle atteint
-  if (backtestDone && backtestHours) {
-    notifs.push({
-      id: 'backtest_done',
-      priority: 'success',
-      icon: 'trophy',
-      color: '#2EA043',
-      title: `Objectif backtest atteint !`,
-      body: `Vous avez complété ${backtestHours}h de backtest. Lancez un nouveau cycle pour continuer à progresser.`,
-      action: '/rules',
-      actionLabel: 'Nouveau cycle',
+    if (wr >= 65) notifs.push({
+      id: 'wr_good', priority: 'success', icon: 'fire', color: '#2EA043',
+      title: `${wr}% win rate sur 10 trades`,
+      body: 'Performance excellente ! Restez discipliné.',
+      action: '/monthly', actionLabel: 'Voir stats',
     })
   }
 
-  // 🟢 SUCCÈS — Streak de trades respectés
+  // Backtest cycle atteint
+  if (backtestDone && backtestHours) notifs.push({
+    id: 'backtest_done', priority: 'success', icon: 'trophy', color: '#2EA043',
+    title: 'Objectif backtest atteint !',
+    body: `${backtestHours}h complétées ! Lancez un nouveau cycle.`,
+    action: '/rules', actionLabel: 'Nouveau cycle',
+  })
+
+  // Streak trades respectés
   const respectStreak = trades.slice(0, 7).filter(t => t.respect_plan === true).length
-  if (respectStreak >= 5) {
-    notifs.push({
-      id: 'respect_streak',
-      priority: 'success',
-      icon: 'award',
-      color: '#2EA043',
-      title: `${respectStreak} trades respectant le plan`,
-      body: 'Excellente discipline ! Vous êtes dans la bonne dynamique.',
-    })
-  }
+  if (respectStreak >= 5) notifs.push({
+    id: 'respect_streak', priority: 'success', icon: 'award', color: '#2EA043',
+    title: `${respectStreak} trades respectant le plan`,
+    body: 'Excellente discipline ! Vous êtes dans la bonne dynamique.',
+  })
 
-  // 🔵 INFO — Trades sans After Trade
-  const noHindsight = trades.slice(0, 10).filter(t => !t.hindsight?.length)
-  if (noHindsight.length >= 3) {
-    notifs.push({
-      id: 'no_hindsight',
-      priority: 'info',
-      icon: 'book',
-      color: '#58a6ff',
-      title: `${noHindsight.length} trades sans After Trade`,
-      body: "L'analyse post-trade est essentielle pour progresser. Prenez 5 min par trade.",
-      action: '/hindsights',
-      actionLabel: 'Ajouter',
-    })
-  }
-
-  // 🔵 INFO — Trades aujourd'hui
-  const todayTrades = trades.filter(t => t.date === today)
-  if (todayTrades.length > 0) {
-    const wins = todayTrades.filter(t => t.result === 'tp').length
-    const profit = todayTrades.reduce((acc, t) => {
-      if (t.result === 'tp') return acc + (t.rr_won || 0)
-      if (t.result === 'sl') return acc - 1
-      return acc
-    }, 0)
-    notifs.push({
-      id: 'today',
-      priority: 'info',
-      icon: 'chart',
-      color: '#58a6ff',
-      title: `${todayTrades.length} trade${todayTrades.length > 1 ? 's' : ''} aujourd'hui`,
-      body: `${wins} TP · ${todayTrades.length - wins} autres · P&L : ${profit >= 0 ? '+' : ''}${profit.toFixed(1)}R`,
-      action: '/trades',
-      actionLabel: 'Voir',
-    })
-  }
-
-  // 🔵 INFO — Inactivité
+  // Jours consécutifs profitables
   if (trades.length > 0) {
-    const diffDays = Math.floor((new Date() - new Date(trades[0].date)) / (1000 * 60 * 60 * 24))
-    if (diffDays >= 5) {
-      notifs.push({
-        id: 'inactive',
-        priority: 'info',
-        icon: 'clock',
-        color: '#8B949E',
-        title: `${diffDays} jours sans trade`,
-        body: "N'oubliez pas de journaliser vos positions pour maintenir votre suivi.",
-        action: '/trades/new',
-        actionLabel: 'Ajouter',
+    const dateProfit = {}
+    trades.forEach(t => {
+      if (!dateProfit[t.date]) dateProfit[t.date] = 0
+      if (t.result === 'tp') dateProfit[t.date] += (t.rr_won || 0)
+      if (t.result === 'sl') dateProfit[t.date] -= 1
+    })
+    const sortedDates = Object.keys(dateProfit).sort((a, b) => b.localeCompare(a))
+    let streak = 0
+    for (const d of sortedDates) {
+      if (dateProfit[d] > 0) streak++
+      else break
+    }
+    if (streak >= 3) notifs.push({
+      id: 'best_session_streak', priority: 'success', icon: 'fire', color: '#2EA043',
+      title: `${streak} jours consécutifs profitables`,
+      body: 'Belle série ! Continuez à respecter votre plan.',
+      action: '/monthly', actionLabel: 'Voir stats',
+    })
+  }
+
+  // Discipline élevée
+  const last5disc = trades.slice(0, 5).filter(t => t.discipline_score != null)
+  if (last5disc.length >= 3) {
+    const avgDisc = last5disc.reduce((a, t) => a + t.discipline_score, 0) / last5disc.length
+    if (avgDisc >= 8) notifs.push({
+      id: 'discipline_high', priority: 'success', icon: 'award', color: '#2EA043',
+      title: `Discipline ${avgDisc.toFixed(1)}/10 sur 5 trades`,
+      body: 'Score de discipline excellent ! Votre rigueur paie.',
+    })
+  }
+
+  // RR excellent
+  if (last10.length >= 5) {
+    const tpTrades = last10.filter(t => t.result === 'tp' && t.rr_won != null)
+    if (tpTrades.length >= 3) {
+      const avgRR = tpTrades.reduce((a, t) => a + t.rr_won, 0) / tpTrades.length
+      if (avgRR >= 2.5) notifs.push({
+        id: 'rr_excellent', priority: 'success', icon: 'fire', color: '#2EA043',
+        title: `RR moyen de ${avgRR.toFixed(2)} sur 10 trades`,
+        body: 'Excellent ratio risque/récompense ! Vous gérez parfaitement vos sorties.',
+        action: '/monthly', actionLabel: 'Voir stats',
       })
     }
   }
 
-  // Priorité : urgent > warning > success > info
+  // ── 🔵 INFO ────────────────────────────────────────────
+
+  // Trades sans After Trade
+  if (trades.length > 0) {
+    const noHindsight = trades.slice(0, 10).filter(t => !t.hindsight?.length)
+    if (noHindsight.length >= 3) notifs.push({
+      id: 'no_hindsight', priority: 'info', icon: 'book', color: '#58a6ff',
+      title: `${noHindsight.length} trades sans After Trade`,
+      body: "L'analyse post-trade est essentielle pour progresser.",
+      action: '/hindsights', actionLabel: 'Ajouter',
+    })
+  }
+
+  // Trades aujourd'hui
+  if (trades.length > 0) {
+    const todayTrades = trades.filter(t => t.date === today)
+    if (todayTrades.length > 0) {
+      const wins = todayTrades.filter(t => t.result === 'tp').length
+      const profit = todayTrades.reduce((acc, t) => {
+        if (t.result === 'tp') return acc + (t.rr_won || 0)
+        if (t.result === 'sl') return acc - 1
+        return acc
+      }, 0)
+      notifs.push({
+        id: 'today', priority: 'info', icon: 'chart', color: '#58a6ff',
+        title: `${todayTrades.length} trade${todayTrades.length > 1 ? 's' : ''} aujourd'hui`,
+        body: `${wins} TP · ${todayTrades.length - wins} autres · P&L : ${profit >= 0 ? '+' : ''}${profit.toFixed(1)}R`,
+        action: '/trades', actionLabel: 'Voir',
+      })
+    }
+  }
+
+  // Résumé hebdomadaire — le lundi
+  if (todayDate.getDay() === 1 && trades.length > 0) {
+    const oneWeekAgo = new Date(todayDate)
+    oneWeekAgo.setDate(oneWeekAgo.getDate() - 7)
+    const weekISO = oneWeekAgo.toISOString().slice(0, 10)
+    const weekTrades = trades.filter(t => t.date >= weekISO && t.date <= today)
+    if (weekTrades.length > 0) {
+      const weekProfit = weekTrades.reduce((acc, t) => {
+        if (t.result === 'tp') return acc + (t.rr_won || 0)
+        if (t.result === 'sl') return acc - 1
+        return acc
+      }, 0)
+      notifs.push({
+        id: 'weekly_summary', priority: 'info', icon: 'chart', color: '#58a6ff',
+        title: `Semaine : ${weekTrades.length} trades`,
+        body: `P&L : ${weekProfit >= 0 ? '+' : ''}${weekProfit.toFixed(1)}R · ${weekTrades.filter(t => t.result === 'tp').length} TP · ${weekTrades.filter(t => t.result === 'sl').length} SL`,
+        action: '/monthly', actionLabel: 'Voir stats',
+      })
+    }
+  }
+
+  // Backtest gap — 2+ jours sans session
+  if (lastBacktestDate) {
+    const diffDays = Math.floor((todayDate - new Date(lastBacktestDate)) / (1000 * 60 * 60 * 24))
+    if (diffDays >= 2) notifs.push({
+      id: 'backtest_gap', priority: 'info', icon: 'clock', color: '#8B949E',
+      title: `${diffDays} jours sans backtest`,
+      body: 'Reprenez votre session de backtest pour maintenir votre progression.',
+      action: '/rules', actionLabel: 'Backtest',
+    })
+  }
+
+  // Pas de forecast cette semaine
+  if (!hasWeeklyForecast) notifs.push({
+    id: 'no_forecast', priority: 'info', icon: 'chart', color: '#58a6ff',
+    title: 'Pas de prévision cette semaine',
+    body: 'Préparez votre analyse hebdomadaire avant de trader.',
+    action: '/weekly-forecast', actionLabel: 'Créer',
+  })
+
+  // Inactivité
+  if (trades.length > 0) {
+    const diffDays = Math.floor((todayDate - new Date(trades[0].date)) / (1000 * 60 * 60 * 24))
+    if (diffDays >= 5) notifs.push({
+      id: 'inactive', priority: 'info', icon: 'clock', color: '#8B949E',
+      title: `${diffDays} jours sans trade`,
+      body: "N'oubliez pas de journaliser vos positions.",
+      action: '/trades/new', actionLabel: 'Ajouter',
+    })
+  }
+
   const order = { urgent: 0, warning: 1, success: 2, info: 3 }
   return notifs.sort((a, b) => order[a.priority] - order[b.priority])
 }
@@ -555,6 +647,8 @@ useEffect(() => {
   const [notifAnchor, setNotifAnchor]             = useState('mobile')
   const [backtestDone, setBacktestDone]           = useState(false)
   const [backtestHours, setBacktestHours]         = useState(null)
+  const [lastBacktestDate, setLastBacktestDate] = useState(null)
+  const [hasWeeklyForecast, setHasWeeklyForecast] = useState(true)
 
   const [readIds, setReadIds] = useState(() => {
     try { return JSON.parse(localStorage.getItem('tf_read_notifs') || '[]') } catch { return [] }
@@ -585,6 +679,7 @@ useEffect(() => {
 useEffect(() => {
   if (!user) return
   const load = async () => {
+    // Backtest cycle actuel
     const { data } = await supabase
       .from('backtest_cycles')
       .select('*, backtest_sessions(*)')
@@ -599,6 +694,28 @@ useEffect(() => {
         setBacktestHours(data.goal_hours)
       }
     }
+
+    // Dernière session backtest
+    const { data: lastSession } = await supabase
+      .from('backtest_sessions')
+      .select('date')
+      .eq('user_id', user.id)
+      .order('date', { ascending: false })
+      .limit(1)
+      .single()
+    if (lastSession) setLastBacktestDate(lastSession.date)
+
+    // Forecast semaine en cours
+    const weekStart = new Date()
+    weekStart.setDate(weekStart.getDate() - ((weekStart.getDay() + 6) % 7))
+    const weekISO = weekStart.toISOString().slice(0, 10)
+    const { data: forecast } = await supabase
+      .from('weekly_forecasts')
+      .select('id')
+      .eq('user_id', user.id)
+      .eq('week_start', weekISO)
+      .single()
+    setHasWeeklyForecast(!!forecast)
   }
   load()
 }, [user])
@@ -613,7 +730,7 @@ useEffect(() => {
   const sendPush = async (id, title, body, url = '/') => {
     if (sent.includes(id)) return
     try {
-      await fetch('/api/send-notification', {
+      await fetch('https://trade-forge-mu.vercel.app/api/send-notification', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ user_id: user.id, title, body, url })
@@ -674,10 +791,9 @@ useEffect(() => {
 }, [trades, user, backtestDone, backtestHours])
 
   const allNotifs = useMemo(
-    () => buildNotifications(trades, backtestDone, backtestHours),
-    [trades, backtestDone, backtestHours]
-  )
-
+  () => buildNotifications(trades, backtestDone, backtestHours, lastBacktestDate, hasWeeklyForecast),
+  [trades, backtestDone, backtestHours, lastBacktestDate, hasWeeklyForecast]
+)
   const notifications = useMemo(() =>
     allNotifs
       .filter(n => !dismissedIds.includes(n.id))

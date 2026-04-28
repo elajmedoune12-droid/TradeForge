@@ -63,16 +63,16 @@ export function useNotifications() {
       setSubscribed(true)
 
       // Notification de bienvenue
-      await fetch('/api/send-notification', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          user_id: user.id,
-          title: '⚡ TradeForge activé',
-          body: 'Tu recevras des rappels pour journaliser tes trades.',
-          url: '/dashboard'
-        })
-      })
+      await fetch('https://trade-forge-mu.vercel.app/api/send-notification', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    user_id: user.id,
+    title: '⚡ TradeForge activé',
+    body: 'Tu recevras des rappels pour journaliser tes trades.',
+    url: '/dashboard'
+  })
+})
     } catch (err) {
       console.error('Subscribe error:', err)
     } finally {
