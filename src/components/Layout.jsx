@@ -559,9 +559,16 @@ useEffect(() => {
   const [readIds, setReadIds] = useState(() => {
     try { return JSON.parse(localStorage.getItem('tf_read_notifs') || '[]') } catch { return [] }
   })
+
   const [dismissedIds, setDismissedIds] = useState(() => {
-    try { return JSON.parse(localStorage.getItem('tf_dismissed_notifs') || '[]') } catch { return [] }
-  })
+  try {
+    const today = new Date().toISOString().slice(0, 10)
+    const saved = JSON.parse(localStorage.getItem('tf_dismissed_notifs') || '{}')
+    // Si la date sauvegardée n'est pas aujourd'hui, reset
+    if (saved.date !== today) return []
+    return saved.ids || []
+  } catch { return [] }
+})
 
   const [profile, setProfile] = useState(null)
   const { user, signOut } = useAuth()
@@ -688,16 +695,18 @@ useEffect(() => {
   }
 
   const dismissNotif = (id) => {
-    const next = [...dismissedIds, id]
-    setDismissedIds(next)
-    localStorage.setItem('tf_dismissed_notifs', JSON.stringify(next))
-  }
+  const next = [...dismissedIds, id]
+  setDismissedIds(next)
+  const today = new Date().toISOString().slice(0, 10)
+  localStorage.setItem('tf_dismissed_notifs', JSON.stringify({ date: today, ids: next }))
+}
 
   const dismissAll = () => {
-    const ids = allNotifs.map(n => n.id)
-    setDismissedIds(ids)
-    localStorage.setItem('tf_dismissed_notifs', JSON.stringify(ids))
-  }
+  const ids = allNotifs.map(n => n.id)
+  setDismissedIds(ids)
+  const today = new Date().toISOString().slice(0, 10)
+  localStorage.setItem('tf_dismissed_notifs', JSON.stringify({ date: today, ids }))
+}
 
   const handleBell = (anchor) => {
     setNotifAnchor(anchor)
