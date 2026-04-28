@@ -63,7 +63,7 @@ export function useNotifications() {
       setSubscribed(true)
 
       // Notification de bienvenue
-      await fetch('https://trade-forge-mu.vercel.app/api/send-notification', {
+      await fetch('/api/send-notification', {
   method: 'POST',
   headers: { 'Content-Type': 'application/json' },
   body: JSON.stringify({

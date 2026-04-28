@@ -728,7 +728,7 @@ useEffect(() => {
   const sendPush = async (id, title, body, url = '/') => {
     if (sent.includes(id)) return
     try {
-      await fetch('https://trade-forge-mu.vercel.app/api/send-notification', {
+      await fetch('/api/send-notification', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ user_id: user.id, title, body, url })
