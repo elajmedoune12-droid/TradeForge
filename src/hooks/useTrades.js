@@ -8,33 +8,42 @@ export const useTrades = () => {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
 
-  const fetch = useCallback(async () => {
+  // Fetch initial avec loading
+  useEffect(() => {
+    if (!user) return
+    setLoading(true)
+    getTrades(user.id)
+      .then(data => { setTrades(data); setLoading(false) })
+      .catch(e => { setError(e.message); setLoading(false) })
+  }, [user])
+
+  // Refresh silencieux — sans loading
+  const refresh = useCallback(async () => {
     if (!user) return
     try {
-      setLoading(true)
       const data = await getTrades(user.id)
-      setTrades(data)
+      setTrades(prev =>
+        JSON.stringify(prev) === JSON.stringify(data) ? prev : data
+      )
     } catch (e) {
       setError(e.message)
-    } finally {
-      setLoading(false)
     }
   }, [user])
 
-  useEffect(() => { fetch() }, [fetch])
-
+  // Polling toutes les 10s sans re-render visuel
   useEffect(() => {
-    const interval = setInterval(() => fetch(), 10000)
+    const interval = setInterval(() => refresh(), 10000)
     return () => clearInterval(interval)
-  }, [fetch])
+  }, [refresh])
 
+  // Refresh quand l'app revient au premier plan
   useEffect(() => {
     const onVisible = () => {
-      if (document.visibilityState === 'visible') fetch()
+      if (document.visibilityState === 'visible') refresh()
     }
     document.addEventListener('visibilitychange', onVisible)
     return () => document.removeEventListener('visibilitychange', onVisible)
-  }, [fetch])
+  }, [refresh])
 
-  return { trades, loading, error, refresh: fetch }
+  return { trades, loading, error, refresh }
 }
