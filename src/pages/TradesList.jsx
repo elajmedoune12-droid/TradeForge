@@ -13,7 +13,6 @@ import { useTrades } from '../hooks/useTrades'
 import { fmtDate, MARKETS, calcWinRate, calcPnl } from '../utils'
 import { format, parseISO, startOfMonth, endOfMonth, eachDayOfInterval, getDay, addMonths, subMonths, isSameMonth } from 'date-fns'
 import { fr } from 'date-fns/locale'
-import { SkeletonCard, SkeletonList, SkeletonCalendar } from '../components/Skeleton'
 
 const RESULTS_OPTIONS = [
   { value: 'tp',     label: 'Take Profit', color: '#2EA043' },
@@ -115,7 +114,7 @@ const ResultsTooltip = ({ active, payload, label }) => {
   )
 }
 
-// ── Calendrier ────────────────────────────────────────────────
+// ── Calendrier amélioré ───────────────────────────────────────
 function TradeCalendar({ trades, onDayClick }) {
   const [currentMonth, setCurrentMonth] = useState(new Date())
 
@@ -166,7 +165,7 @@ function TradeCalendar({ trades, onDayClick }) {
     }
   }, [trades, currentMonth])
 
-  const today = format(new Date(), 'yyyy-MM-dd')
+  const today    = format(new Date(), 'yyyy-MM-dd')
   const allCells = [...blanks, ...days]
   const weekRows = []
   for (let i = 0; i < allCells.length; i += 7) weekRows.push(allCells.slice(i, i + 7))
@@ -174,29 +173,22 @@ function TradeCalendar({ trades, onDayClick }) {
   return (
     <div className="mb-4 rounded-2xl overflow-hidden"
       style={{
-        background: 'linear-gradient(180deg, rgba(12,16,24,0.98) 0%, rgba(8,11,18,0.98) 100%)',
+        background: 'rgba(10,13,20,0.98)',
         border: '1px solid rgba(255,255,255,0.07)',
-        boxShadow: '0 20px 60px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.05)',
+        boxShadow: '0 24px 64px rgba(0,0,0,0.5)',
       }}>
 
-      {/* Header */}
-      <div className="px-4 pt-4 pb-4"
-        style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', background: 'rgba(255,255,255,0.01)' }}>
-
-        {/* Navigation mois */}
+      {/* Header navigation */}
+      <div className="px-5 pt-5 pb-4" style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
         <div className="flex items-center justify-between mb-4">
           <button onClick={() => setCurrentMonth(d => subMonths(d, 1))}
             className="w-9 h-9 rounded-xl flex items-center justify-center transition-all active:scale-95 hover:bg-white/5"
             style={{ border: '1px solid rgba(255,255,255,0.08)' }}>
             <ChevronLeft size={16} style={{ color: '#8B949E' }} />
           </button>
-
-          <div className="text-center">
-            <p className="text-base font-bold capitalize text-white tracking-wide">
-              {format(currentMonth, 'MMMM yyyy', { locale: fr })}
-            </p>
-          </div>
-
+          <p className="text-base font-bold capitalize text-white tracking-wide">
+            {format(currentMonth, 'MMMM yyyy', { locale: fr })}
+          </p>
           <button onClick={() => setCurrentMonth(d => addMonths(d, 1))}
             disabled={isSameMonth(currentMonth, new Date())}
             className="w-9 h-9 rounded-xl flex items-center justify-center transition-all active:scale-95 hover:bg-white/5 disabled:opacity-20"
@@ -205,126 +197,142 @@ function TradeCalendar({ trades, onDayClick }) {
           </button>
         </div>
 
-        {/* Stats 4 cards */}
+        {/* Stats mois */}
         <div className="grid grid-cols-4 gap-2">
           {[
-            { label: 'Trades',   value: monthStats.count || '—',  color: '#fff' },
-            { label: 'Jours',    value: monthStats.days || '—',    color: '#fff' },
-            { label: 'Win Rate', value: monthStats.count ? `${monthStats.winRate}%` : '—',
-              color: !monthStats.count ? '#8B949E' : monthStats.winRate >= 50 ? '#2EA043' : '#F85149',
-              glow:  !monthStats.count ? null : monthStats.winRate >= 50 ? 'rgba(46,160,67,0.15)' : 'rgba(248,81,73,0.15)' },
-            { label: 'Profit',   value: monthStats.count ? `${monthStats.profit >= 0 ? '+' : ''}${monthStats.profit}R` : '—',
-              color: !monthStats.count ? '#8B949E' : monthStats.profit >= 0 ? '#2EA043' : '#F85149',
-              glow:  !monthStats.count ? null : monthStats.profit >= 0 ? 'rgba(46,160,67,0.15)' : 'rgba(248,81,73,0.15)' },
+            { label: 'Trades',   value: monthStats.count || '—', color: '#fff' },
+            { label: 'Jours',    value: monthStats.days  || '—', color: '#fff' },
+            { label: 'Win Rate',
+              value: monthStats.count ? `${monthStats.winRate}%` : '—',
+              color: !monthStats.count ? '#8B949E' : monthStats.winRate >= 50 ? '#2EA043' : '#F85149' },
+            { label: 'P&L',
+              value: monthStats.count ? `${monthStats.profit >= 0 ? '+' : ''}${monthStats.profit}R` : '—',
+              color: !monthStats.count ? '#8B949E' : monthStats.profit >= 0 ? '#2EA043' : '#F85149' },
           ].map(s => (
-            <div key={s.label} className="relative text-center rounded-xl py-2.5 overflow-hidden"
-              style={{
-                background: s.glow ? s.glow : 'rgba(255,255,255,0.03)',
-                border: `1px solid ${s.glow ? s.color + '33' : 'rgba(255,255,255,0.06)'}`,
-              }}>
-              <p className="text-[9px] font-semibold uppercase tracking-widest mb-1"
-                style={{ color: 'rgba(139,148,158,0.7)' }}>{s.label}</p>
+            <div key={s.label} className="text-center rounded-xl py-2.5 px-1"
+              style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}>
+              <p className="text-[9px] font-medium uppercase tracking-widest mb-1.5"
+                style={{ color: 'rgba(139,148,158,0.6)' }}>{s.label}</p>
               <p className="text-sm font-mono font-black leading-none" style={{ color: s.color }}>{s.value}</p>
             </div>
           ))}
         </div>
       </div>
 
-      {/* Corps */}
+      {/* Corps calendrier */}
       <div className="p-3">
-        <div className="flex gap-1.5">
-          {/* Calendrier */}
+        <div className="flex gap-2">
+
+          {/* Grille principale */}
           <div className="flex-1 min-w-0">
 
-            {/* En-têtes jours */}
-            <div className="grid grid-cols-7 gap-1 mb-1.5">
+            {/* En-têtes */}
+            <div className="grid grid-cols-7 gap-1.5 mb-1.5">
               {DAYS_FR.map((d, i) => (
-                <div key={d} className="text-center text-[9px] font-bold uppercase tracking-wider py-1.5 rounded-lg"
+                <div key={d} className="text-center text-[10px] font-bold uppercase tracking-wider py-2 rounded-lg"
                   style={{
-                    color: i === 0 ? 'rgba(247,183,49,0.7)' : 'rgba(139,148,158,0.5)',
-                    background: i === 0 ? 'rgba(247,183,49,0.05)' : 'transparent',
-                  }}>{d}</div>
+                    color: i === 0 ? 'rgba(247,183,49,0.8)' : 'rgba(139,148,158,0.5)',
+                    background: i === 0 ? 'rgba(247,183,49,0.06)' : 'transparent',
+                    letterSpacing: '0.08em',
+                  }}>
+                  {d}
+                </div>
               ))}
             </div>
 
             {/* Semaines */}
             {weekRows.map((week, wi) => (
-              <div key={wi} className="grid grid-cols-7 gap-1 mb-1">
+              <div key={wi} className="grid grid-cols-7 gap-1.5 mb-1.5">
                 {week.map((day, di) => {
-                  if (!day) return <div key={di} />
-                  const iso     = format(day, 'yyyy-MM-dd')
-                  const ts      = byDate[iso]
-                  const profit  = getDayProfit(ts)
-                  const isToday = iso === today
-                  const isPos   = profit !== null && profit > 0
-                  const isNeg   = profit !== null && profit < 0
-                  const isBreak = profit !== null && profit === 0 && ts?.length
+                  if (!day) return <div key={di} className="rounded-xl" style={{ aspectRatio: '1', background: 'rgba(255,255,255,0.01)' }} />
+
+                  const iso      = format(day, 'yyyy-MM-dd')
+                  const ts       = byDate[iso]
+                  const profit   = getDayProfit(ts)
+                  const isToday  = iso === today
                   const hasTrade = ts?.length > 0
-                  const isSun   = di === 0
+                  const isPos    = profit !== null && profit > 0
+                  const isNeg    = profit !== null && profit < 0
+                  const isBreak  = profit !== null && profit === 0 && hasTrade
+                  const isSun    = di === 0
+                  const dayWr    = hasTrade ? calcWinRate(ts) : null
 
                   return (
                     <button key={di}
                       onClick={() => hasTrade && onDayClick(ts)}
-                      className="relative rounded-xl flex flex-col items-center justify-start overflow-hidden transition-all"
+                      className="relative rounded-xl flex flex-col overflow-hidden transition-all"
                       style={{
                         aspectRatio: '1',
                         cursor: hasTrade ? 'pointer' : 'default',
-                        padding: '5px 2px 4px',
-                        background: isPos   ? 'linear-gradient(135deg, rgba(46,160,67,0.18), rgba(46,160,67,0.08))'
-                          : isNeg   ? 'linear-gradient(135deg, rgba(248,81,73,0.18), rgba(248,81,73,0.08))'
-                          : isBreak ? 'linear-gradient(135deg, rgba(88,166,255,0.12), rgba(88,166,255,0.05))'
-                          : isSun   ? 'rgba(247,183,49,0.03)'
-                          : 'rgba(255,255,255,0.02)',
+                        padding: '7px 6px 6px',
+                        background: isPos   ? 'linear-gradient(145deg, rgba(46,160,67,0.22) 0%, rgba(46,160,67,0.08) 100%)'
+                          : isNeg   ? 'linear-gradient(145deg, rgba(248,81,73,0.22) 0%, rgba(248,81,73,0.08) 100%)'
+                          : isBreak ? 'linear-gradient(145deg, rgba(88,166,255,0.15) 0%, rgba(88,166,255,0.05) 100%)'
+                          : isToday ? 'rgba(247,183,49,0.06)'
+                          : isSun   ? 'rgba(247,183,49,0.02)'
+                          : 'rgba(255,255,255,0.025)',
                         border: `1px solid ${
-                          isToday ? '#F7B731'
-                          : isPos ? 'rgba(46,160,67,0.35)'
-                          : isNeg ? 'rgba(248,81,73,0.35)'
-                          : isBreak ? 'rgba(88,166,255,0.25)'
-                          : isSun ? 'rgba(247,183,49,0.1)'
-                          : 'rgba(255,255,255,0.04)'
+                          isToday  ? 'rgba(247,183,49,0.6)'
+                          : isPos  ? 'rgba(46,160,67,0.4)'
+                          : isNeg  ? 'rgba(248,81,73,0.4)'
+                          : isBreak ? 'rgba(88,166,255,0.3)'
+                          : isSun  ? 'rgba(247,183,49,0.1)'
+                          : 'rgba(255,255,255,0.05)'
                         }`,
-                        boxShadow: isToday ? '0 0 12px rgba(247,183,49,0.25), inset 0 1px 0 rgba(247,183,49,0.2)'
-                          : isPos ? '0 2px 8px rgba(46,160,67,0.15)'
-                          : isNeg ? '0 2px 8px rgba(248,81,73,0.15)'
+                        boxShadow: isPos ? 'inset 0 1px 0 rgba(46,160,67,0.15)'
+                          : isNeg ? 'inset 0 1px 0 rgba(248,81,73,0.15)'
+                          : isToday ? '0 0 0 1px rgba(247,183,49,0.2)'
                           : 'none',
+                        transform: hasTrade ? undefined : undefined,
                       }}>
 
-                      {/* Numéro du jour */}
-                      <span className="text-[10px] font-bold leading-none"
-                        style={{
-                          color: isToday ? '#F7B731'
-                            : hasTrade ? (isPos ? '#2EA043' : isNeg ? '#F85149' : '#58a6ff')
-                            : isSun ? 'rgba(247,183,49,0.4)'
-                            : 'rgba(139,148,158,0.35)',
-                        }}>
-                        {format(day, 'd')}
-                      </span>
+{/* Numéro jour — haut droite */}
+<div className="flex justify-end mb-1">
+  <span className="text-[11px] font-bold leading-none"
+    style={{
+      color: isToday  ? '#F7B731'
+        : hasTrade ? (isPos ? 'rgba(46,160,67,0.9)' : isNeg ? 'rgba(248,81,73,0.9)' : 'rgba(88,166,255,0.9)')
+        : 'rgba(139,148,158,0.3)',
+    }}>
+    {format(day, 'd')}
+  </span>
+</div>
 
-                      {/* Profit */}
-                      {hasTrade && profit !== null && (
-                        <span className="text-[8px] font-mono font-black mt-0.5 leading-none"
-                          style={{ color: isPos ? '#2EA043' : isNeg ? '#F85149' : '#58a6ff' }}>
-                          {profit > 0 ? '+' : ''}{profit.toFixed(1)}
-                        </span>
-                      )}
-
-                      {/* Nb trades */}
-                      {hasTrade && (
-                        <span className="text-[7px] leading-none mt-0.5 font-medium"
-                          style={{ color: 'rgba(139,148,158,0.5)' }}>
-                          {ts.length}t
-                        </span>
-                      )}
+{/* Contenu trade — caché sur mobile */}
+{hasTrade && profit !== null && (
+  <div className="hidden sm:flex flex-col items-center justify-center flex-1 gap-0.5">
+    <span className="text-[12px] font-mono font-black leading-none text-center"
+      style={{ color: isPos ? '#3fb950' : isNeg ? '#ff6b6b' : '#79c0ff' }}>
+      {profit > 0 ? '+' : ''}{profit.toFixed(1)}R
+    </span>
+    <span className="text-[8px] font-medium leading-none text-center"
+      style={{ color: 'rgba(139,148,158,0.55)' }}>
+      {ts.length} trade{ts.length > 1 ? 's' : ''}
+    </span>
+    {dayWr !== null && (
+      <span className="text-[8px] font-mono font-semibold leading-none"
+        style={{ color: dayWr >= 50 ? 'rgba(46,160,67,0.7)' : 'rgba(248,81,73,0.7)' }}>
+        {dayWr}%
+      </span>
+    )}
+  </div>
+)}
 
                       {/* Barre colorée en bas */}
                       {hasTrade && (
-                        <div className="absolute bottom-0 left-0 right-0 h-0.5 rounded-b-xl"
-                          style={{ background: isPos ? '#2EA043' : isNeg ? '#F85149' : '#58a6ff', opacity: 0.6 }} />
+                        <div className="absolute bottom-0 left-0 right-0 h-[3px] rounded-b-xl"
+                          style={{
+                            background: isPos ? 'linear-gradient(90deg, #2EA043, #3fb950)'
+                              : isNeg ? 'linear-gradient(90deg, #F85149, #ff6b6b)'
+                              : 'linear-gradient(90deg, #58a6ff, #79c0ff)',
+                            opacity: 0.8,
+                          }} />
                       )}
 
-                      {/* Dot aujourd'hui */}
+                      {/* Dot aujourd'hui sans trade */}
                       {isToday && !hasTrade && (
-                        <div className="absolute bottom-1.5 w-1 h-1 rounded-full" style={{ background: '#F7B731' }} />
+                        <div className="absolute bottom-2 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full"
+                          style={{ background: '#F7B731', boxShadow: '0 0 4px rgba(247,183,49,0.6)' }} />
                       )}
                     </button>
                   )
@@ -334,38 +342,37 @@ function TradeCalendar({ trades, onDayClick }) {
           </div>
 
           {/* Colonne semaines */}
-          <div className="flex flex-col w-[52px] flex-shrink-0 gap-1">
-            <div className="text-[9px] font-bold uppercase tracking-wider text-center py-1.5 rounded-lg mb-0.5"
-              style={{ color: 'rgba(139,148,158,0.5)' }}>Sem</div>
+          <div className="hidden sm:flex flex-col w-[54px] flex-shrink-0 gap-1.5">
+            <div className="text-[9px] font-bold uppercase tracking-wider text-center py-2 rounded-lg mb-0"
+              style={{ color: 'rgba(139,148,158,0.4)' }}>Sem</div>
             {weeks.map((w, i) => (
-              <div key={i} className="flex-1 flex flex-col items-center justify-center rounded-xl"
+              <div key={i} className="flex-1 flex flex-col items-center justify-center rounded-xl transition-all"
                 style={{
-                  minHeight: '40px',
+                  minHeight: '44px',
                   background: w.count === 0 ? 'rgba(255,255,255,0.02)'
-                    : w.profit > 0 ? 'linear-gradient(135deg, rgba(46,160,67,0.12), rgba(46,160,67,0.05))'
-                    : w.profit < 0 ? 'linear-gradient(135deg, rgba(248,81,73,0.12), rgba(248,81,73,0.05))'
+                    : w.profit > 0 ? 'linear-gradient(145deg, rgba(46,160,67,0.14), rgba(46,160,67,0.05))'
+                    : w.profit < 0 ? 'linear-gradient(145deg, rgba(248,81,73,0.14), rgba(248,81,73,0.05))'
                     : 'rgba(88,166,255,0.07)',
                   border: `1px solid ${
                     w.count === 0 ? 'rgba(255,255,255,0.04)'
-                    : w.profit > 0 ? 'rgba(46,160,67,0.2)'
-                    : w.profit < 0 ? 'rgba(248,81,73,0.2)'
+                    : w.profit > 0 ? 'rgba(46,160,67,0.25)'
+                    : w.profit < 0 ? 'rgba(248,81,73,0.25)'
                     : 'rgba(88,166,255,0.2)'
                   }`,
-                  boxShadow: w.count > 0 && w.profit > 0 ? '0 2px 8px rgba(46,160,67,0.1)'
-                    : w.count > 0 && w.profit < 0 ? '0 2px 8px rgba(248,81,73,0.1)'
-                    : 'none',
                 }}>
                 {w.count > 0 ? (
                   <>
-                    <span className="text-[9px] font-mono font-black leading-none"
-                      style={{ color: w.profit > 0 ? '#2EA043' : w.profit < 0 ? '#F85149' : '#58a6ff' }}>
-                      {w.profit > 0 ? '+' : ''}{w.profit}R
-                    </span>
-                    <span className="text-[7px] mt-0.5 font-medium"
-                      style={{ color: 'rgba(139,148,158,0.5)' }}>{w.count}t</span>
+                    <span className="text-[11px] font-mono font-black leading-none"
+  style={{ color: w.profit > 0 ? '#3fb950' : w.profit < 0 ? '#ff6b6b' : '#79c0ff' }}>
+  {w.profit > 0 ? '+' : ''}{w.profit}R
+</span>
+<span className="text-[9px] mt-1 font-medium"
+  style={{ color: 'rgba(139,148,158,0.45)' }}>
+  {w.count}t
+</span>
                   </>
                 ) : (
-                  <span className="text-[8px]" style={{ color: 'rgba(255,255,255,0.06)' }}>—</span>
+                  <span style={{ color: 'rgba(255,255,255,0.05)', fontSize: 8 }}>—</span>
                 )}
               </div>
             ))}
@@ -475,7 +482,7 @@ export default function TradesList() {
     if (chartMode === 'equity') {
       let cum = 0
       return sorted.map(t => {
-        const pnl = calcPnl(t)
+        const pnl = t.result === 'tp' ? (t.rr_won || 0) : t.result === 'sl' ? (t.rr_won || -1) : 0
         cum += pnl
         return { label: format(parseISO(t.date), 'dd/MM'), equity: +cum.toFixed(2) }
       })
@@ -507,7 +514,11 @@ export default function TradesList() {
     const be      = filtered.filter(t => t.result === 'be').length
     const missed  = filtered.filter(t => t.result === 'missed').length
     const winRate = calcWinRate(filtered)
-    const profit = +filtered.reduce((sum, t) => sum + calcPnl(t), 0).toFixed(2)
+    const profit  = +filtered.reduce((sum, t) => {
+      if (t.result === 'tp') return sum + (t.rr_won || 0)
+      if (t.result === 'sl') return sum + (t.rr_won || -1)
+      return sum
+    }, 0).toFixed(2)
     const avgRR = tp > 0
       ? +(filtered.filter(t => t.result === 'tp').reduce((s, t) => s + (t.rr_won || 0), 0) / tp).toFixed(2)
       : 0
@@ -541,16 +552,11 @@ export default function TradesList() {
     setSearch('')
   }
 
-if (loading) return (
-  <div className="page space-y-4">
-    <div className="grid grid-cols-2 gap-3">
-      <SkeletonCard /><SkeletonCard />
-      <SkeletonCard /><SkeletonCard />
+  if (loading) return (
+    <div className="page flex items-center justify-center h-64">
+      <div className="w-6 h-6 border-2 border-forge-accent border-t-transparent rounded-full animate-spin" />
     </div>
-    <SkeletonCalendar />
-    <SkeletonList />
-  </div>
-)
+  )
 
   return (
     <div className="page">

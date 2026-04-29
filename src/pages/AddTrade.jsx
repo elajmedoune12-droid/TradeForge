@@ -11,7 +11,7 @@ const DAYS = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dima
 const SESSIONS = [
   'London Session',
   'New York Session',
-  'London Close Reversal',
+  'London Close',
   'AM Session',
   'PM Session',
   'Hors session',
