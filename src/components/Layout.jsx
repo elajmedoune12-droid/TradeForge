@@ -224,7 +224,7 @@ function buildNotifications(trades, backtestDone, backtestHours, lastBacktestDat
       id: 'no_hindsight', priority: 'info', icon: 'book', color: '#58a6ff',
       title: `${noHindsight.length} trades sans After Trade`,
       body: "L'analyse post-trade est essentielle pour progresser.",
-      action: '/hindsights', actionLabel: 'Ajouter',
+      action: '/trades', actionLabel: 'Voir trades',
     })
   }
 
