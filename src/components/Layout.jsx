@@ -375,8 +375,12 @@ function NotifPanel({ onClose, notifications, onRead, onDismiss, onDismissAll, a
   const read   = notifications.filter(n => n.read)
 
   const handleAction = (n) => {
-    if (n.action) { navigate(n.action); onClose() }
+  if (n.action) {
+    onDismiss(n.id)
+    navigate(n.action)
+    onClose()
   }
+}
 
   return (
     <>
