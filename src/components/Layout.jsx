@@ -366,7 +366,7 @@ function NotifBell({ onClick, count, urgentCount }) {
 }
 
 // ── Notifications panel ───────────────────────────────────────
-function NotifPanel({ onClose, notifications, onRead, onDismiss, onDismissAll, anchor, navigate }) {
+function NotifPanel({ onClose, notifications, onRead, onDismiss, onDismissAll, onReadOne, anchor, navigate }) {
   const posStyle = anchor === 'top-right'
     ? { top: '56px', right: '16px' }
     : { top: 'calc(env(safe-area-inset-top) + 56px)', right: '16px' }
@@ -374,13 +374,13 @@ function NotifPanel({ onClose, notifications, onRead, onDismiss, onDismissAll, a
   const unread = notifications.filter(n => !n.read)
   const read   = notifications.filter(n => n.read)
 
-  const handleAction = (n) => {
-  if (n.action) {
-    onDismiss(n.id)
-    navigate(n.action)
-    onClose()
+ const handleAction = (n) => {
+    if (n.action) {
+      onReadOne(n.id)
+      navigate(n.action)
+      onClose()
+    }
   }
-}
 
   return (
     <>
@@ -826,6 +826,12 @@ useEffect(() => {
   localStorage.setItem('tf_dismissed_notifs', JSON.stringify({ date: today, ids }))
 }
 
+const markOneRead = (id) => {
+  const next = [...readIds, id]
+  setReadIds(next)
+  localStorage.setItem('tf_read_notifs', JSON.stringify(next))
+}
+
   const handleBell = (anchor) => {
     setNotifAnchor(anchor)
     setShowNotif(v => !v)
@@ -1024,6 +1030,7 @@ useEffect(() => {
           onRead={markAllRead}
           onDismiss={dismissNotif}
           onDismissAll={dismissAll}
+          onReadOne={markOneRead}
           anchor={notifAnchor}
           navigate={navigate}
         />
