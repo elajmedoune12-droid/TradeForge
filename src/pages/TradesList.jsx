@@ -150,21 +150,40 @@ const byDateAll = useMemo(() => {
     return +ts.reduce((acc, t) => acc + calcPnl(t), 0).toFixed(2)
   }
 
-  const weeks = useMemo(() => {
-    const all = [...blanks.map(() => null), ...days]
-    const result = []
-    for (let i = 0; i < all.length; i += 7) {
-      const chunk = all.slice(i, i + 7).filter(Boolean)
-      if (!chunk.length) continue
-      let profit = 0, count = 0
-      chunk.forEach(d => {
-        const ts = byDateAll[format(d, 'yyyy-MM-dd')] || []
-        ts.forEach(t => { count++; profit += calcPnl(t) })
-      })
-      result.push({ profit: +profit.toFixed(2), count })
+const weeks = useMemo(() => {
+  const allCellDates = []
+
+  for (let i = 0; i < startDow; i++) {
+    const d = new Date(monthStart)
+    d.setDate(d.getDate() - (startDow - i))
+    allCellDates.push(d)
+  }
+
+  days.forEach(d => allCellDates.push(d))
+
+  const remainder = allCellDates.length % 7
+  if (remainder !== 0) {
+    const lastDay = days[days.length - 1]
+    for (let i = 1; i <= 7 - remainder; i++) {
+      const d = new Date(lastDay)
+      d.setDate(d.getDate() + i)
+      allCellDates.push(d)
     }
-    return result
-  }, [days, byDateAll, blanks.length])
+  }
+
+  const result = []
+  for (let i = 0; i < allCellDates.length; i += 7) {
+    const chunk = allCellDates.slice(i, i + 7)
+    let profit = 0, count = 0
+    chunk.forEach(d => {
+      const iso = format(d, 'yyyy-MM-dd')
+      const ts = byDateAll[iso] || []
+      ts.forEach(t => { count++; profit += calcPnl(t) })
+    })
+    result.push({ profit: +profit.toFixed(2), count })
+  }
+  return result
+}, [days, byDateAll, startDow, monthStart])
 
   const monthStats = useMemo(() => {
     const ts = trades.filter(t => t.date.startsWith(format(currentMonth, 'yyyy-MM')))
