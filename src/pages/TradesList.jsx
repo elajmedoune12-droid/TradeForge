@@ -115,7 +115,7 @@ const ResultsTooltip = ({ active, payload, label }) => {
 }
 
 // ── Calendrier amélioré ───────────────────────────────────────
-function TradeCalendar({ trades, onDayClick }) {
+function TradeCalendar({ trades, allTrades, onDayClick }) {
   const [currentMonth, setCurrentMonth] = useState(new Date())
 
   const monthStart = startOfMonth(currentMonth)
@@ -133,6 +133,18 @@ function TradeCalendar({ trades, onDayClick }) {
     return map
   }, [trades])
 
+
+// Tous les trades pour les calculs de semaine (inclut trades hors du mois)
+const byDateAll = useMemo(() => {
+  const map = {}
+  allTrades.forEach(t => {
+    if (!map[t.date]) map[t.date] = []
+    map[t.date].push(t)
+  })
+  return map
+}, [allTrades])
+
+
   const getDayProfit = (ts) => {
     if (!ts?.length) return null
     return +ts.reduce((acc, t) => acc + calcPnl(t), 0).toFixed(2)
@@ -146,7 +158,7 @@ function TradeCalendar({ trades, onDayClick }) {
       if (!chunk.length) continue
       let profit = 0, count = 0
       chunk.forEach(d => {
-        const ts = byDate[format(d, 'yyyy-MM-dd')] || []
+        const ts = byDateAll[format(d, 'yyyy-MM-dd')] || []
         ts.forEach(t => { count++; profit += calcPnl(t) })
       })
       result.push({ profit: +profit.toFixed(2), count })
@@ -833,7 +845,7 @@ export default function TradesList() {
 
       {/* Vue Calendrier */}
       {viewMode === 'calendar' && filtered.length > 0 && (
-        <TradeCalendar trades={filtered} onDayClick={setDayTrades} />
+        <TradeCalendar trades={filtered} allTrades={trades} onDayClick={setDayTrades} />
       )}
 
       {/* Vue Liste */}
