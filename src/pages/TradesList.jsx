@@ -164,7 +164,7 @@ const byDateAll = useMemo(() => {
       result.push({ profit: +profit.toFixed(2), count })
     }
     return result
-  }, [days, byDate, blanks.length])
+  }, [days, byDateAll, blanks.length])
 
   const monthStats = useMemo(() => {
     const ts = trades.filter(t => t.date.startsWith(format(currentMonth, 'yyyy-MM')))
