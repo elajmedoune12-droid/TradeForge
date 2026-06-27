@@ -1,5 +1,7 @@
+import { useState, useMemo } from 'react'
+import { createPortal } from 'react-dom'
 import { useNavigate } from 'react-router-dom'
-import { Brain, TrendingUp, TrendingDown, Target, Zap, BarChart2 } from 'lucide-react'
+import { Brain, TrendingUp, TrendingDown, Target, Zap, BarChart2, X, ChevronLeft, ChevronRight } from 'lucide-react'
 import {
   AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer,
   ReferenceLine, CartesianGrid
@@ -7,10 +9,16 @@ import {
 import { useTrades } from '../hooks/useTrades'
 import {
   calcWinRate, calcAvgRR, calcTotalProfit, calcDisciplineScore,
-  getTopErrors, detectPatterns, fmtDate
+  getTopErrors, detectPatterns, calcPnl, fmtDate
 } from '../utils'
-import { format, subDays } from 'date-fns'
+import {
+  format, subDays, startOfMonth, endOfMonth,
+  eachDayOfInterval, getDay, addMonths, subMonths, isSameMonth,
+} from 'date-fns'
+import { fr } from 'date-fns/locale'
 import { SkeletonCard } from '../components/Skeleton'
+
+const DAYS_FR = ['Dim', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam']
 
 // ── Custom tooltip ──────────────────────────────────────────
 const CustomTooltip = ({ active, payload, label }) => {
@@ -25,12 +33,6 @@ const CustomTooltip = ({ active, payload, label }) => {
       </p>
     </div>
   )
-}
-
-const ResultBadge = ({ result }) => {
-  const map = { tp: 'badge-tp', sl: 'badge-sl', be: 'badge-be', missed: 'badge-missed' }
-  const labels = { tp: 'TP', sl: 'SL', be: 'BE', missed: 'Missed' }
-  return <span className={map[result] || 'badge-missed'}>{labels[result] || result}</span>
 }
 
 const StatCard = ({ label, value, sub, color, icon: Icon, glow }) => (
@@ -49,9 +51,373 @@ const StatCard = ({ label, value, sub, color, icon: Icon, glow }) => (
   </div>
 )
 
+// ── Calendrier de trades ───────────────────────────────────────
+function TradeCalendar({ trades, allTrades, onDayClick }) {
+  const [currentMonth, setCurrentMonth] = useState(new Date())
+
+  const monthStart = startOfMonth(currentMonth)
+  const monthEnd   = endOfMonth(currentMonth)
+  const days       = eachDayOfInterval({ start: monthStart, end: monthEnd })
+  const startDow   = getDay(monthStart)
+  const blanks     = Array(startDow).fill(null)
+
+  const byDate = useMemo(() => {
+    const map = {}
+    trades.forEach(t => {
+      if (!map[t.date]) map[t.date] = []
+      map[t.date].push(t)
+    })
+    return map
+  }, [trades])
+
+  // Tous les trades pour les calculs de semaine (inclut trades hors du mois)
+  const byDateAll = useMemo(() => {
+    const map = {}
+    allTrades.forEach(t => {
+      if (!map[t.date]) map[t.date] = []
+      map[t.date].push(t)
+    })
+    return map
+  }, [allTrades])
+
+  const getDayProfit = (ts) => {
+    if (!ts?.length) return null
+    return +ts.reduce((acc, t) => acc + calcPnl(t), 0).toFixed(2)
+  }
+
+  const weeks = useMemo(() => {
+    const allCellDates = []
+
+    for (let i = 0; i < startDow; i++) {
+      const d = new Date(monthStart)
+      d.setDate(d.getDate() - (startDow - i))
+      allCellDates.push(d)
+    }
+
+    days.forEach(d => allCellDates.push(d))
+
+    const remainder = allCellDates.length % 7
+    if (remainder !== 0) {
+      const lastDay = days[days.length - 1]
+      for (let i = 1; i <= 7 - remainder; i++) {
+        const d = new Date(lastDay)
+        d.setDate(d.getDate() + i)
+        allCellDates.push(d)
+      }
+    }
+
+    const result = []
+    for (let i = 0; i < allCellDates.length; i += 7) {
+      const chunk = allCellDates.slice(i, i + 7)
+      let profit = 0, count = 0
+      chunk.forEach(d => {
+        const iso = format(d, 'yyyy-MM-dd')
+        const ts = byDateAll[iso] || []
+        ts.forEach(t => { count++; profit += calcPnl(t) })
+      })
+      result.push({ profit: +profit.toFixed(2), count })
+    }
+    return result
+  }, [days, byDateAll, startDow, monthStart])
+
+  const monthStats = useMemo(() => {
+    const ts = trades.filter(t => t.date.startsWith(format(currentMonth, 'yyyy-MM')))
+    const profit = ts.reduce((acc, t) => acc + calcPnl(t), 0)
+    return {
+      count: ts.length,
+      profit: +profit.toFixed(2),
+      days: new Set(ts.map(t => t.date)).size,
+      winRate: calcWinRate(ts),
+    }
+  }, [trades, currentMonth])
+
+  const today    = format(new Date(), 'yyyy-MM-dd')
+  const allCells = [...blanks, ...days]
+  const weekRows = []
+  for (let i = 0; i < allCells.length; i += 7) weekRows.push(allCells.slice(i, i + 7))
+
+  return (
+    <div className="mb-4 rounded-2xl overflow-hidden"
+      style={{
+        background: 'rgba(10,13,20,0.98)',
+        border: '1px solid rgba(255,255,255,0.07)',
+        boxShadow: '0 24px 64px rgba(0,0,0,0.5)',
+      }}>
+
+      {/* Header navigation */}
+      <div className="px-5 pt-5 pb-4" style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+        <div className="flex items-center justify-between mb-4">
+          <button onClick={() => setCurrentMonth(d => subMonths(d, 1))}
+            className="w-9 h-9 rounded-xl flex items-center justify-center transition-all active:scale-95 hover:bg-white/5"
+            style={{ border: '1px solid rgba(255,255,255,0.08)' }}>
+            <ChevronLeft size={16} style={{ color: '#8B949E' }} />
+          </button>
+          <p className="text-base font-bold capitalize text-white tracking-wide">
+            {format(currentMonth, 'MMMM yyyy', { locale: fr })}
+          </p>
+          <button onClick={() => setCurrentMonth(d => addMonths(d, 1))}
+            disabled={isSameMonth(currentMonth, new Date())}
+            className="w-9 h-9 rounded-xl flex items-center justify-center transition-all active:scale-95 hover:bg-white/5 disabled:opacity-20"
+            style={{ border: '1px solid rgba(255,255,255,0.08)' }}>
+            <ChevronRight size={16} style={{ color: '#8B949E' }} />
+          </button>
+        </div>
+
+        {/* Stats mois */}
+        <div className="grid grid-cols-4 gap-2">
+          {[
+            { label: 'Trades',   value: monthStats.count || '—', color: '#fff' },
+            { label: 'Jours',    value: monthStats.days  || '—', color: '#fff' },
+            { label: 'Win Rate',
+              value: monthStats.count ? `${monthStats.winRate}%` : '—',
+              color: !monthStats.count ? '#8B949E' : monthStats.winRate >= 50 ? '#2EA043' : '#F85149' },
+            { label: 'P&L',
+              value: monthStats.count ? `${monthStats.profit >= 0 ? '+' : ''}${monthStats.profit}R` : '—',
+              color: !monthStats.count ? '#8B949E' : monthStats.profit >= 0 ? '#2EA043' : '#F85149' },
+          ].map(s => (
+            <div key={s.label} className="text-center rounded-xl py-2.5 px-1"
+              style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}>
+              <p className="text-[9px] font-medium uppercase tracking-widest mb-1.5"
+                style={{ color: 'rgba(139,148,158,0.6)' }}>{s.label}</p>
+              <p className="text-sm font-mono font-black leading-none" style={{ color: s.color }}>{s.value}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Corps calendrier */}
+      <div className="p-3">
+        <div className="flex gap-2">
+
+          {/* Grille principale */}
+          <div className="flex-1 min-w-0">
+
+            {/* En-têtes */}
+            <div className="grid grid-cols-7 gap-1.5 mb-1.5">
+              {DAYS_FR.map((d, i) => (
+                <div key={d} className="text-center text-[10px] font-bold uppercase tracking-wider py-2 rounded-lg"
+                  style={{
+                    color: i === 0 ? 'rgba(247,183,49,0.8)' : 'rgba(139,148,158,0.5)',
+                    background: i === 0 ? 'rgba(247,183,49,0.06)' : 'transparent',
+                    letterSpacing: '0.08em',
+                  }}>
+                  {d}
+                </div>
+              ))}
+            </div>
+
+            {/* Semaines */}
+            {weekRows.map((week, wi) => (
+              <div key={wi} className="grid grid-cols-7 gap-1.5 mb-1.5">
+                {week.map((day, di) => {
+                  if (!day) return <div key={di} className="rounded-xl" style={{ aspectRatio: '1', background: 'rgba(255,255,255,0.01)' }} />
+
+                  const iso      = format(day, 'yyyy-MM-dd')
+                  const ts       = byDate[iso]
+                  const profit   = getDayProfit(ts)
+                  const isToday  = iso === today
+                  const hasTrade = ts?.length > 0
+                  const isPos    = profit !== null && profit > 0
+                  const isNeg    = profit !== null && profit < 0
+                  const isBreak  = profit !== null && profit === 0 && hasTrade
+                  const isSun    = di === 0
+                  const dayWr    = hasTrade ? calcWinRate(ts) : null
+
+                  return (
+                    <button key={di}
+                      onClick={() => hasTrade && onDayClick(ts)}
+                      className="relative rounded-xl flex flex-col overflow-hidden transition-all"
+                      style={{
+                        aspectRatio: '1',
+                        cursor: hasTrade ? 'pointer' : 'default',
+                        padding: '7px 6px 6px',
+                        background: isPos   ? 'linear-gradient(145deg, rgba(46,160,67,0.22) 0%, rgba(46,160,67,0.08) 100%)'
+                          : isNeg   ? 'linear-gradient(145deg, rgba(248,81,73,0.22) 0%, rgba(248,81,73,0.08) 100%)'
+                          : isBreak ? 'linear-gradient(145deg, rgba(88,166,255,0.15) 0%, rgba(88,166,255,0.05) 100%)'
+                          : isToday ? 'rgba(247,183,49,0.06)'
+                          : isSun   ? 'rgba(247,183,49,0.02)'
+                          : 'rgba(255,255,255,0.025)',
+                        border: `1px solid ${
+                          isToday  ? 'rgba(247,183,49,0.6)'
+                          : isPos  ? 'rgba(46,160,67,0.4)'
+                          : isNeg  ? 'rgba(248,81,73,0.4)'
+                          : isBreak ? 'rgba(88,166,255,0.3)'
+                          : isSun  ? 'rgba(247,183,49,0.1)'
+                          : 'rgba(255,255,255,0.05)'
+                        }`,
+                        boxShadow: isPos ? 'inset 0 1px 0 rgba(46,160,67,0.15)'
+                          : isNeg ? 'inset 0 1px 0 rgba(248,81,73,0.15)'
+                          : isToday ? '0 0 0 1px rgba(247,183,49,0.2)'
+                          : 'none',
+                      }}>
+
+                      {/* Numéro jour — haut droite */}
+                      <div className="flex justify-end mb-1">
+                        <span className="text-[11px] font-bold leading-none"
+                          style={{
+                            color: isToday  ? '#F7B731'
+                              : hasTrade ? (isPos ? 'rgba(46,160,67,0.9)' : isNeg ? 'rgba(248,81,73,0.9)' : 'rgba(88,166,255,0.9)')
+                              : 'rgba(139,148,158,0.3)',
+                          }}>
+                          {format(day, 'd')}
+                        </span>
+                      </div>
+
+                      {/* Contenu trade — caché sur mobile */}
+                      {hasTrade && profit !== null && (
+                        <div className="hidden sm:flex flex-col items-center justify-center flex-1 gap-0.5">
+                          <span className="text-[12px] font-mono font-black leading-none text-center"
+                            style={{ color: isPos ? '#3fb950' : isNeg ? '#ff6b6b' : '#79c0ff' }}>
+                            {profit > 0 ? '+' : ''}{profit.toFixed(1)}R
+                          </span>
+                          <span className="text-[8px] font-medium leading-none text-center"
+                            style={{ color: 'rgba(139,148,158,0.55)' }}>
+                            {ts.length} trade{ts.length > 1 ? 's' : ''}
+                          </span>
+                          {dayWr !== null && (
+                            <span className="text-[8px] font-mono font-semibold leading-none"
+                              style={{ color: dayWr >= 50 ? 'rgba(46,160,67,0.7)' : 'rgba(248,81,73,0.7)' }}>
+                              {dayWr}%
+                            </span>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Barre colorée en bas */}
+                      {hasTrade && (
+                        <div className="absolute bottom-0 left-0 right-0 h-[3px] rounded-b-xl"
+                          style={{
+                            background: isPos ? 'linear-gradient(90deg, #2EA043, #3fb950)'
+                              : isNeg ? 'linear-gradient(90deg, #F85149, #ff6b6b)'
+                              : 'linear-gradient(90deg, #58a6ff, #79c0ff)',
+                            opacity: 0.8,
+                          }} />
+                      )}
+
+                      {/* Dot aujourd'hui sans trade */}
+                      {isToday && !hasTrade && (
+                        <div className="absolute bottom-2 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full"
+                          style={{ background: '#F7B731', boxShadow: '0 0 4px rgba(247,183,49,0.6)' }} />
+                      )}
+                    </button>
+                  )
+                })}
+              </div>
+            ))}
+          </div>
+
+          {/* Colonne semaines */}
+          <div className="hidden sm:flex flex-col w-[54px] flex-shrink-0 gap-1.5">
+            <div className="text-[9px] font-bold uppercase tracking-wider text-center py-2 rounded-lg mb-0"
+              style={{ color: 'rgba(139,148,158,0.4)' }}>Sem</div>
+            {weeks.map((w, i) => (
+              <div key={i} className="flex-1 flex flex-col items-center justify-center rounded-xl transition-all"
+                style={{
+                  minHeight: '44px',
+                  background: w.count === 0 ? 'rgba(255,255,255,0.02)'
+                    : w.profit > 0 ? 'linear-gradient(145deg, rgba(46,160,67,0.14), rgba(46,160,67,0.05))'
+                    : w.profit < 0 ? 'linear-gradient(145deg, rgba(248,81,73,0.14), rgba(248,81,73,0.05))'
+                    : 'rgba(88,166,255,0.07)',
+                  border: `1px solid ${
+                    w.count === 0 ? 'rgba(255,255,255,0.04)'
+                    : w.profit > 0 ? 'rgba(46,160,67,0.25)'
+                    : w.profit < 0 ? 'rgba(248,81,73,0.25)'
+                    : 'rgba(88,166,255,0.2)'
+                  }`,
+                }}>
+                {w.count > 0 ? (
+                  <>
+                    <span className="text-[11px] font-mono font-black leading-none"
+                      style={{ color: w.profit > 0 ? '#3fb950' : w.profit < 0 ? '#ff6b6b' : '#79c0ff' }}>
+                      {w.profit > 0 ? '+' : ''}{w.profit}R
+                    </span>
+                    <span className="text-[9px] mt-1 font-medium"
+                      style={{ color: 'rgba(139,148,158,0.45)' }}>
+                      {w.count}t
+                    </span>
+                  </>
+                ) : (
+                  <span style={{ color: 'rgba(255,255,255,0.05)', fontSize: 8 }}>—</span>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ── Modal trades du jour ──────────────────────────────────────
+function DayTradesModal({ trades, onClose, navigate }) {
+  if (!trades?.length) return null
+  const date = trades[0].date
+
+  // Rendu via portal directement dans <body> : la modale échappe ainsi
+  // à tout ancêtre avec transform/filter/will-change (ex: les classes
+  // d'animation de la page), qui sinon redéfinit le repère du
+  // `position: fixed` et fait "suivre" la modale au scroll.
+  return createPortal(
+    <div className="fixed inset-0 z-50 flex items-center justify-center" onClick={onClose}>
+      {/* Overlay opaque — pas de backdropFilter ici pour éviter l'effet
+          "flou transparent" qui laisse deviner le contenu derrière */}
+      <div className="absolute inset-0" style={{ background: 'rgba(5,7,10,0.88)' }} />
+
+      <div onClick={e => e.stopPropagation()}
+        className="relative w-full max-w-sm mx-4 rounded-2xl overflow-hidden"
+        style={{ background: '#0E121A', border: '1px solid rgba(255,255,255,0.12)', boxShadow: '0 24px 64px rgba(0,0,0,0.7)', maxHeight: '80vh' }}>
+        <div className="flex items-center justify-between px-4 pt-4 pb-3 border-b" style={{ borderColor: 'rgba(255,255,255,0.07)' }}>
+          <div>
+            <p className="text-sm font-semibold text-white">{fmtDate(date)}</p>
+            <p className="text-[10px] text-forge-muted mt-0.5">{trades.length} trade{trades.length > 1 ? 's' : ''}</p>
+          </div>
+          <button onClick={onClose} className="text-forge-muted hover:text-white transition-colors"><X size={16} /></button>
+        </div>
+        <div className="overflow-y-auto p-3 space-y-2" style={{ maxHeight: 'calc(80vh - 60px)' }}>
+          {trades.map(t => {
+            const colors = { tp: '#2EA043', sl: '#F85149', be: '#58a6ff', missed: '#8B949E', manual_exit: '#F79009' }
+            const color  = colors[t.result] || '#8B949E'
+            return (
+              <button key={t.id}
+                onClick={() => { onClose(); navigate(`/trades/${t.id}`) }}
+                className="w-full flex items-center gap-3 p-3 rounded-xl text-left transition-all active:scale-[0.98] hover:bg-white/5"
+                style={{ border: `1px solid ${color}25`, background: `${color}08` }}>
+                <div className="w-2 h-8 rounded-full flex-shrink-0" style={{ background: color }} />
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-semibold text-white">{t.market}</span>
+                    <span className="text-xs font-mono" style={{ color: t.type === 'buy' ? '#2EA043' : '#F85149' }}>
+                      {t.type?.toUpperCase()}
+                    </span>
+                  </div>
+                  {t.session && <p className="text-[10px] text-forge-muted mt-0.5">{t.session}</p>}
+                </div>
+                <div className="text-right flex-shrink-0">
+                  <span className="text-xs font-semibold px-2 py-0.5 rounded-lg"
+                    style={{ background: `${color}20`, color }}>
+                    {t.result?.toUpperCase()}
+                  </span>
+                  {t.rr_won != null && (
+                    <p className="text-xs font-mono mt-0.5" style={{ color }}>
+                      {t.rr_won >= 0 ? '+' : ''}{t.rr_won}R
+                    </p>
+                  )}
+                </div>
+              </button>
+            )
+          })}
+        </div>
+      </div>
+    </div>,
+    document.body
+  )
+}
+
+// ── Page principale ───────────────────────────────────────────
 export default function Dashboard() {
   const { trades, loading } = useTrades()
   const navigate = useNavigate()
+  const [dayTrades, setDayTrades] = useState(null)
 
   if (loading) return (
   <div className="page space-y-4">
@@ -72,20 +438,8 @@ export default function Dashboard() {
     <div className="rounded-2xl animate-pulse" style={{ background: 'rgba(255,255,255,0.04)', height: '200px' }} />
     {/* Distribution */}
     <SkeletonCard />
-    {/* Trades récents */}
-    <div className="space-y-2">
-      {[...Array(3)].map((_, i) => (
-        <div key={i} className="rounded-2xl flex items-center gap-3 p-4 animate-pulse"
-          style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}>
-          <div className="w-1.5 h-9 rounded-full flex-shrink-0" style={{ background: 'rgba(255,255,255,0.07)' }} />
-          <div className="flex-1 space-y-1.5">
-            <div className="h-3 w-20 rounded" style={{ background: 'rgba(255,255,255,0.07)' }} />
-            <div className="h-2.5 w-16 rounded" style={{ background: 'rgba(255,255,255,0.04)' }} />
-          </div>
-          <div className="h-5 w-10 rounded-lg" style={{ background: 'rgba(255,255,255,0.05)' }} />
-        </div>
-      ))}
-    </div>
+    {/* Calendrier */}
+    <div className="rounded-2xl animate-pulse" style={{ background: 'rgba(255,255,255,0.04)', height: '340px' }} />
   </div>
 )
 
@@ -120,13 +474,12 @@ export default function Dashboard() {
   const lastEquity = equityData[equityData.length - 1]?.equity || 0
   const isUp       = lastEquity >= 0
 
-  const tp     = trades.filter(t => t.result === 'tp').length
-  const sl     = trades.filter(t => t.result === 'sl').length
-  const be     = trades.filter(t => t.result === 'be').length
-  const missed = trades.filter(t => t.result === 'missed').length
-  const total  = trades.length
-
-  const recentTrades = trades.slice(0, 5)
+  const tp          = trades.filter(t => t.result === 'tp').length
+const sl          = trades.filter(t => t.result === 'sl').length
+const be          = trades.filter(t => t.result === 'be').length
+const missed      = trades.filter(t => t.result === 'missed').length
+const manualExit  = trades.filter(t => t.result === 'manual_exit').length
+const total       = trades.length
 
   return (
     <div className="page animate-slide-up">
@@ -244,27 +597,29 @@ export default function Dashboard() {
         <div className="card mb-5">
           <p className="section-title">Distribution des résultats</p>
           <div className="flex gap-1 h-2 rounded-full overflow-hidden mb-3">
-            {tp > 0     && <div style={{ flex: tp,     background: '#2EA043' }} />}
-            {sl > 0     && <div style={{ flex: sl,     background: '#F85149' }} />}
-            {be > 0     && <div style={{ flex: be,     background: '#58a6ff' }} />}
-            {missed > 0 && <div style={{ flex: missed, background: '#8B949E' }} />}
-          </div>
-          <div className="grid grid-cols-4 gap-2 text-center">
-            {[
-              { label: 'TP',     count: tp,     color: '#2EA043' },
-              { label: 'SL',     count: sl,     color: '#F85149' },
-              { label: 'BE',     count: be,     color: '#58a6ff' },
-              { label: 'Missed', count: missed, color: '#8B949E' },
-            ].map(({ label, count, color }) => (
-              <div key={label}>
-                <p className="text-xl font-mono font-semibold" style={{ color }}>{count}</p>
-                <p className="text-[10px] text-forge-muted">{label}</p>
-                <p className="text-[10px]" style={{ color: 'rgba(255,255,255,0.3)' }}>
-                  {total ? Math.round((count / total) * 100) : 0}%
-                </p>
-              </div>
-            ))}
-          </div>
+  {tp > 0          && <div style={{ flex: tp,         background: '#2EA043' }} />}
+  {sl > 0          && <div style={{ flex: sl,         background: '#F85149' }} />}
+  {be > 0          && <div style={{ flex: be,         background: '#58a6ff' }} />}
+  {missed > 0      && <div style={{ flex: missed,     background: '#8B949E' }} />}
+  {manualExit > 0  && <div style={{ flex: manualExit, background: '#F79009' }} />}
+</div>
+<div className="grid grid-cols-5 gap-2 text-center">
+  {[
+    { label: 'TP',     count: tp,         color: '#2EA043' },
+    { label: 'SL',     count: sl,         color: '#F85149' },
+    { label: 'BE',     count: be,         color: '#58a6ff' },
+    { label: 'Missed', count: missed,     color: '#8B949E' },
+    { label: 'Manuel', count: manualExit, color: '#F79009' },
+  ].map(({ label, count, color }) => (
+    <div key={label}>
+      <p className="text-xl font-mono font-semibold" style={{ color }}>{count}</p>
+      <p className="text-[10px] text-forge-muted">{label}</p>
+      <p className="text-[10px]" style={{ color: 'rgba(255,255,255,0.3)' }}>
+        {total ? Math.round((count / total) * 100) : 0}%
+      </p>
+    </div>
+  ))}
+</div>
         </div>
       )}
 
@@ -315,46 +670,68 @@ export default function Dashboard() {
         )}
       </div>
 
-      {/* Trades récents */}
-      {recentTrades.length > 0 && (
-        <div className="mb-5">
-          <div className="flex items-center justify-between mb-2">
-            <p className="section-title mb-0">Trades récents</p>
-            <button onClick={() => navigate('/trades')} className="text-xs text-forge-accent hover:underline">
-              Voir tout
-            </button>
-          </div>
-          <div className="space-y-2">
-            {recentTrades.map(t => (
-              <div
-                key={t.id}
-                onClick={() => navigate(`/trades/${t.id}`)}
-                className="card-hover flex items-center gap-3 active:scale-[0.99] cursor-pointer"
-              >
-                <div className="w-1.5 h-9 rounded-full flex-shrink-0" style={{
-                  background: t.result === 'tp' ? '#2EA043' : t.result === 'sl' ? '#F85149' : t.result === 'be' ? '#58a6ff' : '#8B949E',
-                  boxShadow: t.result === 'tp' ? '0 0 8px rgba(46,160,67,0.5)' : t.result === 'sl' ? '0 0 8px rgba(248,81,73,0.5)' : 'none',
-                }} />
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <p className="text-sm font-medium">{t.market}</p>
-                    <span className={`text-xs font-mono ${t.type === 'buy' ? 'text-forge-green' : 'text-forge-red'}`}>
-                      {t.type?.toUpperCase()}
-                    </span>
-                  </div>
-                  <p className="text-xs text-forge-muted">{fmtDate(t.date)}</p>
+      {/* Calendrier — desktop uniquement */}
+{total > 0 && (
+  <div className="hidden sm:block">
+    <TradeCalendar trades={trades} allTrades={trades} onDayClick={setDayTrades} />
+  </div>
+)}
+
+{/* Trades récents — mobile uniquement */}
+{total > 0 && (
+  <div className="sm:hidden mb-5">
+    <div className="flex items-center justify-between mb-3">
+      <p className="section-title mb-0">Trades récents</p>
+      <button onClick={() => navigate('/trades')}
+        className="text-xs font-medium transition-colors"
+        style={{ color: '#F7B731' }}>
+        Voir tous →
+      </button>
+    </div>
+    <div className="space-y-2">
+      {[...trades]
+        .sort((a, b) => b.date.localeCompare(a.date))
+        .slice(0, 5)
+        .map(t => {
+          const colors = { tp: '#2EA043', sl: '#F85149', be: '#58a6ff', missed: '#8B949E', manual_exit: '#F79009' }
+          const labels = { tp: 'TP', sl: 'SL', be: 'BE', missed: 'Missed', manual_exit: 'Manuel' }
+          const color = colors[t.result] || '#8B949E'
+          return (
+            <button key={t.id} onClick={() => navigate(`/trades/${t.id}`)}
+              className="w-full flex items-center gap-3 p-3 rounded-2xl text-left transition-all active:scale-[0.99]"
+              style={{ background: 'rgba(22,27,34,0.8)', border: '1px solid rgba(255,255,255,0.07)' }}>
+              <div className="w-1.5 h-10 rounded-full flex-shrink-0" style={{ background: color }} />
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-medium text-white">{t.market}</span>
+                  <span className="text-xs font-mono" style={{ color: t.type === 'buy' ? '#2EA043' : '#F85149' }}>
+                    {t.type?.toUpperCase()}
+                  </span>
                 </div>
-                <div className="text-right flex-shrink-0">
-                  <ResultBadge result={t.result} />
-                  {t.rr_won != null && (
-                    <p className="text-xs text-forge-muted mt-0.5 font-mono">{t.rr_won}R</p>
-                  )}
-                </div>
+                <p className="text-[10px] text-forge-muted">{fmtDate(t.date)}</p>
               </div>
-            ))}
-          </div>
-        </div>
-      )}
+              <div className="text-right flex-shrink-0">
+                <span className="text-xs font-semibold px-2 py-0.5 rounded-lg"
+                  style={{ background: `${color}20`, color, border: `1px solid ${color}30` }}>
+                  {labels[t.result] || t.result}
+                </span>
+                {t.rr_won != null && (
+                  <p className="text-xs font-mono mt-0.5" style={{ color }}>
+                    {t.rr_won >= 0 ? '+' : ''}{t.rr_won}R
+                  </p>
+                )}
+              </div>
+            </button>
+          )
+        })}
+    </div>
+    <button onClick={() => navigate('/trades')}
+      className="w-full mt-3 py-3 rounded-2xl text-sm font-medium transition-all active:scale-[0.99]"
+      style={{ background: 'rgba(247,183,49,0.07)', border: '1px solid rgba(247,183,49,0.2)', color: '#F7B731' }}>
+      Voir tous les trades →
+    </button>
+  </div>
+)}
 
       {/* Empty state */}
       {total === 0 && (
@@ -366,6 +743,15 @@ export default function Dashboard() {
           <p className="text-forge-muted text-sm mb-1">Aucun trade pour l'instant.</p>
           <p className="text-forge-muted/50 text-xs">Commencez par journaliser votre première position.</p>
         </div>
+      )}
+
+      {/* Modal trades du jour */}
+      {dayTrades && (
+        <DayTradesModal
+          trades={dayTrades}
+          onClose={() => setDayTrades(null)}
+          navigate={navigate}
+        />
       )}
     </div>
   )

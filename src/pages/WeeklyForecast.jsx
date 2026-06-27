@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   ChevronLeft, ChevronRight, Plus, X, Upload, ExternalLink,
@@ -40,10 +40,11 @@ const calcStats = (trades) => {
   const activeTrades = trades.filter(t => t.result === 'tp' || t.result === 'sl' || t.result === 'be')
 const winRate = activeTrades.length ? Math.round((tp / activeTrades.length) * 100) : 0
   const rr = +trades.reduce((acc, t) => {
-    if (t.result === 'tp') return acc + (t.rr_won || 0)
-    if (t.result === 'sl') return acc - 1
-    return acc
-  }, 0).toFixed(2)
+  if (t.result === 'tp') return acc + (t.rr_won || 0)
+  if (t.result === 'sl') return acc + (t.rr_won ?? -1)
+  if (t.result === 'manual_exit') return acc + (t.rr_won || 0)
+  return acc
+}, 0).toFixed(2)
   const disc = trades.length
     ? Math.round(trades.reduce((a, t) => a + (t.discipline_score || 0), 0) / trades.length)
     : 0
@@ -51,8 +52,8 @@ const winRate = activeTrades.length ? Math.round((tp / activeTrades.length) * 10
 }
 
 const DAYS_FR = ['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi']
-const RESULT_COLORS = { tp: '#2EA043', sl: '#F85149', be: '#58a6ff', missed: '#8B949E' }
-const RESULT_LABELS = { tp: 'TP', sl: 'SL', be: 'BE', missed: 'Missed' }
+const RESULT_COLORS = { tp: '#2EA043', sl: '#F85149', be: '#58a6ff', missed: '#8B949E', manual_exit: '#F79009' }
+const RESULT_LABELS = { tp: 'TP', sl: 'SL', be: 'BE', missed: 'Missed', manual_exit: 'Manuel' }
 const BIAS_OPTIONS  = ['Bullish', 'Bearish', 'Neutre', 'Indécis']
 const BIAS_COLORS   = { Bullish: '#2EA043', Bearish: '#F85149', Neutre: '#8B949E', Indécis: '#F7B731' }
 const MARKETS       = ['EUR/USD','GBP/USD','XAU/USD','NAS100','SP500','BTC/USD','USD/JPY','GBP/JPY','AUD/USD','DXY','Autre']
@@ -320,17 +321,29 @@ export default function WeeklyForecast() {
   })
 
   const [form, setForm] = useState(emptyForm)
+const lastWeekKey = useRef(weekKey)
+const lastSavedAt = useRef(null)
 
-  // Reset form when week or forecast changes
-  useMemo(() => {
-    if (!fcLoading) setForm({
+useEffect(() => {
+  if (fcLoading) return
+  // Reset uniquement si on change de semaine, ou si c'est le premier chargement
+  const weekChanged = lastWeekKey.current !== weekKey
+  if (weekChanged) {
+    lastWeekKey.current = weekKey
+    setEditMode(false)
+    setShowAddAnalysis(false)
+  }
+  // Ne pas écraser le form si on est en train d'éditer et qu'on revient juste de l'app
+  if (!editMode || weekChanged) {
+    setForm({
       bias_forecast: forecast?.bias_forecast || '',
       bias_real:     forecast?.bias_real     || '',
       analyses:      forecast?.analyses      || [],
       news_images:   forecast?.news_images   || [],
       notes:         forecast?.notes         || '',
     })
-  }, [forecast, fcLoading, weekKey])
+  }
+}, [forecast, fcLoading, weekKey])
 
   // Trades
   const weekTrades  = useMemo(() => getWeekTrades(trades, current), [trades, current])
@@ -389,21 +402,22 @@ export default function WeeklyForecast() {
     setForm(f => ({ ...f, news_images: f.news_images.filter((_, idx) => idx !== i) }))
 
   const handleSave = async () => {
-    try {
-      await save({
-        bias_forecast: form.bias_forecast || null,
-        bias_real:     form.bias_real     || null,
-        analyses:      form.analyses,
-        news_images:   form.news_images,
-        notes:         form.notes         || null,
-      })
-      setEditMode(false)
-      setSaved(true)
-      setTimeout(() => setSaved(false), 2500)
-    } catch (e) {
-      alert('Erreur: ' + e.message)
-    }
+  try {
+    await save({
+      bias_forecast: form.bias_forecast || null,
+      bias_real:     form.bias_real     || null,
+      analyses:      form.analyses,
+      news_images:   form.news_images,
+      notes:         form.notes         || null,
+    })
+    lastSavedAt.current = Date.now()
+    setEditMode(false)
+    setSaved(true)
+    setTimeout(() => setSaved(false), 2500)
+  } catch (e) {
+    alert('Erreur: ' + e.message)
   }
+}
 
 if (tradesLoading || fcLoading) return (
   <div className="page space-y-4">
@@ -555,11 +569,12 @@ if (tradesLoading || fcLoading) return (
               icon={Zap} />
           </div>
           <div className="flex gap-1 h-1.5 rounded-full overflow-hidden">
-            {stats.tp     > 0 && <div style={{ flex: stats.tp,     background: '#2EA043' }} />}
-            {stats.sl     > 0 && <div style={{ flex: stats.sl,     background: '#F85149' }} />}
-            {stats.be     > 0 && <div style={{ flex: stats.be,     background: '#58a6ff' }} />}
-            {stats.missed > 0 && <div style={{ flex: stats.missed, background: '#8B949E' }} />}
-          </div>
+  {stats.tp          > 0 && <div style={{ flex: stats.tp,         background: '#2EA043' }} />}
+  {stats.sl          > 0 && <div style={{ flex: stats.sl,         background: '#F85149' }} />}
+  {stats.be          > 0 && <div style={{ flex: stats.be,         background: '#58a6ff' }} />}
+  {stats.missed      > 0 && <div style={{ flex: stats.missed,     background: '#8B949E' }} />}
+  {weekTrades.filter(t => t.result === 'manual_exit').length > 0 && <div style={{ flex: weekTrades.filter(t => t.result === 'manual_exit').length, background: '#F79009' }} />}
+</div>
         </Section>
       )}
 

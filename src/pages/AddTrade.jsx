@@ -49,12 +49,14 @@ const getEmptyForm = () => {
   }
 }
 
+// 'manual_exit' n'a aucune contrainte de signe sur le RR : on ne le
+// retire donc jamais de la liste des résultats autorisés.
 const getAllowedResults = (rr_won) => {
   if (rr_won === '' || rr_won === null || rr_won === undefined) return null
   const v = +rr_won
-  if (v > 0)   return ['tp', 'sl', 'be', 'missed']
-  if (v === 0) return ['missed', 'be']
-  if (v < 0)   return ['sl']
+  if (v > 0)   return ['tp', 'sl', 'be', 'missed', 'manual_exit']
+  if (v === 0) return ['missed', 'be', 'manual_exit']
+  if (v < 0)   return ['sl', 'manual_exit']
   return null
 }
 
@@ -109,10 +111,11 @@ const PillGroup = ({ options, value, onChange, size = 'md', disabledValues = [] 
 }
 
 const RESULT_PILLS = [
-  { value: 'tp',     label: 'Take Profit', color: { active: { background: 'rgba(46,160,67,0.15)',   color: '#2EA043', borderColor: 'rgba(46,160,67,0.5)' } } },
-  { value: 'sl',     label: 'Stop Loss',   color: { active: { background: 'rgba(248,81,73,0.15)',   color: '#F85149', borderColor: 'rgba(248,81,73,0.5)' } } },
-  { value: 'be',     label: 'Breakeven',   color: { active: { background: 'rgba(88,166,255,0.15)',  color: '#58a6ff', borderColor: 'rgba(88,166,255,0.5)' } } },
-  { value: 'missed', label: 'Missed',      color: { active: { background: 'rgba(139,148,158,0.15)', color: '#8B949E', borderColor: 'rgba(139,148,158,0.5)' } } },
+  { value: 'tp',          label: 'Take Profit',     color: { active: { background: 'rgba(46,160,67,0.15)',   color: '#2EA043', borderColor: 'rgba(46,160,67,0.5)' } } },
+  { value: 'sl',          label: 'Stop Loss',       color: { active: { background: 'rgba(248,81,73,0.15)',   color: '#F85149', borderColor: 'rgba(248,81,73,0.5)' } } },
+  { value: 'be',          label: 'Breakeven',       color: { active: { background: 'rgba(88,166,255,0.15)',  color: '#58a6ff', borderColor: 'rgba(88,166,255,0.5)' } } },
+  { value: 'missed',      label: 'Missed',          color: { active: { background: 'rgba(139,148,158,0.15)', color: '#8B949E', borderColor: 'rgba(139,148,158,0.5)' } } },
+  { value: 'manual_exit', label: 'Sortie manuelle', color: { active: { background: 'rgba(247,144,9,0.15)',   color: '#F79009', borderColor: 'rgba(247,144,9,0.5)' } } },
 ]
 
 const REQUIRED_FIELDS = ['date', 'market', 'type', 'rr_planned', 'emotion', 'discipline_score', 'trend', 'session', 'style', 'market_structure']
@@ -281,6 +284,9 @@ if (k === 'date' && v) {
         next.rr_won = '0'
       }
 
+      // ── 'manual_exit' n'impose aucune valeur par défaut : le RR
+      //    reste libre, positif ou négatif, tel que saisi par l'utilisateur.
+
       return next
     })
     if (errors[k]) setErrors(e => { const n = { ...e }; delete n[k]; return n })
@@ -307,6 +313,11 @@ if (form.result === 'tp') {
   if (form.result === 'missed') {
     if (form.rr_won === '' || +form.rr_won !== 0) 
       errs.rr_won = 'Missed : le RR gagné doit être 0'
+  }
+  // 'manual_exit' : aucune contrainte de signe — juste une valeur requise.
+  if (form.result === 'manual_exit') {
+    if (form.rr_won === '')
+      errs.rr_won = 'Sortie manuelle : indiquez le RR réellement obtenu (positif ou négatif)'
   }
 
   setErrors(errs)
@@ -394,7 +405,7 @@ if (form.result === 'tp') {
     : {}
 
   // Placeholder RR selon résultat
-  const rrPlaceholder = form.result === 'sl' ? '-1.0' : form.result === 'be' ? '0' : '1.8'
+  const rrPlaceholder = form.result === 'sl' ? '-1.0' : form.result === 'be' ? '0' : form.result === 'manual_exit' ? '0.8 ou -0.4' : '1.8'
 
   if (loadingTrade) return (
     <div className="page flex items-center justify-center h-64">
@@ -480,11 +491,17 @@ if (form.result === 'tp') {
               ✅ Take Profit — le RR gagné doit être positif (ex: 2.5)
             </p>
           )}
-          {allowedResults && form.result !== 'sl' && form.result !== 'tp' && (
+          {form.result === 'manual_exit' && (
+            <p className="text-xs rounded-lg px-3 py-2"
+              style={{ background: 'rgba(247,144,9,0.08)', color: '#F79009', border: '1px solid rgba(247,144,9,0.2)' }}>
+              ✋ Sortie manuelle — indiquez le RR réellement obtenu, positif ou négatif (ex: 0.8 ou -0.4)
+            </p>
+          )}
+          {allowedResults && form.result !== 'sl' && form.result !== 'tp' && form.result !== 'manual_exit' && (
             <p className="text-xs rounded-lg px-3 py-2"
               style={{ background: 'rgba(247,183,49,0.08)', color: '#F7B731', border: '1px solid rgba(247,183,49,0.2)' }}>
-              {+form.rr_won < 0  && '⚠️ RR négatif — seul Stop Loss est autorisé.'}
-              {+form.rr_won === 0 && '⚠️ RR nul — seuls Missed et Breakeven sont autorisés.'}
+              {+form.rr_won < 0  && '⚠️ RR négatif — Stop Loss ou Sortie manuelle uniquement.'}
+              {+form.rr_won === 0 && '⚠️ RR nul — Missed, Breakeven ou Sortie manuelle uniquement.'}
             </p>
           )}
         </div>

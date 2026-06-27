@@ -3,19 +3,23 @@ import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import {
   ChevronLeft, Edit2, Trash2, BookOpen, X,
   ChevronLeft as Prev, ChevronRight as Next,
-  Sparkles, ExternalLink,
+  Sparkles, ExternalLink, Download, Upload,
   Brain, BarChart2, Shield, Calendar, Plus,
   AlertTriangle, FileText,
 } from 'lucide-react'
-import { getTradeById, deleteTrade } from '../services/supabase'
+import { getTradeById, deleteTrade, updateTrade } from '../services/supabase'
 import { fmtDate } from '../utils'
+import { useAuth } from '../hooks/useAuth'
 import AIAssistant from '../components/AIAssistant'
+import ImportModal from '../components/ImportModal'
+import ExportModal from '../components/ExportModal'
 
 const RESULT_CONFIG = {
-  tp:     { label: 'Take Profit', bg: 'rgba(46,160,67,0.12)',   color: '#2EA043', border: 'rgba(46,160,67,0.3)',   glow: 'rgba(46,160,67,0.15)'  },
-  sl:     { label: 'Stop Loss',   bg: 'rgba(248,81,73,0.12)',   color: '#F85149', border: 'rgba(248,81,73,0.3)',   glow: 'rgba(248,81,73,0.15)'  },
-  be:     { label: 'Breakeven',   bg: 'rgba(88,166,255,0.12)',  color: '#58a6ff', border: 'rgba(88,166,255,0.3)',  glow: 'rgba(88,166,255,0.15)' },
-  missed: { label: 'Missed',      bg: 'rgba(139,148,158,0.12)', color: '#8B949E', border: 'rgba(139,148,158,0.3)', glow: 'rgba(139,148,158,0.1)' },
+  tp:          { label: 'Take Profit',     bg: 'rgba(46,160,67,0.12)',   color: '#2EA043', border: 'rgba(46,160,67,0.3)',   glow: 'rgba(46,160,67,0.15)'  },
+  sl:          { label: 'Stop Loss',       bg: 'rgba(248,81,73,0.12)',   color: '#F85149', border: 'rgba(248,81,73,0.3)',   glow: 'rgba(248,81,73,0.15)'  },
+  be:          { label: 'Breakeven',       bg: 'rgba(88,166,255,0.12)',  color: '#58a6ff', border: 'rgba(88,166,255,0.3)',  glow: 'rgba(88,166,255,0.15)' },
+  missed:      { label: 'Missed',          bg: 'rgba(139,148,158,0.12)', color: '#8B949E', border: 'rgba(139,148,158,0.3)', glow: 'rgba(139,148,158,0.1)' },
+  manual_exit: { label: 'Sortie manuelle', bg: 'rgba(247,144,9,0.12)',   color: '#F79009', border: 'rgba(247,144,9,0.3)',   glow: 'rgba(247,144,9,0.15)'  },
 }
 
 const TREND_LABELS = { bullish: '▲ Bullish', bearish: '▼ Bearish', neutre: '— Neutre' }
@@ -239,12 +243,15 @@ export default function TradeDetail() {
   const { id }   = useParams()
   const navigate = useNavigate()
   const location = useLocation()
+  const { user } = useAuth()
 
-  const [trade, setTrade]       = useState(null)
-  const [loading, setLoading]   = useState(true)
-  const [lightbox, setLightbox] = useState(null)
-  const [deleting, setDeleting] = useState(false)
-  const [showAI, setShowAI]     = useState(false)
+  const [trade, setTrade]           = useState(null)
+  const [loading, setLoading]       = useState(true)
+  const [lightbox, setLightbox]     = useState(null)
+  const [deleting, setDeleting]     = useState(false)
+  const [showAI, setShowAI]         = useState(false)
+  const [showImport, setShowImport] = useState(false)
+  const [showExport, setShowExport] = useState(false)
 
 useEffect(() => {
   if (!id) return  // ← cette ligne
@@ -261,6 +268,20 @@ useEffect(() => {
     setDeleting(true)
     await deleteTrade(id)
     navigate('/trades')
+  }
+
+  // Recharge le trade après une mutation déclenchée par l'import
+  const refreshTrade = async () => {
+    const updated = await getTradeById(id)
+    setTrade(updated)
+  }
+
+  // Appelé par ImportModal quand on attache une image ou un lien à ce trade.
+  const handleAttachImport = async (attachment) => {
+    const currentImages = trade.images || []
+    const nextImages = [...currentImages, attachment]
+    await updateTrade(id, { images: nextImages })
+    await refreshTrade()
   }
 
   if (loading) return (
@@ -283,11 +304,11 @@ useEffect(() => {
   })
 
   const rc = RESULT_CONFIG[trade.result] || RESULT_CONFIG.missed
-  const rrColor = trade.result === 'tp' ? '#2EA043' : trade.result === 'sl' ? '#F85149' : '#8B949E'
-  const rrValue = trade.result === 'tp'
-    ? `+${trade.rr_won ?? 0}R`
-    : trade.result === 'sl' ? `-1R`
-    : trade.rr_won != null ? `${trade.rr_won}R` : null
+  const rrColor = trade.result === 'tp' ? '#2EA043' : trade.result === 'sl' ? '#F85149' : trade.result === 'manual_exit' ? (trade.rr_won >= 0 ? '#2EA043' : '#F85149') : '#8B949E'
+const rrValue = trade.result === 'tp'
+  ? `+${trade.rr_won ?? 0}R`
+  : trade.result === 'sl' ? `${trade.rr_won ?? -1}R`
+  : trade.rr_won != null ? `${trade.rr_won >= 0 ? '+' : ''}${trade.rr_won}R` : null
 
   return (
     <div className="page">
@@ -296,30 +317,42 @@ useEffect(() => {
       )}
 
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
-        <button onClick={() => navigate(-1)}
-          className="w-9 h-9 rounded-xl flex items-center justify-center text-forge-muted hover:text-white hover:bg-white/5 transition-all"
-          style={{ border: '1px solid rgba(255,255,255,0.08)' }}>
-          <ChevronLeft size={18} />
-        </button>
-        <div className="flex gap-2">
-          <button onClick={() => setShowAI(true)}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium transition-all active:scale-95"
-            style={{ background: 'rgba(247,183,49,0.1)', border: '1px solid rgba(247,183,49,0.25)', color: '#F7B731' }}>
-            <Sparkles size={12} /> Coach IA
-          </button>
-          <button onClick={() => navigate(`/trades/${id}/edit`)}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium transition-all active:scale-95"
-            style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: '#fff' }}>
-            <Edit2 size={12} /> Modifier
-          </button>
-          <button onClick={handleDelete} disabled={deleting}
-            className="w-9 h-9 rounded-xl flex items-center justify-center transition-all active:scale-95 text-forge-muted hover:text-forge-red"
-            style={{ border: '1px solid rgba(255,255,255,0.08)' }}>
-            <Trash2 size={14} />
-          </button>
-        </div>
-      </div>
+<div className="flex items-center justify-between mb-6 gap-2">
+  <button onClick={() => navigate(-1)}
+    className="w-9 h-9 rounded-xl flex items-center justify-center text-forge-muted hover:text-white hover:bg-white/5 transition-all flex-shrink-0"
+    style={{ border: '1px solid rgba(255,255,255,0.08)' }}>
+    <ChevronLeft size={18} />
+  </button>
+  <div className="flex gap-1.5 flex-wrap justify-end">
+    <button onClick={() => setShowImport(true)}
+      className="w-9 h-9 rounded-xl flex items-center justify-center transition-all active:scale-95"
+      style={{ background: 'rgba(88,166,255,0.1)', border: '1px solid rgba(88,166,255,0.25)', color: '#58a6ff' }}
+      title="Importer">
+      <Download size={14} />
+    </button>
+    <button onClick={() => setShowExport(true)}
+      className="w-9 h-9 rounded-xl flex items-center justify-center transition-all active:scale-95"
+      style={{ background: 'rgba(46,160,67,0.1)', border: '1px solid rgba(46,160,67,0.25)', color: '#2EA043' }}
+      title="Exporter">
+      <Upload size={14} />
+    </button>
+    <button onClick={() => setShowAI(true)}
+      className="flex items-center gap-1.5 px-3 h-9 rounded-xl text-xs font-medium transition-all active:scale-95"
+      style={{ background: 'rgba(247,183,49,0.1)', border: '1px solid rgba(247,183,49,0.25)', color: '#F7B731' }}>
+      <Sparkles size={12} /> <span className="hidden sm:inline">Coach</span> IA
+    </button>
+    <button onClick={() => navigate(`/trades/${id}/edit`)}
+      className="flex items-center gap-1.5 px-3 h-9 rounded-xl text-xs font-medium transition-all active:scale-95"
+      style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: '#fff' }}>
+      <Edit2 size={12} /> <span className="hidden sm:inline">Modifier</span>
+    </button>
+    <button onClick={handleDelete} disabled={deleting}
+      className="w-9 h-9 rounded-xl flex items-center justify-center transition-all active:scale-95 text-forge-muted hover:text-forge-red"
+      style={{ border: '1px solid rgba(255,255,255,0.08)' }}>
+      <Trash2 size={14} />
+    </button>
+  </div>
+</div>
 
       {/* Hero */}
       <div className="rounded-2xl p-5 mb-4 relative overflow-hidden"
@@ -474,6 +507,22 @@ useEffect(() => {
       />
 
       {showAI && <AIAssistant trade={trade} onClose={() => setShowAI(false)} />}
+
+      {showImport && (
+        <ImportModal
+          tradeId={id}
+          userId={user.id}
+          onClose={() => setShowImport(false)}
+          onAttach={handleAttachImport}
+        />
+      )}
+
+      {showExport && (
+        <ExportModal
+          trade={trade}
+          onClose={() => setShowExport(false)}
+        />
+      )}
     </div>
   )
 }

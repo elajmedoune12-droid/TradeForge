@@ -1,4 +1,4 @@
-const CACHE_NAME = 'tradeforge-v2'
+const CACHE_NAME = 'tradeforge-v3'
 
 const STATIC_ASSETS = [
   '/',

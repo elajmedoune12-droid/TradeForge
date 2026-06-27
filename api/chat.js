@@ -26,10 +26,11 @@ export default async function handler(req, res) {
     const wins   = allTrades.filter(t => t.result === 'tp').length
     const wr     = Math.round((wins / total) * 100)
     const profit = allTrades.reduce((acc, t) => {
-      if (t.result === 'tp') return acc + (t.rr_won || 0)
-      if (t.result === 'sl') return acc - 1
-      return acc
-    }, 0).toFixed(2)
+  if (t.result === 'tp') return acc + (t.rr_won || 0)
+  if (t.result === 'sl') return acc + (t.rr_won ?? -1)
+  if (t.result === 'manual_exit') return acc + (t.rr_won || 0)
+  return acc
+}, 0).toFixed(2)
     globalContext = `\n\nCONTEXTE GLOBAL DU TRADER${nameRef} : ${total} trades au total, win rate global ${wr}%, profit cumulé ${profit}R.`
   }
 
@@ -63,7 +64,7 @@ Vous êtes TradeForge Coach, un coach trading professionnel expert en analyse de
 
 Analyse mensuelle — ${trade.market} :
 - Trades : ${s?.total || 0} | Win Rate : ${s?.winRate || 0}% | Profit : ${s?.profit || 0}R
-- TP : ${s?.tp || 0} | SL : ${s?.sl || 0} | BE : ${s?.be || 0} | Missed : ${s?.missed || 0}
+- TP : ${s?.tp || 0} | SL : ${s?.sl || 0} | BE : ${s?.be || 0} | Missed : ${s?.missed || 0} | Manuel : ${s?.trades?.filter(t => t.result === 'manual_exit').length || 0}
 - Score discipline moyen : ${trade.discipline_score}/10
 ${globalContext}
 

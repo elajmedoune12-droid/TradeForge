@@ -835,8 +835,8 @@ function TabErrors({ trades }) {
       if (!t.emotion || t.emotion === 'Neutre') return
       if (!emotionMap[t.emotion]) emotionMap[t.emotion] = { total: 0, losses: 0, wins: 0 }
       emotionMap[t.emotion].total++
-      if (t.result === 'sl') emotionMap[t.emotion].losses++
-      if (t.result === 'tp') emotionMap[t.emotion].wins++
+      if (t.result === 'sl' || t.result === 'manual_exit') emotionMap[t.emotion].losses++
+if (t.result === 'tp') emotionMap[t.emotion].wins++
     })
 
     const emotions = Object.entries(emotionMap)
@@ -844,9 +844,9 @@ function TabErrors({ trades }) {
       .sort((a, b) => b.lossRate - a.lossRate)
 
     const noRespect = trades.filter(t => t.respect_plan === false)
-    const noRespectLosses = noRespect.filter(t => t.result === 'sl').length
+    const noRespectLosses = noRespect.filter(t => t.result === 'sl' || t.result === 'manual_exit').length
     const lowDisc = trades.filter(t => t.discipline_score != null && t.discipline_score < 6)
-    const lowDiscLosses = lowDisc.filter(t => t.result === 'sl').length
+    const lowDiscLosses = lowDisc.filter(t => t.result === 'sl' || t.result === 'manual_exit').length
 
     const patterns = [
       noRespect.length > 0 && {

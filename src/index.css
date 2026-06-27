@@ -98,6 +98,12 @@
   .badge-sl { @apply bg-red-500/15 text-red-400 text-xs px-2.5 py-0.5 rounded-full font-medium border border-red-500/20; }
   .badge-be { @apply bg-blue-500/15 text-blue-400 text-xs px-2.5 py-0.5 rounded-full font-medium border border-blue-500/20; }
   .badge-missed { @apply bg-gray-500/15 text-gray-400 text-xs px-2.5 py-0.5 rounded-full font-medium border border-gray-500/20; }
+  
+  .badge-tp { @apply bg-emerald-500/15 text-emerald-400 text-xs px-2.5 py-0.5 rounded-full font-medium border border-emerald-500/20; }
+.badge-sl { @apply bg-red-500/15 text-red-400 text-xs px-2.5 py-0.5 rounded-full font-medium border border-red-500/20; }
+.badge-be { @apply bg-blue-500/15 text-blue-400 text-xs px-2.5 py-0.5 rounded-full font-medium border border-blue-500/20; }
+.badge-missed { @apply bg-gray-500/15 text-gray-400 text-xs px-2.5 py-0.5 rounded-full font-medium border border-gray-500/20; }
+.badge-manual { @apply bg-orange-500/15 text-orange-400 text-xs px-2.5 py-0.5 rounded-full font-medium border border-orange-500/20; }
 
   .label { @apply text-xs text-forge-muted uppercase tracking-widest mb-1.5 block font-medium; }
   .value { @apply text-sm font-medium text-white; }

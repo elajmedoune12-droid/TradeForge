@@ -33,6 +33,7 @@ export const calcAvgRR = (trades) => {
 export const calcPnl = (trade) => {
   if (trade.result === 'tp') return trade.rr_won || 0
   if (trade.result === 'sl') return trade.rr_won != null ? Math.max(trade.rr_won, -1) : -1
+  if (trade.result === 'manual_exit') return trade.rr_won != null ? trade.rr_won : 0
   return 0 // BE et Missed
 }
 

@@ -169,7 +169,8 @@ export default function MonthlyAnalysis() {
 map[t.day].total++
 map[t.day].trades.push(t)
       if (t.result === 'tp') map[t.day].profit += (t.rr_won || 0)
-      if (t.result === 'sl') map[t.day].profit -= 1
+      if (t.result === 'sl') map[t.day].profit += (t.rr_won ?? -1)
+      if (t.result === 'manual_exit') map[t.day].profit += (t.rr_won || 0)
     })
     return Object.entries(map).map(([day, d]) => ({
       name: day.slice(0, 3),
@@ -189,7 +190,8 @@ map[t.day].trades.push(t)
 map[t.session].trades.push(t)
       map[t.session].total++
       if (t.result === 'tp') { map[t.session].wins++; map[t.session].profit += (t.rr_won || 0) }
-      if (t.result === 'sl') map[t.session].profit -= 1
+if (t.result === 'sl') map[t.session].profit += (t.rr_won ?? -1)
+if (t.result === 'manual_exit') map[t.session].profit += (t.rr_won || 0)
     })
     return Object.entries(map)
       .map(([s, d]) => ({ name: s, wr: calcWinRate(d.trades), profit: +d.profit.toFixed(2), total: d.total }))
@@ -401,24 +403,26 @@ map[t.session].trades.push(t)
             style={{ background: 'rgba(16,20,28,0.8)', border: '1px solid rgba(255,255,255,0.07)' }}>
             <p className="text-xs font-medium text-forge-muted uppercase tracking-wide mb-3">Distribution</p>
             <div className="flex gap-1 h-2 rounded-full overflow-hidden mb-3">
-              {stats.tp     > 0 && <div style={{ flex: stats.tp,     background: '#2EA043' }} />}
-              {stats.sl     > 0 && <div style={{ flex: stats.sl,     background: '#F85149' }} />}
-              {stats.be     > 0 && <div style={{ flex: stats.be,     background: '#58a6ff' }} />}
-              {stats.missed > 0 && <div style={{ flex: stats.missed, background: '#8B949E' }} />}
-            </div>
-            <div className="grid grid-cols-4 gap-1 text-center">
-              {[
-                { label: 'TP',     count: stats.tp,     color: '#2EA043' },
-                { label: 'SL',     count: stats.sl,     color: '#F85149' },
-                { label: 'BE',     count: stats.be,     color: '#58a6ff' },
-                { label: 'Missed', count: stats.missed, color: '#8B949E' },
-              ].map(({ label, count, color }) => (
-                <div key={label}>
-                  <p className="text-lg font-mono font-semibold" style={{ color }}>{count}</p>
-                  <p className="text-[10px] text-forge-muted">{label}</p>
-                </div>
-              ))}
-            </div>
+  {stats.tp     > 0 && <div style={{ flex: stats.tp,     background: '#2EA043' }} />}
+  {stats.sl     > 0 && <div style={{ flex: stats.sl,     background: '#F85149' }} />}
+  {stats.be     > 0 && <div style={{ flex: stats.be,     background: '#58a6ff' }} />}
+  {stats.missed > 0 && <div style={{ flex: stats.missed, background: '#8B949E' }} />}
+  {(stats.trades?.filter(t => t.result === 'manual_exit').length > 0) && <div style={{ flex: stats.trades.filter(t => t.result === 'manual_exit').length, background: '#F79009' }} />}
+</div>
+<div className="grid grid-cols-5 gap-1 text-center">
+  {[
+    { label: 'TP',     count: stats.tp,     color: '#2EA043' },
+    { label: 'SL',     count: stats.sl,     color: '#F85149' },
+    { label: 'BE',     count: stats.be,     color: '#58a6ff' },
+    { label: 'Missed', count: stats.missed, color: '#8B949E' },
+    { label: 'Manuel', count: stats.trades?.filter(t => t.result === 'manual_exit').length ?? 0, color: '#F79009' },
+  ].map(({ label, count, color }) => (
+    <div key={label}>
+      <p className="text-lg font-mono font-semibold" style={{ color }}>{count}</p>
+      <p className="text-[10px] text-forge-muted">{label}</p>
+    </div>
+  ))}
+</div>
           </div>
 
           {/* ── Tendance 6 mois ── */}
