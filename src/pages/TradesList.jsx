@@ -151,29 +151,35 @@ export default function TradesList() {
   const chartData = useMemo(() => {
     const sorted = [...filtered].sort((a, b) => a.date.localeCompare(b.date))
     if (chartMode === 'equity') {
-      let cum = 0
-      return sorted.map(t => {
-        const pnl = t.result === 'tp' ? (t.rr_won || 0) : t.result === 'sl' ? (t.rr_won || -1) : 0
-        cum += pnl
-        return { label: format(parseISO(t.date), 'dd/MM'), equity: +cum.toFixed(2) }
-      })
-    }
-    if (chartMode === 'rr') {
-      return sorted.map((t, i) => ({
-        label: `#${i + 1}`,
-        rr: t.result === 'tp' ? (t.rr_won || 0) : t.result === 'sl' ? (t.rr_won || -1) : 0,
-        result: t.result,
-      }))
-    }
-    if (chartMode === 'results') {
-      const byMonth = {}
-      sorted.forEach(t => {
-        const m = t.date.slice(0, 7)
-        if (!byMonth[m]) byMonth[m] = { label: format(parseISO(m + '-01'), 'MMM yy'), tp: 0, sl: 0, be: 0, missed: 0 }
-        if (t.result) byMonth[m][t.result] = (byMonth[m][t.result] || 0) + 1
-      })
-      return Object.values(byMonth)
-    }
+  let cum = 0
+  return sorted.map(t => {
+    const pnl = t.result === 'tp' ? (t.rr_won || 0)
+      : t.result === 'sl' ? (t.rr_won ?? -1)
+      : t.result === 'manual_exit' ? (t.rr_won || 0)
+      : 0
+    cum += pnl
+    return { label: format(parseISO(t.date), 'dd/MM'), equity: +cum.toFixed(2) }
+  })
+}
+if (chartMode === 'rr') {
+  return sorted.map((t, i) => ({
+    label: `#${i + 1}`,
+    rr: t.result === 'tp' ? (t.rr_won || 0)
+      : t.result === 'sl' ? (t.rr_won ?? -1)
+      : t.result === 'manual_exit' ? (t.rr_won || 0)
+      : 0,
+    result: t.result,
+  }))
+}
+if (chartMode === 'results') {
+  const byMonth = {}
+  sorted.forEach(t => {
+    const m = t.date.slice(0, 7)
+    if (!byMonth[m]) byMonth[m] = { label: format(parseISO(m + '-01'), 'MMM yy'), tp: 0, sl: 0, be: 0, missed: 0, manual_exit: 0 }
+    if (t.result) byMonth[m][t.result] = (byMonth[m][t.result] || 0) + 1
+  })
+  return Object.values(byMonth)
+}
     return []
   }, [filtered, chartMode])
 
@@ -188,6 +194,7 @@ export default function TradesList() {
     const profit  = +filtered.reduce((sum, t) => {
       if (t.result === 'tp') return sum + (t.rr_won || 0)
       if (t.result === 'sl') return sum + (t.rr_won || -1)
+      if (t.result === 'manual_exit') return sum + (t.rr_won || 0)
       return sum
     }, 0).toFixed(2)
     const avgRR = tp > 0
@@ -374,30 +381,31 @@ export default function TradesList() {
           )}
 
           {chartMode === 'results' && (
-            <>
-              <p className="text-xs text-forge-muted mb-3">Distribution des résultats par mois</p>
-              <ResponsiveContainer width="100%" height={140}>
-                <BarChart data={chartData} margin={{ top: 4, right: 0, left: -28, bottom: 0 }}>
-                  <CartesianGrid vertical={false} stroke="rgba(255,255,255,0.04)" />
-                  <XAxis dataKey="label" tick={{ fill: '#8B949E', fontSize: 9 }} axisLine={false} tickLine={false} />
-                  <YAxis tick={{ fill: '#8B949E', fontSize: 9 }} axisLine={false} tickLine={false} allowDecimals={false} />
-                  <Tooltip content={<ResultsTooltip />} />
-                  <Bar dataKey="tp"     name="TP"     stackId="a" fill="#2EA043" fillOpacity={0.85} />
-                  <Bar dataKey="sl"     name="SL"     stackId="a" fill="#F85149" fillOpacity={0.85} />
-                  <Bar dataKey="be"     name="BE"     stackId="a" fill="#58a6ff" fillOpacity={0.85} />
-                  <Bar dataKey="missed" name="Missed" stackId="a" fill="#8B949E" fillOpacity={0.85} radius={[3,3,0,0]} />
-                </BarChart>
-              </ResponsiveContainer>
-              <div className="flex gap-3 mt-2 justify-center">
-                {[['TP','#2EA043'],['SL','#F85149'],['BE','#58a6ff'],['Missed','#8B949E']].map(([l,c]) => (
-                  <div key={l} className="flex items-center gap-1">
-                    <div className="w-2 h-2 rounded-sm" style={{ background: c }} />
-                    <span className="text-[10px] text-forge-muted">{l}</span>
-                  </div>
-                ))}
-              </div>
-            </>
-          )}
+  <>
+    <p className="text-xs text-forge-muted mb-3">Distribution des résultats par mois</p>
+    <ResponsiveContainer width="100%" height={140}>
+      <BarChart data={chartData} margin={{ top: 4, right: 0, left: -28, bottom: 0 }}>
+        <CartesianGrid vertical={false} stroke="rgba(255,255,255,0.04)" />
+        <XAxis dataKey="label" tick={{ fill: '#8B949E', fontSize: 9 }} axisLine={false} tickLine={false} />
+        <YAxis tick={{ fill: '#8B949E', fontSize: 9 }} axisLine={false} tickLine={false} allowDecimals={false} />
+        <Tooltip content={<ResultsTooltip />} />
+        <Bar dataKey="tp"          name="TP"     stackId="a" fill="#2EA043" fillOpacity={0.85} />
+        <Bar dataKey="sl"          name="SL"     stackId="a" fill="#F85149" fillOpacity={0.85} />
+        <Bar dataKey="be"          name="BE"     stackId="a" fill="#58a6ff" fillOpacity={0.85} />
+        <Bar dataKey="missed"      name="Missed" stackId="a" fill="#8B949E" fillOpacity={0.85} />
+        <Bar dataKey="manual_exit" name="Manuel" stackId="a" fill="#F79009" fillOpacity={0.85} radius={[3,3,0,0]} />
+      </BarChart>
+    </ResponsiveContainer>
+    <div className="flex gap-3 mt-2 justify-center flex-wrap">
+      {[['TP','#2EA043'],['SL','#F85149'],['BE','#58a6ff'],['Missed','#8B949E'],['Manuel','#F79009']].map(([l,c]) => (
+        <div key={l} className="flex items-center gap-1">
+          <div className="w-2 h-2 rounded-sm" style={{ background: c }} />
+          <span className="text-[10px] text-forge-muted">{l}</span>
+        </div>
+      ))}
+    </div>
+  </>
+)}
         </div>
       )}
 
