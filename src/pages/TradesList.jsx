@@ -197,9 +197,12 @@ if (chartMode === 'results') {
       if (t.result === 'manual_exit') return sum + (t.rr_won || 0)
       return sum
     }, 0).toFixed(2)
-    const avgRR = tp > 0
-      ? +(filtered.filter(t => t.result === 'tp').reduce((s, t) => s + (t.rr_won || 0), 0) / tp).toFixed(2)
-      : 0
+    const winningTrades = filtered.filter(t => 
+  (t.result === 'tp') || (t.result === 'manual_exit' && t.rr_won > 0)
+)
+const avgRR = winningTrades.length > 0
+  ? +(winningTrades.reduce((s, t) => s + (t.rr_won || 0), 0) / winningTrades.length).toFixed(2)
+  : 0
     const sessionMap = {}
     filtered.forEach(t => {
       if (!t.session) return
