@@ -47,7 +47,7 @@ const StatCard = ({ label, value, sub, color, icon: Icon, glow }) => (
       <p className="label mb-0">{label}</p>
       {Icon && <Icon size={13} style={{ color: glow || '#8B949E', opacity: 0.7 }} />}
     </div>
-    <p className={`text-2xl font-mono font-semibold leading-none ${color || 'text-white'}`}>{value}</p>
+    <p className={`text-2xl font-mono font-semibold leading-none ${color || ''}`} style={color ? {} : { color: 'var(--text-primary)' }}>{value}</p>
     {sub && <p className="text-[11px] text-forge-muted mt-0.5">{sub}</p>}
   </div>
 )
@@ -68,7 +68,7 @@ const PillToggle = ({ options, value, onChange }) => (
           className="px-3 py-1.5 rounded-xl text-xs font-medium border transition-all active:scale-95"
           style={active
             ? { background: `${opt.color}22`, color: opt.color, borderColor: `${opt.color}66`, boxShadow: `0 0 8px ${opt.color}33` }
-            : { background: 'rgba(255,255,255,0.04)', color: '#8B949E', borderColor: 'rgba(255,255,255,0.1)' }
+            : { background: 'var(--surface-3)', color: '#8B949E', borderColor: 'var(--surface-10)' }
           }>
           {opt.label}
         </button>
@@ -103,7 +103,7 @@ const ResultsTooltip = ({ active, payload, label }) => {
   if (!active || !payload?.length) return null
   return (
     <div className="rounded-xl px-3 py-2 text-xs"
-      style={{ background: '#161B22', border: '1px solid rgba(247,183,49,0.2)' }}>
+      style={{ background: 'var(--modal-bg)', border: '1px solid rgba(247,183,49,0.2)' }}>
       <p className="text-forge-muted mb-1">{label}</p>
       {payload.map((p, i) => (
         <p key={i} className="font-mono" style={{ color: p.color }}>{p.name}: {p.value}</p>
@@ -240,12 +240,12 @@ const avgRR = winningTrades.length > 0
   )
 
   return (
-    <div className="page">
+    <div className="page animate-slide-up">
 
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
         <h1 className="text-lg font-medium">Trades</h1>
-        <button onClick={() => navigate('/trades/new')} className="btn-primary flex items-center gap-1.5">
+        <button onClick={() => navigate('/app/trades/new')} className="btn-primary flex items-center gap-1.5">
           <Plus size={15} /> Nouveau
         </button>
       </div>
@@ -261,7 +261,7 @@ const avgRR = winningTrades.length > 0
           className="flex items-center gap-1.5 px-3 py-2.5 rounded-xl text-sm font-medium border transition-all active:scale-95"
           style={panelOpen || activeFilters.length > 0
             ? { background: 'rgba(247,183,49,0.12)', color: '#F7B731', borderColor: 'rgba(247,183,49,0.4)' }
-            : { background: 'rgba(255,255,255,0.04)', color: '#8B949E', borderColor: 'rgba(255,255,255,0.1)' }
+            : { background: 'var(--surface-3)', color: '#8B949E', borderColor: 'var(--surface-10)' }
           }>
           <SlidersHorizontal size={14} />
           Filtres
@@ -280,7 +280,7 @@ const avgRR = winningTrades.length > 0
           {activeFilters.map((f, i) => (
             <ActiveFilterChip key={i} label={f.label} onRemove={f.clear} />
           ))}
-          <button onClick={clearAll} className="text-xs text-forge-muted hover:text-white transition-colors px-1">
+          <button onClick={clearAll} className="text-xs text-forge-muted hover-text-primary transition-colors px-1">
             Tout effacer
           </button>
         </div>
@@ -310,7 +310,7 @@ const avgRR = winningTrades.length > 0
       {/* Graphique */}
       {filtered.length > 1 && (
         <div className="card mb-4"
-          style={{ borderColor: chartMode === 'equity' ? (isUp ? 'rgba(46,160,67,0.2)' : 'rgba(248,81,73,0.2)') : 'rgba(255,255,255,0.07)' }}>
+          style={{ borderColor: chartMode === 'equity' ? (isUp ? 'rgba(46,160,67,0.2)' : 'rgba(248,81,73,0.2)') : 'var(--surface-6)' }}>
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
               <BarChart2 size={13} className="text-forge-accent" />
@@ -322,7 +322,7 @@ const avgRR = winningTrades.length > 0
                   className="px-2.5 py-1 rounded-lg text-[10px] font-medium border transition-all"
                   style={chartMode === m.value
                     ? { background: 'rgba(247,183,49,0.15)', color: '#F7B731', borderColor: 'rgba(247,183,49,0.4)' }
-                    : { background: 'rgba(255,255,255,0.03)', color: '#8B949E', borderColor: 'rgba(255,255,255,0.08)' }
+                    : { background: 'var(--surface-2)', color: '#8B949E', borderColor: 'var(--surface-8)' }
                   }>
                   {m.label}
                 </button>
@@ -350,10 +350,10 @@ const avgRR = winningTrades.length > 0
                       <stop offset="100%" stopColor="#F85149" stopOpacity={0} />
                     </linearGradient>
                   </defs>
-                  <CartesianGrid vertical={false} stroke="rgba(255,255,255,0.04)" />
+                  <CartesianGrid vertical={false} stroke="var(--surface-3)" />
                   <XAxis dataKey="label" tick={{ fill: '#8B949E', fontSize: 9 }} axisLine={false} tickLine={false} interval="preserveStartEnd" />
                   <YAxis tick={{ fill: '#8B949E', fontSize: 9 }} axisLine={false} tickLine={false} tickFormatter={v => `${v}R`} />
-                  <ReferenceLine y={0} stroke="rgba(255,255,255,0.12)" strokeDasharray="4 4" />
+                  <ReferenceLine y={0} stroke="var(--surface-12)" strokeDasharray="4 4" />
                   <Tooltip content={<CustomTooltip />} />
                   <Area type="monotone" dataKey="equity" stroke={isUp ? '#2EA043' : '#F85149'}
                     strokeWidth={2} fill={isUp ? 'url(#eqUp2)' : 'url(#eqDown2)'}
@@ -368,10 +368,10 @@ const avgRR = winningTrades.length > 0
               <p className="text-xs text-forge-muted mb-3">RR réalisé par trade</p>
               <ResponsiveContainer width="100%" height={140}>
                 <BarChart data={chartData} margin={{ top: 4, right: 0, left: -28, bottom: 0 }}>
-                  <CartesianGrid vertical={false} stroke="rgba(255,255,255,0.04)" />
+                  <CartesianGrid vertical={false} stroke="var(--surface-3)" />
                   <XAxis dataKey="label" tick={{ fill: '#8B949E', fontSize: 9 }} axisLine={false} tickLine={false} interval="preserveStartEnd" />
                   <YAxis tick={{ fill: '#8B949E', fontSize: 9 }} axisLine={false} tickLine={false} tickFormatter={v => `${v}R`} />
-                  <ReferenceLine y={0} stroke="rgba(255,255,255,0.2)" />
+                  <ReferenceLine y={0} stroke="var(--surface-12)" />
                   <Tooltip content={<CustomTooltip />} />
                   <Bar dataKey="rr" radius={[3, 3, 0, 0]}>
                     {chartData.map((entry, i) => (
@@ -388,7 +388,7 @@ const avgRR = winningTrades.length > 0
     <p className="text-xs text-forge-muted mb-3">Distribution des résultats par mois</p>
     <ResponsiveContainer width="100%" height={140}>
       <BarChart data={chartData} margin={{ top: 4, right: 0, left: -28, bottom: 0 }}>
-        <CartesianGrid vertical={false} stroke="rgba(255,255,255,0.04)" />
+        <CartesianGrid vertical={false} stroke="var(--surface-3)" />
         <XAxis dataKey="label" tick={{ fill: '#8B949E', fontSize: 9 }} axisLine={false} tickLine={false} />
         <YAxis tick={{ fill: '#8B949E', fontSize: 9 }} axisLine={false} tickLine={false} allowDecimals={false} />
         <Tooltip content={<ResultsTooltip />} />
@@ -423,7 +423,7 @@ const avgRR = winningTrades.length > 0
       {/* Panneau filtres */}
       {panelOpen && (
         <div className="card mb-4 space-y-5"
-          style={{ border: '1px solid rgba(247,183,49,0.15)', background: 'rgba(16,20,28,0.9)' }}>
+          style={{ border: '1px solid rgba(247,183,49,0.15)', background: 'var(--surface-card)' }}>
           <div>
             <p className="section-title mb-2">Résultat</p>
             <PillToggle options={RESULTS_OPTIONS} value={filterResult} onChange={setFilterResult} />
@@ -442,7 +442,7 @@ const avgRR = winningTrades.length > 0
                     className="px-3 py-1.5 rounded-xl text-xs font-medium border transition-all active:scale-95"
                     style={active
                       ? { background: 'rgba(247,183,49,0.15)', color: '#F7B731', borderColor: 'rgba(247,183,49,0.5)' }
-                      : { background: 'rgba(255,255,255,0.04)', color: '#8B949E', borderColor: 'rgba(255,255,255,0.1)' }
+                      : { background: 'var(--surface-3)', color: '#8B949E', borderColor: 'var(--surface-10)' }
                     }>
                     {m}
                   </button>
@@ -482,8 +482,8 @@ const avgRR = winningTrades.length > 0
               <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-forge-muted pointer-events-none" />
             </div>
           </div>
-          <div className="flex items-center justify-between pt-1 border-t" style={{ borderColor: 'rgba(255,255,255,0.06)' }}>
-            <button onClick={clearAll} className="text-xs text-forge-muted hover:text-white transition-colors">
+          <div className="flex items-center justify-between pt-1 border-t" style={{ borderColor: 'var(--surface-5)' }}>
+            <button onClick={clearAll} className="text-xs text-forge-muted hover-text-primary transition-colors">
               Réinitialiser
             </button>
             <button onClick={() => setPanelOpen(false)}
@@ -510,7 +510,7 @@ const avgRR = winningTrades.length > 0
           </div>
         )}
         {filtered.map(t => (
-          <div key={t.id} onClick={() => navigate(`/trades/${t.id}`)}
+          <div key={t.id} onClick={() => navigate(`/app/trades/${t.id}`)}
             className="card flex items-center gap-3 cursor-pointer hover:border-forge-muted/30 active:scale-[0.99] transition-all">
             <div className={`w-1.5 h-10 rounded-full flex-shrink-0 ${
   t.result === 'tp' ? 'bg-forge-green'

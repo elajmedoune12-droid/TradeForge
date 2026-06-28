@@ -5,29 +5,6 @@ import {
 } from 'lucide-react'
 import { fmtDate } from '../utils'
 
-/**
- * ExportModal
- * ────────────────────────────────────────────────────────────
- * Modale d'export d'un trade complet (trade + contexte marché +
- * psychologie + After Trade + captures + liens) depuis TradeDetail.
- *
- * 4 onglets :
- *  - pdf     : génère un vrai PDF (jsPDF) en mémoire, téléchargé
- *              directement. Toggle Sombre / Clair.
- *  - excel   : génère un .xlsx structuré (SheetJS), téléchargé.
- *  - sheets  : télécharge le même .xlsx + bouton "Ouvrir Google
- *              Sheets" (sheets.new) pour import manuel en 2 clics.
- *              (OAuth Google Drive direct = étape future, voir
- *              note en bas de fichier.)
- *  - notion  : génère un texte Markdown formaté et propose un
- *              bouton "Copier" — collé dans Notion, le markdown
- *              est automatiquement converti en blocs natifs.
- *
- * Props :
- *  - trade : objet trade complet (avec .images et .hindsight)
- *  - onClose : () => void
- */
-
 const TABS = [
   { id: 'pdf',    label: 'PDF',           icon: FileText },
   { id: 'excel',  label: 'Excel',         icon: Sheet },
@@ -51,7 +28,6 @@ function getHindsight(trade) {
   return h && h.main_error ? h : null
 }
 
-// ── Chargement dynamique des libs (évite d'alourdir le bundle initial) ──
 async function loadJsPDF() {
   const mod = await import('jspdf')
   return mod.jsPDF || mod.default
@@ -60,8 +36,6 @@ async function loadXLSX() {
   const mod = await import('xlsx')
   return mod
 }
-
-// ── Construction du contenu structuré commun à tous les formats ────
 
 function buildTradeRows(trade) {
   const h = getHindsight(trade)
@@ -101,6 +75,25 @@ function buildTradeRows(trade) {
   return rows
 }
 
+// ── Shared modal surface styles ──────────────────────────────
+const modalStyle = {
+  background: 'var(--modal-bg)',
+  border: '1px solid var(--border-soft)',
+}
+const modalHeaderStyle = {
+  borderBottom: '1px solid var(--border-soft)',
+}
+const tabInactiveStyle = {
+  background: 'var(--surface-3)',
+  color: 'var(--forge-muted)',
+  borderColor: 'var(--border-soft)',
+}
+const tabActiveStyle = {
+  background: 'rgba(247,183,49,0.12)',
+  color: '#F7B731',
+  borderColor: 'rgba(247,183,49,0.3)',
+}
+
 // ── Onglet PDF ───────────────────────────────────────────────
 
 function PdfTab({ trade, busy, setBusy, onDone }) {
@@ -118,8 +111,8 @@ function PdfTab({ trade, busy, setBusy, onDone }) {
       let y = 0
 
       const dark = theme === 'dark'
-      const bg     = dark ? [10, 11, 13]   : [255, 255, 255]
-      const card   = dark ? [22, 27, 34]   : [245, 246, 248]
+      const bg     = dark ? [10, 11, 13]    : [255, 255, 255]
+      const card   = dark ? [22, 27, 34]    : [245, 246, 248]
       const text   = dark ? [240, 240, 240] : [20, 20, 20]
       const muted  = dark ? [139, 148, 158] : [110, 110, 110]
       const accent = [247, 183, 49]
@@ -133,9 +126,7 @@ function PdfTab({ trade, busy, setBusy, onDone }) {
       }
       const ensureSpace = (h) => {
         if (y + h > doc.internal.pageSize.getHeight() - margin) {
-          doc.addPage()
-          pageBg()
-          y = margin
+          doc.addPage(); pageBg(); y = margin
         }
       }
       const sectionTitle = (label) => {
@@ -185,7 +176,6 @@ function PdfTab({ trade, busy, setBusy, onDone }) {
       pageBg()
       y = margin
 
-      // ── Header ──
       doc.setFontSize(20)
       doc.setFont('helvetica', 'bold')
       doc.setTextColor(...text)
@@ -208,13 +198,11 @@ function PdfTab({ trade, busy, setBusy, onDone }) {
       doc.line(margin, y, W - margin, y)
       y += 20
 
-      // ── Section Résultat ──
       sectionTitle('Résultat')
       row('RR Prévu', trade.rr_planned != null ? `${trade.rr_planned}R` : null)
       row('RR Gagné', trade.rr_won != null ? `${trade.rr_won}R` : null, rc)
       y += 6
 
-      // ── Contexte marché ──
       sectionTitle('Contexte de marché')
       row('Tendance', TREND_LABELS[trade.trend] || trade.trend)
       row('Structure', trade.market_structure)
@@ -223,7 +211,6 @@ function PdfTab({ trade, busy, setBusy, onDone }) {
       row('Style', trade.style)
       y += 6
 
-      // ── Psychologie ──
       sectionTitle('Psychologie')
       row('Émotion', trade.emotion)
       row('Respect du plan', trade.respect_plan ? 'Respecté' : 'Non respecté', trade.respect_plan ? green : red)
@@ -231,7 +218,6 @@ function PdfTab({ trade, busy, setBusy, onDone }) {
       y += 6
       if (trade.notes) paragraph('Notes', trade.notes)
 
-      // ── After Trade ──
       const h = getHindsight(trade)
       if (h) {
         y += 6
@@ -249,7 +235,6 @@ function PdfTab({ trade, busy, setBusy, onDone }) {
         }
       }
 
-      // ── Liens ──
       const allLinks = [
         ...(trade.images || []).filter(i => i.isLink),
         ...((h?.images || []).filter(i => i.isLink || !i.path)),
@@ -266,12 +251,10 @@ function PdfTab({ trade, busy, setBusy, onDone }) {
         })
       }
 
-      // ── Captures (images réelles uniquement) ──
       const allImages = [
         ...(trade.images || []).filter(i => !i.isLink && i.url),
         ...((h?.images || []).filter(i => i.path && i.url)),
       ]
-
       if (allImages.length) {
         for (const img of allImages) {
           try {
@@ -302,12 +285,11 @@ function PdfTab({ trade, busy, setBusy, onDone }) {
             doc.addImage(dataUrl, 'JPEG', margin, y, imgW, Math.min(imgH, 320))
             y += Math.min(imgH, 320) + 14
           } catch {
-            // Image inaccessible (CORS) — on l'ignore silencieusement, le lien reste dans la section Liens si dispo
+            // CORS — ignoré silencieusement
           }
         }
       }
 
-      // ── Footer (numéros de page) ──
       const pageCount = doc.internal.getNumberOfPages()
       for (let p = 1; p <= pageCount; p++) {
         doc.setPage(p)
@@ -328,17 +310,19 @@ function PdfTab({ trade, busy, setBusy, onDone }) {
 
   return (
     <div className="space-y-3">
-      <p className="text-xs text-forge-muted">
+      <p className="text-xs" style={{ color: 'var(--forge-muted)' }}>
         Génère un rapport PDF complet : données du trade, contexte, psychologie, After Trade, captures et liens.
       </p>
 
+      {/* Thème PDF — ces boutons contrôlent le thème du PDF généré, pas de l'UI */}
       <div className="flex gap-2">
         {[['dark', 'Sombre', Moon], ['light', 'Clair', Sun]].map(([v, l, Icon]) => (
-          <button key={v} onClick={() => setTheme(v)}
+          <button
+            key={v}
+            onClick={() => setTheme(v)}
             className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs font-medium border transition-all"
-            style={theme === v
-              ? { background: 'rgba(247,183,49,0.12)', color: '#F7B731', borderColor: 'rgba(247,183,49,0.3)' }
-              : { background: 'rgba(255,255,255,0.03)', color: '#8B949E', borderColor: 'rgba(255,255,255,0.08)' }}>
+            style={theme === v ? tabActiveStyle : tabInactiveStyle}
+          >
             <Icon size={13} /> {l}
           </button>
         ))}
@@ -350,9 +334,12 @@ function PdfTab({ trade, busy, setBusy, onDone }) {
         </p>
       )}
 
-      <button onClick={handleExport} disabled={busy}
+      <button
+        onClick={handleExport}
+        disabled={busy}
         className="w-full flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-medium transition-all active:scale-95 disabled:opacity-50"
-        style={{ background: 'rgba(247,183,49,0.12)', border: '1px solid rgba(247,183,49,0.3)', color: '#F7B731' }}>
+        style={{ background: 'rgba(247,183,49,0.12)', border: '1px solid rgba(247,183,49,0.3)', color: '#F7B731' }}
+      >
         {busy ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}
         {busy ? 'Génération en cours...' : 'Télécharger le PDF'}
       </button>
@@ -392,7 +379,7 @@ function ExcelTab({ trade, busy, setBusy, onDone, mode = 'excel' }) {
 
   return (
     <div className="space-y-3">
-      <p className="text-xs text-forge-muted">
+      <p className="text-xs" style={{ color: 'var(--forge-muted)' }}>
         {mode === 'excel'
           ? 'Exporte toutes les données de ce trade (et son After Trade) dans un fichier Excel structuré.'
           : 'Télécharge le fichier, puis ouvre Google Sheets pour l\'importer en 2 clics (Fichier → Importer).'}
@@ -404,24 +391,34 @@ function ExcelTab({ trade, busy, setBusy, onDone, mode = 'excel' }) {
         </p>
       )}
 
-      <button onClick={handleDownload} disabled={busy}
+      <button
+        onClick={handleDownload}
+        disabled={busy}
         className="w-full flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-medium transition-all active:scale-95 disabled:opacity-50"
-        style={{ background: 'rgba(46,160,67,0.12)', border: '1px solid rgba(46,160,67,0.3)', color: '#2EA043' }}>
+        style={{ background: 'rgba(46,160,67,0.12)', border: '1px solid rgba(46,160,67,0.3)', color: '#2EA043' }}
+      >
         {busy ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}
         {busy ? 'Génération...' : 'Télécharger le .xlsx'}
       </button>
 
       {mode === 'sheets' && (
-        <a href="https://sheets.new" target="_blank" rel="noopener noreferrer"
+        <a
+          href="https://sheets.new"
+          target="_blank"
+          rel="noopener noreferrer"
           className="w-full flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-medium transition-all active:scale-95"
-          style={{ background: 'rgba(88,166,255,0.1)', border: '1px solid rgba(88,166,255,0.3)', color: '#58a6ff' }}>
+          style={{ background: 'rgba(88,166,255,0.1)', border: '1px solid rgba(88,166,255,0.3)', color: '#58a6ff' }}
+        >
           <ExternalLink size={14} /> Ouvrir Google Sheets
         </a>
       )}
 
       {mode === 'sheets' && (
-        <p className="text-[11px] text-forge-muted leading-relaxed">
-          Dans Google Sheets : <span className="text-white/70">Fichier → Importer → Importer le fichier téléchargé</span>.
+        <p className="text-[11px] leading-relaxed" style={{ color: 'var(--forge-muted)' }}>
+          Dans Google Sheets :{' '}
+          <span style={{ color: 'var(--text-secondary)' }}>
+            Fichier → Importer → Importer le fichier téléchargé
+          </span>.
           Une connexion directe (sans téléchargement manuel) sera proposée prochainement via Google OAuth.
         </p>
       )}
@@ -439,17 +436,17 @@ function buildNotionMarkdown(trade) {
   lines.push(`**Direction:** ${trade.type === 'buy' ? 'BUY' : 'SELL'}  `)
   lines.push(`**Résultat:** ${RESULT_LABELS[trade.result] || '—'}  `)
   if (trade.rr_planned != null) lines.push(`**RR Prévu:** ${trade.rr_planned}R  `)
-  if (trade.rr_won != null) lines.push(`**RR Gagné:** ${trade.rr_won}R  `)
+  if (trade.rr_won != null)     lines.push(`**RR Gagné:** ${trade.rr_won}R  `)
   lines.push('')
   lines.push('## Contexte de marché')
-  if (trade.trend) lines.push(`- **Tendance:** ${TREND_LABELS[trade.trend] || trade.trend}`)
+  if (trade.trend)            lines.push(`- **Tendance:** ${TREND_LABELS[trade.trend] || trade.trend}`)
   if (trade.market_structure) lines.push(`- **Structure:** ${trade.market_structure}`)
-  if (trade.session) lines.push(`- **Session:** ${trade.session}`)
-  if (trade.day) lines.push(`- **Jour:** ${trade.day}`)
-  if (trade.style) lines.push(`- **Style:** ${trade.style}`)
+  if (trade.session)          lines.push(`- **Session:** ${trade.session}`)
+  if (trade.day)              lines.push(`- **Jour:** ${trade.day}`)
+  if (trade.style)            lines.push(`- **Style:** ${trade.style}`)
   lines.push('')
   lines.push('## Psychologie')
-  if (trade.emotion) lines.push(`- **Émotion:** ${trade.emotion}`)
+  if (trade.emotion)               lines.push(`- **Émotion:** ${trade.emotion}`)
   lines.push(`- **Respect du plan:** ${trade.respect_plan ? 'Respecté' : 'Non respecté'}`)
   if (trade.discipline_score != null) lines.push(`- **Discipline:** ${trade.discipline_score}/10`)
   if (trade.notes) {
@@ -468,15 +465,8 @@ function buildNotionMarkdown(trade) {
     lines.push('')
     lines.push(`**Règle à appliquer**`)
     lines.push(`${h.rule}`)
-    if (h.notes) {
-      lines.push('')
-      lines.push(`**Notes**`)
-      lines.push(h.notes)
-    }
-    if (h.tags?.length) {
-      lines.push('')
-      lines.push(h.tags.map(t => `\`#${t}\``).join(' '))
-    }
+    if (h.notes) { lines.push(''); lines.push(`**Notes**`); lines.push(h.notes) }
+    if (h.tags?.length) { lines.push(''); lines.push(h.tags.map(t => `\`#${t}\``).join(' ')) }
   }
   const allLinks = [
     ...(trade.images || []).filter(i => i.isLink),
@@ -485,9 +475,7 @@ function buildNotionMarkdown(trade) {
   if (allLinks.length) {
     lines.push('')
     lines.push('## Liens')
-    allLinks.forEach(lnk => {
-      lines.push(`- [${lnk.label || lnk.timeframe || 'Lien'}](${lnk.url})`)
-    })
+    allLinks.forEach(lnk => lines.push(`- [${lnk.label || lnk.timeframe || 'Lien'}](${lnk.url})`))
   }
   return lines.join('\n')
 }
@@ -501,7 +489,6 @@ function NotionTab({ trade }) {
     try {
       await navigator.clipboard.writeText(md)
     } catch {
-      // Fallback si l'API clipboard est bloquée
       taRef.current?.select()
       document.execCommand('copy')
     }
@@ -511,22 +498,32 @@ function NotionTab({ trade }) {
 
   return (
     <div className="space-y-3">
-      <p className="text-xs text-forge-muted">
+      <p className="text-xs" style={{ color: 'var(--forge-muted)' }}>
         Copie ce texte formaté puis colle-le directement dans une page Notion vide —
         Notion convertit automatiquement le Markdown en titres, listes et citations.
       </p>
 
-      <textarea ref={taRef} readOnly value={md}
+      <textarea
+        ref={taRef}
+        readOnly
+        value={md}
         className="w-full text-[11px] font-mono resize-none rounded-xl p-3"
-        style={{ height: 180, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', color: '#8B949E' }} />
-
-      <button onClick={handleCopy}
-        className="w-full flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-medium transition-all active:scale-95"
         style={{
-          background: copied ? 'rgba(46,160,67,0.15)' : 'rgba(255,255,255,0.05)',
-          border: `1px solid ${copied ? 'rgba(46,160,67,0.35)' : 'rgba(255,255,255,0.12)'}`,
-          color: copied ? '#2EA043' : '#fff',
-        }}>
+          height: 180,
+          background: 'var(--surface-3)',
+          border: '1px solid var(--border-soft)',
+          color: 'var(--forge-muted)',
+        }}
+      />
+
+      <button
+        onClick={handleCopy}
+        className="w-full flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-medium transition-all active:scale-95"
+        style={copied
+          ? { background: 'rgba(46,160,67,0.15)', border: '1px solid rgba(46,160,67,0.35)', color: '#2EA043' }
+          : { background: 'var(--surface-5)', border: '1px solid var(--border-medium)', color: 'var(--text-primary)' }
+        }
+      >
         {copied ? <Check size={14} /> : <Copy size={14} />}
         {copied ? 'Copié !' : 'Copier le texte formaté'}
       </button>
@@ -547,17 +544,31 @@ export default function ExportModal({ trade, onClose }) {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/70 backdrop-blur-sm"
-      onClick={onClose}>
-      <div className="w-full sm:max-w-md sm:rounded-2xl rounded-t-2xl overflow-hidden flex flex-col"
-        style={{ background: '#111318', border: '1px solid rgba(255,255,255,0.08)', maxHeight: '88vh' }}
-        onClick={e => e.stopPropagation()}>
-
+    <div
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center backdrop-blur-sm"
+      style={{ background: 'var(--modal-overlay)' }}
+      onClick={onClose}
+    >
+      <div
+        className="w-full sm:max-w-md sm:rounded-2xl rounded-t-2xl overflow-hidden flex flex-col"
+        style={{ ...modalStyle, maxHeight: '88vh' }}
+        onClick={e => e.stopPropagation()}
+      >
         {/* Header */}
-        <div className="flex items-center justify-between px-4 py-3.5 flex-shrink-0"
-          style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
-          <p className="text-sm font-semibold text-white">Exporter ce trade</p>
-          <button onClick={onClose} className="text-forge-muted hover:text-white transition-colors">
+        <div
+          className="flex items-center justify-between px-4 py-3.5 flex-shrink-0"
+          style={modalHeaderStyle}
+        >
+          <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
+            Exporter ce trade
+          </p>
+          <button
+            onClick={onClose}
+            className="transition-colors"
+            style={{ color: 'var(--forge-muted)' }}
+            onMouseEnter={e => e.currentTarget.style.color = 'var(--text-primary)'}
+            onMouseLeave={e => e.currentTarget.style.color = 'var(--forge-muted)'}
+          >
             <X size={18} />
           </button>
         </div>
@@ -568,11 +579,12 @@ export default function ExportModal({ trade, onClose }) {
             const Icon = t.icon
             const isActive = active === t.id
             return (
-              <button key={t.id} onClick={() => setActive(t.id)}
+              <button
+                key={t.id}
+                onClick={() => setActive(t.id)}
                 className="flex flex-col items-center justify-center gap-1 py-2 rounded-xl text-[10px] font-medium border transition-all"
-                style={isActive
-                  ? { background: 'rgba(247,183,49,0.12)', color: '#F7B731', borderColor: 'rgba(247,183,49,0.3)' }
-                  : { background: 'rgba(255,255,255,0.03)', color: '#8B949E', borderColor: 'rgba(255,255,255,0.08)' }}>
+                style={isActive ? tabActiveStyle : tabInactiveStyle}
+              >
                 <Icon size={14} /> {t.label}
               </button>
             )
@@ -589,8 +601,14 @@ export default function ExportModal({ trade, onClose }) {
 
         {/* Toast */}
         {toast && (
-          <div className="px-4 py-2.5 flex-shrink-0 text-xs font-medium"
-            style={{ background: 'rgba(46,160,67,0.12)', color: '#2EA043', borderTop: '1px solid rgba(46,160,67,0.25)' }}>
+          <div
+            className="px-4 py-2.5 flex-shrink-0 text-xs font-medium"
+            style={{
+              background: 'rgba(46,160,67,0.12)',
+              color: '#2EA043',
+              borderTop: '1px solid rgba(46,160,67,0.25)',
+            }}
+          >
             {toast}
           </div>
         )}
@@ -598,28 +616,3 @@ export default function ExportModal({ trade, onClose }) {
     </div>
   )
 }
-
-/**
- * NOTE — passage à l'OAuth Google Drive/Sheets direct
- * ────────────────────────────────────────────────────────────
- * Pour envoyer directement le trade dans le Drive de l'utilisateur
- * sans téléchargement manuel :
- *
- * 1. Créer un projet sur https://console.cloud.google.com
- * 2. Activer "Google Sheets API" et "Google Drive API"
- * 3. Créer un "OAuth Client ID" (type "Web application"), avec
- *    comme "Authorized JavaScript origins" ton domaine (et
- *    http://localhost:5173 en dev)
- * 4. Installer `npm install @react-oauth/google` ou utiliser le
- *    script Google Identity Services directement
- * 5. Au clic sur "Connecter Google", demander le scope
- *    `https://www.googleapis.com/auth/spreadsheets` puis appeler
- *    `POST https://sheets.googleapis.com/v4/spreadsheets` avec le
- *    token reçu pour créer la feuille directement, sans passer par
- *    un fichier téléchargé.
- *
- * Le code de cette modale reste compatible : il suffira d'ajouter
- * un bouton "Connecter Google" dans l'onglet sheets, qui appelle
- * la même fonction `buildWorkbook` puis pousse les données via API
- * au lieu de déclencher un download.
- */

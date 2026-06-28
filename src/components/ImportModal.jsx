@@ -5,24 +5,6 @@ import {
 } from 'lucide-react'
 import { uploadImage } from '../services/supabase'
 
-/**
- * ImportModal
- * ────────────────────────────────────────────────────────────
- * Modale d'import simple pour TradeDetail : ajoute une image ou
- * un lien (TradingView, etc.) directement au trade, sans repasser
- * par "Modifier". Même pattern que les panneaux existants dans
- * AddTrade.jsx / AfterTrade.jsx.
- *
- * Props :
- *  - tradeId    : id du trade courant
- *  - userId     : id de l'utilisateur (pour le chemin de storage)
- *  - timeframes : liste des timeframes dispo
- *  - onClose    : () => void
- *  - onAttach   : (attachment) => Promise<void>
- *      attachment = { url, timeframe, label, isLink, path? }
- *      → à pousser dans trade.images existant côté parent
- */
-
 const DEFAULT_TIMEFRAMES = ['Monthly', 'Weekly', 'Daily', 'H4', 'H2', 'H1', 'M30', 'M15', 'M5', 'M3', 'M1']
 
 export default function ImportModal({
@@ -32,10 +14,10 @@ export default function ImportModal({
   onClose,
   onAttach,
 }) {
-  const [mode, setMode] = useState('image') // 'image' | 'link'
-  const [tf, setTf]     = useState('Daily')
-  const [file, setFile] = useState(null)
-  const [url, setUrl]   = useState('')
+  const [mode, setMode]   = useState('image')
+  const [tf, setTf]       = useState('Daily')
+  const [file, setFile]   = useState(null)
+  const [url, setUrl]     = useState('')
   const [label, setLabel] = useState('')
   const [busy, setBusy]   = useState(false)
   const [error, setError] = useState('')
@@ -51,7 +33,6 @@ export default function ImportModal({
     setError('')
     if (mode === 'image' && !file) return
     if (mode === 'link' && !url.trim()) return
-
     setBusy(true)
     try {
       if (mode === 'image') {
@@ -63,9 +44,7 @@ export default function ImportModal({
         await onAttach({ url: url.trim(), timeframe: tf, label: label || tf, isLink: true })
       }
       setToast('Élément attaché au trade.')
-      setFile(null)
-      setUrl('')
-      setLabel('')
+      setFile(null); setUrl(''); setLabel('')
       setTimeout(() => { setToast(null); onClose() }, 1100)
     } catch (e) {
       setError(e.message || "Erreur lors de l'import.")
@@ -77,17 +56,35 @@ export default function ImportModal({
   const canSubmit = mode === 'image' ? !!file : !!url.trim()
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/70 backdrop-blur-sm"
-      onClick={onClose}>
-      <div className="w-full sm:max-w-md sm:rounded-2xl rounded-t-2xl overflow-hidden flex flex-col"
-        style={{ background: '#111318', border: '1px solid rgba(255,255,255,0.08)', maxHeight: '88vh' }}
-        onClick={e => e.stopPropagation()}>
-
+    <div
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center backdrop-blur-sm"
+      style={{ background: 'var(--modal-overlay)' }}
+      onClick={onClose}
+    >
+      <div
+        className="w-full sm:max-w-md sm:rounded-2xl rounded-t-2xl overflow-hidden flex flex-col"
+        style={{
+          background: 'var(--modal-bg)',
+          border: '1px solid var(--border-soft)',
+          maxHeight: '88vh',
+        }}
+        onClick={e => e.stopPropagation()}
+      >
         {/* Header */}
-        <div className="flex items-center justify-between px-4 py-3.5 flex-shrink-0"
-          style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
-          <p className="text-sm font-semibold text-white">Importer dans ce trade</p>
-          <button onClick={onClose} className="text-forge-muted hover:text-white transition-colors">
+        <div
+          className="flex items-center justify-between px-4 py-3.5 flex-shrink-0"
+          style={{ borderBottom: '1px solid var(--border-soft)' }}
+        >
+          <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
+            Importer dans ce trade
+          </p>
+          <button
+            onClick={onClose}
+            className="transition-colors"
+            style={{ color: 'var(--forge-muted)' }}
+            onMouseEnter={e => e.currentTarget.style.color = 'var(--text-primary)'}
+            onMouseLeave={e => e.currentTarget.style.color = 'var(--forge-muted)'}
+          >
             <X size={18} />
           </button>
         </div>
@@ -98,12 +95,16 @@ export default function ImportModal({
           {/* Mode toggle */}
           <div className="flex gap-1">
             {[['image', 'Image', ImageIcon], ['link', 'Lien', LinkIcon]].map(([v, l, Icon]) => (
-              <button key={v} type="button" onClick={() => { setMode(v); setError('') }}
+              <button
+                key={v}
+                type="button"
+                onClick={() => { setMode(v); setError('') }}
                 className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-medium border transition-all"
                 style={mode === v
                   ? { background: 'rgba(247,183,49,0.12)', color: '#F7B731', borderColor: 'rgba(247,183,49,0.3)' }
-                  : { background: 'rgba(255,255,255,0.03)', color: '#8B949E', borderColor: 'rgba(255,255,255,0.08)' }
-                }>
+                  : { background: 'var(--surface-3)', color: 'var(--forge-muted)', borderColor: 'var(--border-soft)' }
+                }
+              >
                 <Icon size={13} /> {l}
               </button>
             ))}
@@ -111,45 +112,71 @@ export default function ImportModal({
 
           {/* Timeframe */}
           <div>
-            <p className="text-[10px] text-forge-muted mb-1">Timeframe</p>
+            <p className="text-[10px] mb-1" style={{ color: 'var(--forge-muted)' }}>Timeframe</p>
             <select value={tf} onChange={e => setTf(e.target.value)} className="w-full text-sm">
               {timeframes.map(t => <option key={t}>{t}</option>)}
             </select>
           </div>
 
           {mode === 'image' ? (
-            <>
-              {!file ? (
-                <label className="flex flex-col items-center justify-center gap-2 py-8 rounded-xl cursor-pointer text-forge-muted hover:text-white transition-colors"
-                  style={{ border: '2px dashed rgba(255,255,255,0.12)', background: 'rgba(255,255,255,0.02)' }}>
-                  <Upload size={20} />
-                  <span className="text-sm font-medium">Choisir une image</span>
-                  <span className="text-[11px] text-forge-muted">PNG, JPG</span>
-                  <input type="file" accept="image/*" className="hidden"
-                    onChange={e => handlePickFile(e.target.files?.[0])} />
-                </label>
-              ) : (
-                <div className="rounded-xl p-3 flex items-center gap-3"
-                  style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
-                  <img src={URL.createObjectURL(file)} alt="" className="w-12 h-12 object-cover rounded-lg flex-shrink-0" />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm text-white truncate">{file.name}</p>
-                    <p className="text-[11px] text-forge-muted">{(file.size / 1024).toFixed(0)} Ko</p>
-                  </div>
-                  <button onClick={() => setFile(null)} className="text-forge-muted hover:text-forge-red transition-colors">
-                    <X size={16} />
-                  </button>
+            !file ? (
+              <label
+                className="flex flex-col items-center justify-center gap-2 py-8 rounded-xl cursor-pointer transition-colors"
+                style={{
+                  border: '2px dashed var(--border-medium)',
+                  background: 'var(--surface-2)',
+                  color: 'var(--forge-muted)',
+                }}
+                onMouseEnter={e => e.currentTarget.style.color = 'var(--text-primary)'}
+                onMouseLeave={e => e.currentTarget.style.color = 'var(--forge-muted)'}
+              >
+                <Upload size={20} />
+                <span className="text-sm font-medium">Choisir une image</span>
+                <span className="text-[11px]" style={{ color: 'var(--forge-muted)' }}>PNG, JPG</span>
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={e => handlePickFile(e.target.files?.[0])}
+                />
+              </label>
+            ) : (
+              <div
+                className="rounded-xl p-3 flex items-center gap-3"
+                style={{ background: 'var(--surface-4)', border: '1px solid var(--border-soft)' }}
+              >
+                <img
+                  src={URL.createObjectURL(file)}
+                  alt=""
+                  className="w-12 h-12 object-cover rounded-lg flex-shrink-0"
+                />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm truncate" style={{ color: 'var(--text-primary)' }}>{file.name}</p>
+                  <p className="text-[11px]" style={{ color: 'var(--forge-muted)' }}>
+                    {(file.size / 1024).toFixed(0)} Ko
+                  </p>
                 </div>
-              )}
-            </>
+                <button
+                  onClick={() => setFile(null)}
+                  className="text-forge-muted hover:text-forge-red transition-colors"
+                >
+                  <X size={16} />
+                </button>
+              </div>
+            )
           ) : (
             <div className="space-y-2">
-              <input value={url} onChange={e => setUrl(e.target.value)}
+              <input
+                value={url}
+                onChange={e => setUrl(e.target.value)}
                 placeholder="https://www.tradingview.com/chart/..."
-                className="w-full text-sm" />
+                className="w-full text-sm"
+              />
               {url.trim() && (
-                <div className="flex items-center gap-2.5 px-3 py-2 rounded-xl"
-                  style={{ background: 'rgba(88,166,255,0.08)', border: '1px solid rgba(88,166,255,0.2)' }}>
+                <div
+                  className="flex items-center gap-2.5 px-3 py-2 rounded-xl"
+                  style={{ background: 'rgba(88,166,255,0.08)', border: '1px solid rgba(88,166,255,0.2)' }}
+                >
                   <ExternalLink size={13} style={{ color: '#58a6ff', flexShrink: 0 }} />
                   <p className="text-xs truncate" style={{ color: '#58a6ff' }}>{url.trim()}</p>
                 </div>
@@ -160,10 +187,13 @@ export default function ImportModal({
           {/* Label */}
           {canSubmit && (
             <div>
-              <p className="text-[10px] text-forge-muted mb-1">Label</p>
-              <input value={label} onChange={e => setLabel(e.target.value)}
+              <p className="text-[10px] mb-1" style={{ color: 'var(--forge-muted)' }}>Label</p>
+              <input
+                value={label}
+                onChange={e => setLabel(e.target.value)}
                 placeholder={mode === 'image' ? 'Ex: Entrée H4' : 'Ex: Analyse TradingView'}
-                className="w-full text-sm" />
+                className="w-full text-sm"
+              />
             </div>
           )}
 
@@ -173,9 +203,12 @@ export default function ImportModal({
             </p>
           )}
 
-          <button onClick={handleSubmit} disabled={!canSubmit || busy}
+          <button
+            onClick={handleSubmit}
+            disabled={!canSubmit || busy}
             className="w-full flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-medium transition-all active:scale-95 disabled:opacity-50"
-            style={{ background: 'rgba(247,183,49,0.12)', border: '1px solid rgba(247,183,49,0.3)', color: '#F7B731' }}>
+            style={{ background: 'rgba(247,183,49,0.12)', border: '1px solid rgba(247,183,49,0.3)', color: '#F7B731' }}
+          >
             {busy ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
             {busy ? 'Import en cours...' : 'Attacher au trade'}
           </button>
@@ -183,8 +216,14 @@ export default function ImportModal({
 
         {/* Toast */}
         {toast && (
-          <div className="px-4 py-2.5 flex-shrink-0 text-xs font-medium"
-            style={{ background: 'rgba(46,160,67,0.12)', color: '#2EA043', borderTop: '1px solid rgba(46,160,67,0.25)' }}>
+          <div
+            className="px-4 py-2.5 flex-shrink-0 text-xs font-medium"
+            style={{
+              background: 'rgba(46,160,67,0.12)',
+              color: '#2EA043',
+              borderTop: '1px solid rgba(46,160,67,0.25)',
+            }}
+          >
             {toast}
           </div>
         )}

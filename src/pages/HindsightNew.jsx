@@ -1,6 +1,6 @@
-import { useState, useRef, useCallback } from 'react'
+import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { X, Plus, Check, Upload, BookOpen, ChevronDown, Link, Image, ExternalLink, ChevronLeft } from 'lucide-react'
+import { X, Plus, Check, Upload, ChevronLeft, ExternalLink } from 'lucide-react'
 import { uploadImage, supabase } from '../services/supabase'
 import { useAuth } from '../hooks/useAuth'
 
@@ -17,7 +17,7 @@ function saveExtra(key, arr) { localStorage.setItem(key, JSON.stringify(arr)) }
 // ── Field wrapper ─────────────────────────────────────────
 const Field = ({ label, children }) => (
   <div>
-    <label className="label">{label}</label>
+    {label && <label className="label">{label}</label>}
     {children}
   </div>
 )
@@ -39,28 +39,61 @@ function TagGroup({ label, options, selected, onToggle, onAdd }) {
         {options.map(opt => {
           const active = selected.includes(opt)
           return (
-            <button key={opt} type="button" onClick={() => onToggle(opt)}
+            <button
+              key={opt}
+              type="button"
+              onClick={() => onToggle(opt)}
               className="px-3 py-1.5 rounded-xl text-xs font-medium border transition-all select-none active:scale-95"
               style={active
-                ? { background: 'rgba(247,183,49,0.15)', color: '#F7B731', borderColor: 'rgba(247,183,49,0.45)', boxShadow: '0 0 10px rgba(247,183,49,0.2)' }
-                : { background: 'rgba(255,255,255,0.04)', color: '#8B949E', borderColor: 'rgba(255,255,255,0.1)' }
-              }>
+                ? {
+                    background: 'rgba(247,183,49,0.15)',
+                    color: '#F7B731',
+                    borderColor: 'rgba(247,183,49,0.45)',
+                    boxShadow: '0 0 10px rgba(247,183,49,0.2)',
+                  }
+                : {
+                    background: 'var(--surface-4)',
+                    color: 'var(--forge-muted)',
+                    borderColor: 'var(--border-soft)',
+                  }
+              }
+            >
               {active && <Check size={10} className="inline mr-1" />}{opt}
             </button>
           )
         })}
+
         {adding ? (
           <div className="flex items-center gap-1">
-            <input autoFocus value={input} onChange={e => setInput(e.target.value)}
+            <input
+              autoFocus
+              value={input}
+              onChange={e => setInput(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && handleAdd()}
-              placeholder="Ex: EURGBP" className="w-20 text-xs" />
+              placeholder="Ex: EURGBP"
+              className="w-20 text-xs"
+            />
             <button type="button" onClick={handleAdd} className="text-forge-accent"><Check size={13} /></button>
             <button type="button" onClick={() => setAdding(false)} className="text-forge-muted"><X size={13} /></button>
           </div>
         ) : (
-          <button type="button" onClick={() => setAdding(true)}
-            className="px-3 py-1.5 rounded-xl text-xs font-medium border border-dashed transition-all hover:border-white/30 hover:text-white"
-            style={{ borderColor: 'rgba(255,255,255,0.15)', color: '#8B949E' }}>
+          <button
+            type="button"
+            onClick={() => setAdding(true)}
+            className="px-3 py-1.5 rounded-xl text-xs font-medium border border-dashed transition-all"
+            style={{
+              borderColor: 'var(--border-medium)',
+              color: 'var(--forge-muted)',
+            }}
+            onMouseEnter={e => {
+              e.currentTarget.style.borderColor = 'var(--border-strong)'
+              e.currentTarget.style.color = 'var(--text-primary)'
+            }}
+            onMouseLeave={e => {
+              e.currentTarget.style.borderColor = 'var(--border-medium)'
+              e.currentTarget.style.color = 'var(--forge-muted)'
+            }}
+          >
             <Plus size={10} className="inline mr-1" />Autre
           </button>
         )}
@@ -69,7 +102,7 @@ function TagGroup({ label, options, selected, onToggle, onAdd }) {
   )
 }
 
-// ── AddCapturePanel (photo ou lien TradingView) ───────────
+// ── AddCapturePanel ───────────────────────────────────────
 function AddCapturePanel({ allTF, onAdd }) {
   const [mode, setMode] = useState('image')
   const [url, setUrl]   = useState('')
@@ -83,17 +116,26 @@ function AddCapturePanel({ allTF, onAdd }) {
   }
 
   return (
-    <div className="rounded-xl p-3 space-y-2 mb-2"
-      style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)' }}>
+    <div
+      className="rounded-xl p-3 space-y-2 mb-2"
+      style={{
+        background: 'var(--surface-3)',
+        border: '1px solid var(--border-soft)',
+      }}
+    >
       {/* Mode toggle */}
       <div className="flex gap-1">
         {[['image', 'Image'], ['link', 'Lien TradingView']].map(([v, l]) => (
-          <button key={v} type="button" onClick={() => setMode(v)}
+          <button
+            key={v}
+            type="button"
+            onClick={() => setMode(v)}
             className="flex-1 py-1.5 rounded-lg text-xs font-medium border transition-all"
             style={mode === v
               ? { background: 'rgba(247,183,49,0.12)', color: '#F7B731', borderColor: 'rgba(247,183,49,0.3)' }
-              : { background: 'rgba(255,255,255,0.03)', color: '#8B949E', borderColor: 'rgba(255,255,255,0.08)' }
-            }>
+              : { background: 'var(--surface-3)', color: 'var(--forge-muted)', borderColor: 'var(--border-soft)' }
+            }
+          >
             {l}
           </button>
         ))}
@@ -101,7 +143,7 @@ function AddCapturePanel({ allTF, onAdd }) {
 
       {/* Timeframe */}
       <div>
-        <p className="text-[10px] text-forge-muted mb-1">Timeframe</p>
+        <p className="text-[10px] mb-1" style={{ color: 'var(--forge-muted)' }}>Timeframe</p>
         <select value={tf} onChange={e => setTf(e.target.value)} className="w-full text-xs py-1.5">
           <option value="">— Choisir —</option>
           {allTF.map(t => <option key={t}>{t}</option>)}
@@ -109,30 +151,57 @@ function AddCapturePanel({ allTF, onAdd }) {
       </div>
 
       {mode === 'image' ? (
-        <label className="flex items-center justify-center gap-2 py-3 rounded-xl cursor-pointer text-xs text-forge-muted hover:text-white transition-colors"
-          style={{ border: '2px dashed rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.02)' }}>
+        <label
+          className="flex items-center justify-center gap-2 py-3 rounded-xl cursor-pointer text-xs transition-colors"
+          style={{
+            border: '2px dashed var(--border-medium)',
+            background: 'var(--surface-2)',
+            color: 'var(--forge-muted)',
+          }}
+          onMouseEnter={e => e.currentTarget.style.color = 'var(--text-primary)'}
+          onMouseLeave={e => e.currentTarget.style.color = 'var(--forge-muted)'}
+        >
           <Upload size={13} /> Choisir une image
-          <input type="file" accept="image/*" multiple className="hidden"
+          <input
+            type="file"
+            accept="image/*"
+            multiple
+            className="hidden"
             onChange={e => {
               Array.from(e.target.files).forEach(file => {
                 onAdd({ type: 'file', file, preview: URL.createObjectURL(file), timeframe: tf })
               })
               e.target.value = ''
-            }} />
+            }}
+          />
         </label>
       ) : (
         <div className="space-y-2">
-          <input value={url} onChange={e => setUrl(e.target.value)}
+          <input
+            value={url}
+            onChange={e => setUrl(e.target.value)}
             onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), handleAddLink())}
             placeholder="https://www.tradingview.com/chart/..."
-            className="w-full text-xs" />
+            className="w-full text-xs"
+          />
           <div className="flex gap-2">
-            <input value={label} onChange={e => setLabel(e.target.value)}
+            <input
+              value={label}
+              onChange={e => setLabel(e.target.value)}
               placeholder="Label (ex: Entrée H4)"
-              className="flex-1 text-xs" />
-            <button type="button" onClick={handleAddLink} disabled={!url.trim()}
+              className="flex-1 text-xs"
+            />
+            <button
+              type="button"
+              onClick={handleAddLink}
+              disabled={!url.trim()}
               className="px-3 py-1.5 rounded-lg text-xs font-medium transition-all disabled:opacity-40"
-              style={{ background: 'rgba(247,183,49,0.12)', color: '#F7B731', border: '1px solid rgba(247,183,49,0.25)' }}>
+              style={{
+                background: 'rgba(247,183,49,0.12)',
+                color: '#F7B731',
+                border: '1px solid rgba(247,183,49,0.25)',
+              }}
+            >
               <Check size={12} />
             </button>
           </div>
@@ -145,33 +214,58 @@ function AddCapturePanel({ allTF, onAdd }) {
 // ── CaptureItem ───────────────────────────────────────────
 function CaptureItem({ cap, allTF, onRemove, onChangeTF }) {
   return (
-    <div className="flex items-center gap-2 rounded-xl p-2"
-      style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
+    <div
+      className="flex items-center gap-2 rounded-xl p-2"
+      style={{
+        background: 'var(--surface-4)',
+        border: '1px solid var(--border-soft)',
+      }}
+    >
       {cap.type === 'link' ? (
-        <div className="w-12 h-12 rounded-lg flex items-center justify-center flex-shrink-0"
-          style={{ background: 'rgba(88,166,255,0.1)', border: '1px solid rgba(88,166,255,0.2)' }}>
+        <div
+          className="w-12 h-12 rounded-lg flex items-center justify-center flex-shrink-0"
+          style={{
+            background: 'rgba(88,166,255,0.1)',
+            border: '1px solid rgba(88,166,255,0.2)',
+          }}
+        >
           <ExternalLink size={16} style={{ color: '#58a6ff' }} />
         </div>
       ) : (
-        <img src={cap.preview || cap.url} alt=""
-          className="w-12 h-12 object-cover rounded-lg flex-shrink-0" />
+        <img
+          src={cap.preview || cap.url}
+          alt=""
+          className="w-12 h-12 object-cover rounded-lg flex-shrink-0"
+        />
       )}
+
       <div className="flex-1 min-w-0">
         {cap.type === 'link' && (
-          <a href={cap.url} target="_blank" rel="noopener noreferrer"
+          <a
+            href={cap.url}
+            target="_blank"
+            rel="noopener noreferrer"
             className="text-xs truncate block mb-1 hover:underline"
-            style={{ color: '#58a6ff' }}>
+            style={{ color: '#58a6ff' }}
+          >
             {cap.label || cap.url}
           </a>
         )}
-        <select value={cap.timeframe || ''} onChange={e => onChangeTF(e.target.value)}
-          className="w-full text-xs py-1.5">
+        <select
+          value={cap.timeframe || ''}
+          onChange={e => onChangeTF(e.target.value)}
+          className="w-full text-xs py-1.5"
+        >
           <option value="">— Timeframe —</option>
           {allTF.map(tf => <option key={tf}>{tf}</option>)}
         </select>
       </div>
-      <button type="button" onClick={onRemove}
-        className="text-forge-muted hover:text-forge-red transition-colors flex-shrink-0">
+
+      <button
+        type="button"
+        onClick={onRemove}
+        className="text-forge-muted hover:text-forge-red transition-colors flex-shrink-0"
+      >
         <X size={16} />
       </button>
     </div>
@@ -226,7 +320,7 @@ export default function HindsightNew() {
         notes:      notes.trim() || null,
         images:     uploadedImages,
       })
-      navigate('/hindsights')
+      navigate('/app/hindsights')
     } catch (err) {
       alert('Erreur: ' + err.message)
     } finally {
@@ -241,10 +335,18 @@ export default function HindsightNew() {
 
       {/* Header */}
       <div className="flex items-center gap-3 mb-6">
-        <button onClick={() => navigate(-1)} className="text-forge-muted hover:text-white transition-colors">
-  <ChevronLeft size={20} />
-</button>
-        <h1 className="text-lg font-semibold">Nouveau Hindsight</h1>
+        <button
+          onClick={() => navigate(-1)}
+          className="transition-colors"
+          style={{ color: 'var(--forge-muted)' }}
+          onMouseEnter={e => e.currentTarget.style.color = 'var(--text-primary)'}
+          onMouseLeave={e => e.currentTarget.style.color = 'var(--forge-muted)'}
+        >
+          <ChevronLeft size={20} />
+        </button>
+        <h1 className="text-lg font-semibold" style={{ color: 'var(--text-primary)' }}>
+          Nouveau Hindsight
+        </h1>
       </div>
 
       <div className="space-y-4">
@@ -252,23 +354,34 @@ export default function HindsightNew() {
         {/* ── Marchés ── */}
         <div className="card">
           <p className="section-title mb-3">Marchés</p>
-          <TagGroup label="" options={allMkt} selected={selectedMkt}
-            onToggle={toggleMkt} onAdd={addMkt} />
+          <TagGroup
+            label=""
+            options={allMkt}
+            selected={selectedMkt}
+            onToggle={toggleMkt}
+            onAdd={addMkt}
+          />
         </div>
 
         {/* ── Captures & liens ── */}
         <div className="card">
           <p className="section-title mb-3">
             Captures & liens
-            <span className="text-forge-muted normal-case tracking-normal font-normal ml-1">(optionnel)</span>
+            <span className="normal-case tracking-normal font-normal ml-1" style={{ color: 'var(--forge-muted)' }}>
+              (optionnel)
+            </span>
           </p>
 
           {captures.length > 0 && (
             <div className="space-y-2 mb-3">
               {captures.map((cap, i) => (
-                <CaptureItem key={i} cap={cap} allTF={allTF}
+                <CaptureItem
+                  key={i}
+                  cap={cap}
+                  allTF={allTF}
                   onRemove={() => removeCapture(i)}
-                  onChangeTF={tf => updateTF(i, tf)} />
+                  onChangeTF={tf => updateTF(i, tf)}
+                />
               ))}
             </div>
           )}
@@ -277,13 +390,18 @@ export default function HindsightNew() {
             <AddCapturePanel allTF={allTF} onAdd={addCapture} />
           )}
 
-          <button type="button"
+          <button
+            type="button"
             onClick={() => setShowAddPanel(v => !v)}
-            className="w-full flex items-center justify-center gap-2 rounded-xl p-3.5 transition-all text-forge-muted text-sm hover:text-white"
+            className="w-full flex items-center justify-center gap-2 rounded-xl p-3.5 transition-all text-sm"
             style={{
-              border: `2px dashed ${showAddPanel ? 'rgba(247,183,49,0.3)' : 'rgba(255,255,255,0.12)'}`,
-              background: 'rgba(255,255,255,0.02)',
-            }}>
+              border: `2px dashed ${showAddPanel ? 'rgba(247,183,49,0.3)' : 'var(--border-medium)'}`,
+              background: 'var(--surface-2)',
+              color: 'var(--forge-muted)',
+            }}
+            onMouseEnter={e => e.currentTarget.style.color = 'var(--text-primary)'}
+            onMouseLeave={e => e.currentTarget.style.color = 'var(--forge-muted)'}
+          >
             {showAddPanel ? <X size={15} /> : <Upload size={15} />}
             {showAddPanel ? 'Fermer' : 'Ajouter image ou lien'}
           </button>
@@ -293,16 +411,25 @@ export default function HindsightNew() {
         <div className="card">
           <p className="section-title mb-3">
             Notes libres
-            <span className="text-forge-muted normal-case tracking-normal font-normal ml-1">(optionnel)</span>
+            <span className="normal-case tracking-normal font-normal ml-1" style={{ color: 'var(--forge-muted)' }}>
+              (optionnel)
+            </span>
           </p>
-          <textarea value={notes} onChange={e => setNotes(e.target.value)}
+          <textarea
+            value={notes}
+            onChange={e => setNotes(e.target.value)}
             placeholder="Observations sur le marché, structure, biais, confluences…"
-            className="w-full resize-none" style={{ minHeight: 120 }} />
+            className="w-full resize-none"
+            style={{ minHeight: 120 }}
+          />
         </div>
 
         {/* ── Submit ── */}
-        <button onClick={handleSave} disabled={saving || isEmpty}
-          className="btn-primary w-full py-3.5 text-base disabled:opacity-40 disabled:cursor-not-allowed disabled:shadow-none">
+        <button
+          onClick={handleSave}
+          disabled={saving || isEmpty}
+          className="btn-primary w-full py-3.5 text-base disabled:opacity-40 disabled:cursor-not-allowed disabled:shadow-none"
+        >
           {saving ? (progress || 'Enregistrement...') : 'Sauvegarder le Hindsight'}
         </button>
 

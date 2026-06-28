@@ -49,8 +49,6 @@ const getEmptyForm = () => {
   }
 }
 
-// 'manual_exit' n'a aucune contrainte de signe sur le RR : on ne le
-// retire donc jamais de la liste des résultats autorisés.
 const getAllowedResults = (rr_won) => {
   if (rr_won === '' || rr_won === null || rr_won === undefined) return null
   const v = +rr_won
@@ -94,14 +92,18 @@ const PillGroup = ({ options, value, onChange, size = 'md', disabledValues = [] 
           borderColor: 'rgba(247,183,49,0.45)',
         }
         return (
-          <button key={v} type="button" disabled={isDisabled}
+          <button
+            key={v}
+            type="button"
+            disabled={isDisabled}
             onClick={() => !isDisabled && onChange(isActive ? '' : v)}
             className={`${pad} rounded-xl font-medium border transition-all select-none ${isDisabled ? 'opacity-30 cursor-not-allowed' : 'active:scale-95'}`}
             style={isActive && !isDisabled
               ? { ...activeStyle, boxShadow: `0 0 10px ${activeStyle.borderColor}` }
-              : { background: 'rgba(255,255,255,0.04)', color: '#8B949E', borderColor: 'rgba(255,255,255,0.1)' }
+              : { background: 'var(--surface-4)', color: 'var(--forge-muted)', borderColor: 'var(--border-soft)' }
             }
-            title={isDisabled ? 'Non compatible avec le RR gagné' : undefined}>
+            title={isDisabled ? 'Non compatible avec le RR gagné' : undefined}
+          >
             {label}
           </button>
         )
@@ -123,25 +125,36 @@ const REQUIRED_FIELDS = ['date', 'market', 'type', 'rr_planned', 'emotion', 'dis
 function ImageItem({ img, onRemove, onTimeframeChange }) {
   const isLink = img.isLink
   return (
-    <div className="flex items-center gap-2 rounded-xl p-2"
-      style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
+    <div
+      className="flex items-center gap-2 rounded-xl p-2"
+      style={{ background: 'var(--surface-4)', border: '1px solid var(--border-soft)' }}
+    >
       {isLink ? (
-        <div className="w-12 h-12 rounded-lg flex items-center justify-center flex-shrink-0"
-          style={{ background: 'rgba(88,166,255,0.1)', border: '1px solid rgba(88,166,255,0.2)' }}>
+        <div
+          className="w-12 h-12 rounded-lg flex items-center justify-center flex-shrink-0"
+          style={{ background: 'rgba(88,166,255,0.1)', border: '1px solid rgba(88,166,255,0.2)' }}
+        >
           <ExternalLink size={16} style={{ color: '#58a6ff' }} />
         </div>
       ) : (
         <img src={img.preview || img.url} alt="" className="w-12 h-12 object-cover rounded-lg flex-shrink-0" />
       )}
       <div className="flex-1 min-w-0">
-        {isLink && <p className="text-xs text-forge-muted truncate">{img.url}</p>}
-        <select value={img.timeframe} onChange={e => onTimeframeChange(e.target.value)}
-          className="w-full text-xs py-1.5 mt-1">
+        {isLink && <p className="text-xs truncate" style={{ color: 'var(--forge-muted)' }}>{img.url}</p>}
+        <select
+          value={img.timeframe}
+          onChange={e => onTimeframeChange(e.target.value)}
+          className="w-full text-xs py-1.5 mt-1"
+        >
           {TIMEFRAMES.map(tf => <option key={tf}>{tf}</option>)}
         </select>
       </div>
-      <button type="button" onClick={onRemove}
-        className="text-forge-muted hover:text-forge-red transition-colors flex-shrink-0">
+      <button
+        type="button"
+        onClick={onRemove}
+        className="transition-colors flex-shrink-0 hover:text-forge-red"
+        style={{ color: 'var(--forge-muted)' }}
+      >
         <X size={16} />
       </button>
     </div>
@@ -160,46 +173,70 @@ function AddImagePanel({ onAdd }) {
   }
 
   return (
-    <div className="rounded-xl p-3 space-y-2 mb-2"
-      style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)' }}>
+    <div
+      className="rounded-xl p-3 space-y-2 mb-2"
+      style={{ background: 'var(--surface-2)', border: '1px solid var(--border-soft)' }}
+    >
       <div className="flex gap-1">
         {[['image', 'Image'], ['link', 'Lien TradingView']].map(([v, l]) => (
-          <button key={v} type="button" onClick={() => setMode(v)}
+          <button
+            key={v}
+            type="button"
+            onClick={() => setMode(v)}
             className="flex-1 py-1.5 rounded-lg text-xs font-medium border transition-all"
             style={mode === v
               ? { background: 'rgba(247,183,49,0.12)', color: '#F7B731', borderColor: 'rgba(247,183,49,0.3)' }
-              : { background: 'rgba(255,255,255,0.03)', color: '#8B949E', borderColor: 'rgba(255,255,255,0.08)' }
-            }>
+              : { background: 'var(--surface-3)', color: 'var(--forge-muted)', borderColor: 'var(--border-soft)' }
+            }
+          >
             {l}
           </button>
         ))}
       </div>
       <div>
-        <p className="text-[10px] text-forge-muted mb-1">Timeframe</p>
+        <p className="text-[10px] mb-1" style={{ color: 'var(--forge-muted)' }}>Timeframe</p>
         <select value={tf} onChange={e => setTf(e.target.value)} className="w-full text-xs py-1.5">
           {TIMEFRAMES.map(t => <option key={t}>{t}</option>)}
         </select>
       </div>
       {mode === 'image' ? (
-        <label className="flex items-center justify-center gap-2 py-3 rounded-xl cursor-pointer text-xs text-forge-muted hover:text-white transition-colors"
-          style={{ border: '2px dashed rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.02)' }}>
+        <label
+          className="flex items-center justify-center gap-2 py-3 rounded-xl cursor-pointer text-xs transition-colors hover-text-primary"
+          style={{
+            border: '2px dashed var(--border-medium)',
+            background: 'var(--surface-1)',
+            color: 'var(--forge-muted)',
+          }}
+        >
           <Upload size={13} /> Choisir une image
-          <input type="file" accept="image/*" multiple className="hidden"
+          <input
+            type="file"
+            accept="image/*"
+            multiple
+            className="hidden"
             onChange={e => {
               Array.from(e.target.files).forEach(file => {
                 onAdd({ isLink: false, file, preview: URL.createObjectURL(file), timeframe: tf })
               })
               e.target.value = ''
-            }} />
+            }}
+          />
         </label>
       ) : (
         <div className="flex gap-2">
-          <input value={url} onChange={e => setUrl(e.target.value)}
+          <input
+            value={url}
+            onChange={e => setUrl(e.target.value)}
             placeholder="https://www.tradingview.com/chart/..."
-            className="flex-1 text-xs" />
-          <button type="button" onClick={handleAddLink} disabled={!url.trim()}
+            className="flex-1 text-xs"
+          />
+          <button
+            type="button"
+            onClick={handleAddLink}
+            disabled={!url.trim()}
             className="px-3 py-1.5 rounded-lg text-xs font-medium transition-all disabled:opacity-40"
-            style={{ background: 'rgba(247,183,49,0.12)', color: '#F7B731', border: '1px solid rgba(247,183,49,0.25)' }}>
+            style={{ background: 'rgba(247,183,49,0.12)', color: '#F7B731', border: '1px solid rgba(247,183,49,0.25)' }}
+          >
             <Check size={12} />
           </button>
         </div>
@@ -217,7 +254,7 @@ export default function AddTrade() {
   const [loading, setLoading]               = useState(false)
   const [loadingTrade, setLoadingTrade]     = useState(isEdit)
   const [uploadProgress, setUploadProgress] = useState('')
-const [form, setForm] = useState(getEmptyForm)
+  const [form, setForm]                     = useState(getEmptyForm)
   const [images, setImages]                 = useState([])
   const [existingImages, setExistingImages] = useState([])
   const [removedImages, setRemovedImages]   = useState([])
@@ -255,37 +292,29 @@ const [form, setForm] = useState(getEmptyForm)
     setForm(f => {
       const next = { ...f, [k]: v }
 
-      // Session hors plan
       if (k === 'session' && v === 'Hors session') next.respect_plan = false
 
-      // Quand on change le RR gagné → reset result si incompatible
       if (k === 'rr_won') {
         const allowed = getAllowedResults(v)
         if (allowed && next.result && !allowed.includes(next.result)) next.result = ''
       }
 
-      // ── Quand on sélectionne SL → vider RR si positif ou nul ──
       if (k === 'result' && v === 'sl') {
-  if (next.rr_won === '' || +next.rr_won >= 0) next.rr_won = '-1'
-}
+        if (next.rr_won === '' || +next.rr_won >= 0) next.rr_won = '-1'
+      }
 
-if (k === 'date' && v) {
-      const jours = ['Dimanche','Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi']
-      next.day = jours[new Date(v + 'T12:00:00').getDay()]
-    }
+      if (k === 'date' && v) {
+        const jours = ['Dimanche','Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi']
+        next.day = jours[new Date(v + 'T12:00:00').getDay()]
+      }
 
-      // ── Quand on sélectionne TP → vider RR si négatif ──
       if (k === 'result' && v === 'tp') {
         if (next.rr_won !== '' && +next.rr_won <= 0) next.rr_won = ''
       }
 
-      // ── Quand on sélectionne BE → forcer RR à 0 ──
       if (k === 'result' && v === 'be') {
         next.rr_won = '0'
       }
-
-      // ── 'manual_exit' n'impose aucune valeur par défaut : le RR
-      //    reste libre, positif ou négatif, tel que saisi par l'utilisateur.
 
       return next
     })
@@ -293,36 +322,35 @@ if (k === 'date' && v) {
   }
 
   const validate = () => {
-  const errs = {}
-  REQUIRED_FIELDS.forEach(f => {
-    if (form[f] === '' || form[f] === null || form[f] === undefined) errs[f] = true
-  })
+    const errs = {}
+    REQUIRED_FIELDS.forEach(f => {
+      if (form[f] === '' || form[f] === null || form[f] === undefined) errs[f] = true
+    })
 
-if (form.result === 'tp') {
-    if (form.rr_won === '' || +form.rr_won <= 0) 
-      errs.rr_won = 'Take Profit : le RR gagné doit être positif (> 0)'
-  }
- if (form.result === 'sl') {
-  if (form.rr_won === '' || +form.rr_won >= 0 || +form.rr_won < -1)
-    errs.rr_won = 'Stop Loss : le RR gagné doit être entre -1 et 0 (ex: -1, -0.5)'
-}
-  if (form.result === 'be') {
-    if (form.rr_won === '' || +form.rr_won !== 0) 
-      errs.rr_won = 'Breakeven : le RR gagné doit être 0'
-  }
-  if (form.result === 'missed') {
-    if (form.rr_won === '' || +form.rr_won !== 0) 
-      errs.rr_won = 'Missed : le RR gagné doit être 0'
-  }
-  // 'manual_exit' : aucune contrainte de signe — juste une valeur requise.
-  if (form.result === 'manual_exit') {
-    if (form.rr_won === '')
-      errs.rr_won = 'Sortie manuelle : indiquez le RR réellement obtenu (positif ou négatif)'
-  }
+    if (form.result === 'tp') {
+      if (form.rr_won === '' || +form.rr_won <= 0)
+        errs.rr_won = 'Take Profit : le RR gagné doit être positif (> 0)'
+    }
+    if (form.result === 'sl') {
+      if (form.rr_won === '' || +form.rr_won >= 0 || +form.rr_won < -1)
+        errs.rr_won = 'Stop Loss : le RR gagné doit être entre -1 et 0 (ex: -1, -0.5)'
+    }
+    if (form.result === 'be') {
+      if (form.rr_won === '' || +form.rr_won !== 0)
+        errs.rr_won = 'Breakeven : le RR gagné doit être 0'
+    }
+    if (form.result === 'missed') {
+      if (form.rr_won === '' || +form.rr_won !== 0)
+        errs.rr_won = 'Missed : le RR gagné doit être 0'
+    }
+    if (form.result === 'manual_exit') {
+      if (form.rr_won === '')
+        errs.rr_won = 'Sortie manuelle : indiquez le RR réellement obtenu (positif ou négatif)'
+    }
 
-  setErrors(errs)
-  return Object.keys(errs).length === 0
-}
+    setErrors(errs)
+    return Object.keys(errs).length === 0
+  }
 
   const addItem = (item) => { setImages(imgs => [...imgs, item]); setShowAddPanel(false) }
   const removeNewImage = (i) => setImages(imgs => imgs.filter((_, idx) => idx !== i))
@@ -386,7 +414,7 @@ if (form.result === 'tp') {
         await updateTrade(tradeId, { images: finalImages })
       }
 
-      navigate('/trades')
+      navigate('/app/trades')
     } catch (err) {
       alert('Erreur: ' + err.message)
     } finally {
@@ -404,8 +432,13 @@ if (form.result === 'tp') {
     ? { borderColor: 'rgba(248,81,73,0.6)', boxShadow: '0 0 0 1px rgba(248,81,73,0.3)' }
     : {}
 
-  // Placeholder RR selon résultat
-  const rrPlaceholder = form.result === 'sl' ? '-1.0' : form.result === 'be' ? '0' : form.result === 'manual_exit' ? '0.8 ou -0.4' : '1.8'
+  const rrPlaceholder = form.result === 'sl'
+    ? '-1.0'
+    : form.result === 'be'
+    ? '0'
+    : form.result === 'manual_exit'
+    ? '0.8 ou -0.4'
+    : '1.8'
 
   if (loadingTrade) return (
     <div className="page flex items-center justify-center h-64">
@@ -416,13 +449,19 @@ if (form.result === 'tp') {
   return (
     <div className="page">
       <div className="flex items-center gap-3 mb-6">
-        <button onClick={() => navigate(-1)} className="text-forge-muted hover:text-white transition-colors">
+        <button
+          onClick={() => navigate(-1)}
+          className="transition-colors hover-text-primary"
+          style={{ color: 'var(--forge-muted)' }}
+        >
           <ChevronLeft size={20} />
         </button>
-        <h1 className="text-lg font-semibold">{isEdit ? 'Modifier le trade' : 'Nouveau Trade'}</h1>
+        <h1 className="text-lg font-semibold" style={{ color: 'var(--text-primary)' }}>
+          {isEdit ? 'Modifier le trade' : 'Nouveau Trade'}
+        </h1>
       </div>
 
-      <p className="text-xs text-forge-muted mb-4">
+      <p className="text-xs mb-4" style={{ color: 'var(--forge-muted)' }}>
         Les champs marqués <span className="text-forge-red">*</span> sont obligatoires.
       </p>
 
@@ -434,20 +473,30 @@ if (form.result === 'tp') {
 
           <div className="flex flex-col gap-3 sm:grid sm:grid-cols-2">
             <Field label="Date" required>
-              <input type="date" value={form.date} onChange={e => set('date', e.target.value)}
-                className="w-full" style={fieldError('date')} required />
+              <input
+                type="date"
+                value={form.date}
+                onChange={e => set('date', e.target.value)}
+                className="w-full"
+                style={fieldError('date')}
+                required
+              />
             </Field>
             <Field label="Direction" required>
               <div className="flex gap-2">
                 {['buy', 'sell'].map(t => (
-                  <button key={t} type="button" onClick={() => set('type', t)}
+                  <button
+                    key={t}
+                    type="button"
+                    onClick={() => set('type', t)}
                     className="flex-1 py-2.5 rounded-xl text-sm font-medium transition-all border"
                     style={form.type === t
                       ? t === 'buy'
                         ? { background: 'rgba(46,160,67,0.15)', color: '#2EA043', borderColor: 'rgba(46,160,67,0.5)', boxShadow: '0 0 10px rgba(46,160,67,0.2)' }
                         : { background: 'rgba(248,81,73,0.15)', color: '#F85149', borderColor: 'rgba(248,81,73,0.5)', boxShadow: '0 0 10px rgba(248,81,73,0.2)' }
-                      : { background: 'rgba(255,255,255,0.04)', color: '#8B949E', borderColor: 'rgba(255,255,255,0.1)' }
-                    }>
+                      : { background: 'var(--surface-4)', color: 'var(--forge-muted)', borderColor: 'var(--border-soft)' }
+                    }
+                  >
                     {t === 'buy' ? '↑ BUY' : '↓ SELL'}
                   </button>
                 ))}
@@ -456,29 +505,45 @@ if (form.result === 'tp') {
           </div>
 
           <Field label="Marché" required>
-            <SelectInput value={form.market} onChange={v => set('market', v)}
-              options={MARKETS} placeholder="Choisir..." required />
+            <SelectInput
+              value={form.market}
+              onChange={v => set('market', v)}
+              options={MARKETS}
+              placeholder="Choisir..."
+              required
+            />
             {errors.market && <p className="text-xs text-forge-red mt-1">Veuillez choisir un marché</p>}
           </Field>
 
           <div className="grid grid-cols-2 gap-3">
             <Field label="RR Prévu" required>
-              <input type="number" step="0.1" value={form.rr_planned}
+              <input
+                type="number"
+                step="0.1"
+                value={form.rr_planned}
                 onChange={e => set('rr_planned', e.target.value)}
-                placeholder="2.5" className="w-full" style={fieldError('rr_planned')} />
+                placeholder="2.5"
+                className="w-full"
+                style={fieldError('rr_planned')}
+              />
             </Field>
             <Field label="RR Gagné">
-              <input type="number" step="0.1" value={form.rr_won}
+              <input
+                type="number"
+                step="0.1"
+                value={form.rr_won}
                 onChange={e => set('rr_won', e.target.value)}
                 placeholder={rrPlaceholder}
-                className="w-full" style={fieldError('rr_won')} />
+                className="w-full"
+                style={fieldError('rr_won')}
+              />
               {errors.rr_won && typeof errors.rr_won === 'string' && (
                 <p className="text-xs text-forge-red mt-1">{errors.rr_won}</p>
               )}
             </Field>
           </div>
 
-          {/* Hint SL */}
+          {/* Hints résultat */}
           {form.result === 'sl' && (
             <p className="text-xs rounded-lg px-3 py-2"
               style={{ background: 'rgba(248,81,73,0.08)', color: '#F85149', border: '1px solid rgba(248,81,73,0.2)' }}>
@@ -508,9 +573,15 @@ if (form.result === 'tp') {
 
         {/* ── 2. Résultat ── */}
         <div className="card">
-          <p className="section-title mb-3">Résultat <span className="text-forge-muted text-xs normal-case">(optionnel)</span></p>
-          <PillGroup options={RESULT_PILLS} value={form.result}
-            onChange={v => set('result', v)} disabledValues={disabledResults} />
+          <p className="section-title mb-3">
+            Résultat <span className="normal-case text-xs font-normal" style={{ color: 'var(--forge-muted)' }}>(optionnel)</span>
+          </p>
+          <PillGroup
+            options={RESULT_PILLS}
+            value={form.result}
+            onChange={v => set('result', v)}
+            disabledValues={disabledResults}
+          />
         </div>
 
         {/* ── 3. Contexte de marché ── */}
@@ -523,14 +594,23 @@ if (form.result === 'tp') {
           </Field>
 
           <Field label="Structure de marché" required>
-            <PillGroup options={STRUCTURES} value={form.market_structure}
-              onChange={v => set('market_structure', v)} size="sm" />
+            <PillGroup
+              options={STRUCTURES}
+              value={form.market_structure}
+              onChange={v => set('market_structure', v)}
+              size="sm"
+            />
             {errors.market_structure && <p className="text-xs text-forge-red mt-1">La structure est obligatoire</p>}
           </Field>
 
           <Field label="Session" required>
-            <SelectInput value={form.session} onChange={v => set('session', v)}
-              options={SESSIONS} placeholder="Choisir une session..." required />
+            <SelectInput
+              value={form.session}
+              onChange={v => set('session', v)}
+              options={SESSIONS}
+              placeholder="Choisir une session..."
+              required
+            />
             {errors.session && <p className="text-xs text-forge-red mt-1">La session est obligatoire</p>}
             {form.session === 'Hors session' && (
               <p className="text-xs mt-1.5 px-2 py-1 rounded-lg"
@@ -542,12 +622,21 @@ if (form.result === 'tp') {
 
           <div className="grid grid-cols-2 gap-3">
             <Field label="Jour">
-  <input value={form.day} readOnly className="w-full opacity-60 cursor-default"
-    placeholder="Auto depuis la date" />
-</Field>
+              <input
+                value={form.day}
+                readOnly
+                className="w-full opacity-60 cursor-default"
+                placeholder="Auto depuis la date"
+              />
+            </Field>
             <Field label="Style" required>
-              <SelectInput value={form.style} onChange={v => set('style', v)}
-                options={STYLES} placeholder="Style..." required />
+              <SelectInput
+                value={form.style}
+                onChange={v => set('style', v)}
+                options={STYLES}
+                placeholder="Style..."
+                required
+              />
               {errors.style && <p className="text-xs text-forge-red mt-1">Obligatoire</p>}
             </Field>
           </div>
@@ -558,8 +647,13 @@ if (form.result === 'tp') {
           <p className="section-title mb-0">Psychologie</p>
 
           <Field label="Émotion" required>
-            <SelectInput value={form.emotion} onChange={v => set('emotion', v)}
-              options={EMOTIONS} placeholder="Choisir..." required />
+            <SelectInput
+              value={form.emotion}
+              onChange={v => set('emotion', v)}
+              options={EMOTIONS}
+              placeholder="Choisir..."
+              required
+            />
             {errors.emotion && <p className="text-xs text-forge-red mt-1">Obligatoire</p>}
           </Field>
 
@@ -568,13 +662,18 @@ if (form.result === 'tp') {
               <span>Discipline <span className="text-forge-red">*</span></span>
               <span className="font-mono text-forge-accent">{form.discipline_score}/10</span>
             </label>
-            <input type="range" min="1" max="10" step="1"
+            <input
+              type="range"
+              min="1"
+              max="10"
+              step="1"
               value={form.discipline_score}
               onChange={e => set('discipline_score', e.target.value)}
-              className="w-full accent-forge-accent" />
+              className="w-full accent-forge-accent"
+            />
             <div className="flex justify-between mt-0.5">
               {[1,2,3,4,5,6,7,8,9,10].map(n => (
-                <span key={n} className="text-[9px] text-forge-muted/50 font-mono">{n}</span>
+                <span key={n} className="text-[9px] font-mono" style={{ color: 'var(--text-faint)' }}>{n}</span>
               ))}
             </div>
           </div>
@@ -586,20 +685,32 @@ if (form.result === 'tp') {
                 <p className="text-[10px] text-forge-red mt-0.5">Vous avez tradé hors session</p>
               )}
             </div>
-            <button type="button"
+            <button
+              type="button"
               disabled={form.session === 'Hors session'}
               onClick={() => form.session !== 'Hors session' && set('respect_plan', !form.respect_plan)}
               className="w-12 h-6 rounded-full transition-all relative flex-shrink-0 disabled:opacity-50 disabled:cursor-not-allowed"
-              style={{ background: form.respect_plan && form.session !== 'Hors session' ? '#2EA043' : 'rgba(255,255,255,0.1)' }}>
-              <div className="absolute top-1 w-4 h-4 bg-white rounded-full transition-all shadow-sm"
-                style={{ left: form.respect_plan && form.session !== 'Hors session' ? '28px' : '4px' }} />
+              style={{
+                background: form.respect_plan && form.session !== 'Hors session'
+                  ? '#2EA043'
+                  : 'var(--surface-8)',
+              }}
+            >
+              <div
+                className="absolute top-1 w-4 h-4 bg-white rounded-full transition-all shadow-sm"
+                style={{ left: form.respect_plan && form.session !== 'Hors session' ? '28px' : '4px' }}
+              />
             </button>
           </div>
 
           <Field label="Notes">
-            <textarea value={form.notes} onChange={e => set('notes', e.target.value)}
+            <textarea
+              value={form.notes}
+              onChange={e => set('notes', e.target.value)}
               placeholder="Contexte du trade, observations... (optionnel)"
-              className="w-full resize-none" style={{ minHeight: 80 }} />
+              className="w-full resize-none"
+              style={{ minHeight: 80 }}
+            />
           </Field>
         </div>
 
@@ -607,37 +718,53 @@ if (form.result === 'tp') {
         <div className="card">
           <p className="section-title mb-3">
             Captures & liens
-            <span className="text-forge-muted normal-case tracking-normal font-normal ml-1">(optionnel)</span>
+            <span className="normal-case tracking-normal font-normal ml-1" style={{ color: 'var(--forge-muted)' }}>
+              (optionnel)
+            </span>
           </p>
 
           {existingImages.length > 0 && (
             <div className="space-y-2 mb-3">
-              <p className="text-xs text-forge-muted">Enregistrés</p>
+              <p className="text-xs" style={{ color: 'var(--forge-muted)' }}>Enregistrés</p>
               {existingImages.map((img, i) => (
-                <ImageItem key={i} img={img}
+                <ImageItem
+                  key={i}
+                  img={img}
                   onRemove={() => removeExistingImage(img)}
-                  onTimeframeChange={tf => changeExistingTimeframe(i, tf)} />
+                  onTimeframeChange={tf => changeExistingTimeframe(i, tf)}
+                />
               ))}
             </div>
           )}
 
           {images.length > 0 && (
             <div className="space-y-2 mb-3">
-              {existingImages.length > 0 && <p className="text-xs text-forge-muted">Nouveaux</p>}
+              {existingImages.length > 0 && (
+                <p className="text-xs" style={{ color: 'var(--forge-muted)' }}>Nouveaux</p>
+              )}
               {images.map((img, i) => (
-                <ImageItem key={i} img={img}
+                <ImageItem
+                  key={i}
+                  img={img}
                   onRemove={() => removeNewImage(i)}
-                  onTimeframeChange={tf => changeNewTimeframe(i, tf)} />
+                  onTimeframeChange={tf => changeNewTimeframe(i, tf)}
+                />
               ))}
             </div>
           )}
 
           {showAddPanel && <AddImagePanel onAdd={addItem} />}
 
-          <button type="button"
+          <button
+            type="button"
             onClick={() => setShowAddPanel(v => !v)}
-            className="w-full flex items-center justify-center gap-2 rounded-xl p-3.5 transition-all text-forge-muted text-sm hover:text-white"
-            style={{ border: `2px dashed ${showAddPanel ? 'rgba(247,183,49,0.3)' : 'rgba(255,255,255,0.12)'}`, background: 'rgba(255,255,255,0.02)' }}>
+            className="w-full flex items-center justify-center gap-2 rounded-xl p-3.5 transition-all text-sm hover-text-primary"
+            style={{
+              border: `2px dashed ${showAddPanel ? 'rgba(247,183,49,0.3)' : 'var(--border-medium)'}`,
+              background: 'var(--surface-1)',
+              color: 'var(--forge-muted)',
+            }}
+          >
             {showAddPanel ? <X size={15} /> : <Upload size={15} />}
             {showAddPanel ? 'Fermer' : 'Ajouter image ou lien'}
           </button>
@@ -650,8 +777,11 @@ if (form.result === 'tp') {
           </p>
         )}
 
-        <button type="submit" disabled={loading}
-          className="btn-primary w-full py-3.5 text-base disabled:opacity-40 disabled:cursor-not-allowed disabled:shadow-none">
+        <button
+          type="submit"
+          disabled={loading}
+          className="btn-primary w-full py-3.5 text-base disabled:opacity-40 disabled:cursor-not-allowed disabled:shadow-none"
+        >
           {loading
             ? (uploadProgress || 'Enregistrement...')
             : isEdit ? 'Enregistrer les modifications' : 'Enregistrer le trade'

@@ -2,6 +2,96 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ============================================================
+   VARIABLES DE THÈME
+   :root = valeurs par défaut (sombre)
+   [data-theme="light"] = surcharge en mode clair
+   ============================================================ */
+:root,
+[data-theme="dark"] {
+  --forge-bg:      #070A0F;
+  --forge-surface: #0C1018;
+  --forge-card:    #161B22;
+  --forge-border:  #21262D;
+  --forge-muted:   #8B949E;
+
+  /* Couches du fond décoratif (body) */
+  --body-bg-solid:   #070A0F;
+  --body-grid-line:  rgba(247,183,49,0.03);
+  --body-halo-1:     rgba(247,183,49,0.07);
+  --body-halo-2:     rgba(46,160,67,0.06);
+  --body-gradient:   linear-gradient(160deg, #0C1018 0%, #070A0F 50%, #08100C 100%);
+  --grain-opacity:   0.025;
+
+  /* Surfaces génériques utilisées en style inline dans les pages */
+  --surface-card:        rgba(22, 27, 34, 0.75);
+  --surface-card-border: rgba(33, 38, 45, 0.8);
+  --surface-1:            rgba(255,255,255,0.02);
+  --surface-2:            rgba(255,255,255,0.03);
+  --surface-3:            rgba(255,255,255,0.04);
+  --surface-4:            rgba(255,255,255,0.05);
+  --surface-5:            rgba(255,255,255,0.06);
+  --surface-6:            rgba(255,255,255,0.07);
+  --surface-8:            rgba(255,255,255,0.08);
+  --surface-10:           rgba(255,255,255,0.1);
+  --surface-12:           rgba(255,255,255,0.12);
+  --border-soft:          rgba(255,255,255,0.06);
+  --border-medium:        rgba(255,255,255,0.08);
+  --border-strong:        rgba(255,255,255,0.1);
+  --text-primary:         #ffffff;
+  --text-secondary:       rgba(255,255,255,0.8);
+  --text-tertiary:        rgba(255,255,255,0.7);
+  --calendar-bg:          rgba(10,13,20,0.98);
+  --modal-bg:             #0E121A;
+  --modal-overlay:        rgba(5,7,10,0.88);
+  --skeleton-bg:           rgba(255,255,255,0.07);
+  --skeleton-bg-soft:      rgba(255,255,255,0.04);
+  --calendar-empty-cell:   rgba(255,255,255,0.01);
+  --text-faint:            rgba(255,255,255,0.3);
+  --nav-bg:                rgba(10, 14, 20, 0.88);
+}
+
+[data-theme="light"] {
+  --forge-bg:      #F7F5F0;
+  --forge-surface: #FFFFFF;
+  --forge-card:    #FFFFFF;
+  --forge-border:  #E5E1D8;
+  --forge-muted:   #6B6E76;
+
+  --body-bg-solid:   #F1EEE6;
+  --body-grid-line:  rgba(180,140,30,0.05);
+  --body-halo-1:     rgba(247,183,49,0.10);
+  --body-halo-2:     rgba(46,160,67,0.05);
+  --body-gradient:   linear-gradient(160deg, #FBFAF6 0%, #F2EFE7 55%, #ECE8DD 100%);
+  --grain-opacity:   0.02;
+
+  --surface-card:        rgba(255, 255, 255, 0.92);
+  --surface-card-border: rgba(180, 160, 120, 0.25);
+  --surface-1:            rgba(20,16,8,0.015);
+  --surface-2:            rgba(20,16,8,0.025);
+  --surface-3:            rgba(20,16,8,0.035);
+  --surface-4:            rgba(20,16,8,0.045);
+  --surface-5:            rgba(20,16,8,0.055);
+  --surface-6:            rgba(20,16,8,0.06);
+  --surface-8:            rgba(20,16,8,0.08);
+  --surface-10:           rgba(20,16,8,0.1);
+  --surface-12:           rgba(20,16,8,0.12);
+  --border-soft:          rgba(20,16,8,0.07);
+  --border-medium:        rgba(20,16,8,0.09);
+  --border-strong:        rgba(20,16,8,0.12);
+  --text-primary:         #16181D;
+  --text-secondary:       rgba(22,24,29,0.82);
+  --text-tertiary:        rgba(22,24,29,0.72);
+  --calendar-bg:          rgba(255,255,255,0.98);
+  --modal-bg:             #FFFFFF;
+  --modal-overlay:        rgba(40,35,25,0.45);
+  --skeleton-bg:           rgba(20,16,8,0.08);
+  --skeleton-bg-soft:      rgba(20,16,8,0.04);
+  --calendar-empty-cell:   rgba(20,16,8,0.015);
+  --text-faint:            rgba(20,16,8,0.32);
+  --nav-bg:                rgba(255, 255, 255, 0.92);
+}
+
 @layer base {
   * { -webkit-tap-highlight-color: transparent; box-sizing: border-box; }
 
@@ -11,22 +101,19 @@
   }
 
   body {
-    @apply text-white font-sans;
+    @apply font-sans;
+    color: var(--text-primary);
     font-size: 15px;
-    background-color: #070A0F;
-    /* Fond décoratif: grille subtile + dégradé en couches */
+    background-color: var(--body-bg-solid);
     background-image:
-      /* Grille fine */
-      linear-gradient(rgba(247,183,49,0.03) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(247,183,49,0.03) 1px, transparent 1px),
-      /* Halo ambiant haut-gauche */
-      radial-gradient(ellipse 80% 60% at 15% 10%, rgba(247,183,49,0.07) 0%, transparent 60%),
-      /* Halo ambiant bas-droite */
-      radial-gradient(ellipse 70% 50% at 85% 90%, rgba(46,160,67,0.06) 0%, transparent 55%),
-      /* Base sombre profonde */
-      linear-gradient(160deg, #0C1018 0%, #070A0F 50%, #08100C 100%);
+      linear-gradient(var(--body-grid-line) 1px, transparent 1px),
+      linear-gradient(90deg, var(--body-grid-line) 1px, transparent 1px),
+      radial-gradient(ellipse 80% 60% at 15% 10%, var(--body-halo-1) 0%, transparent 60%),
+      radial-gradient(ellipse 70% 50% at 85% 90%, var(--body-halo-2) 0%, transparent 55%),
+      var(--body-gradient);
     background-size: 40px 40px, 40px 40px, 100% 100%, 100% 100%, 100% 100%;
     background-attachment: fixed;
+    transition: background-color 0.25s ease, color 0.25s ease;
   }
 
   /* Grain texture overlay */
@@ -36,7 +123,7 @@
     inset: 0;
     z-index: 0;
     pointer-events: none;
-    opacity: 0.025;
+    opacity: var(--grain-opacity);
     background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
     background-repeat: repeat;
     background-size: 128px;
@@ -45,8 +132,9 @@
   #root { position: relative; z-index: 1; }
 
   input, select, textarea {
-    @apply bg-forge-card border border-forge-border rounded-xl px-3 py-2.5 text-white text-sm
+    @apply bg-forge-card border border-forge-border rounded-xl px-3 py-2.5 text-sm
            focus:outline-none focus:border-forge-accent/60 focus:ring-1 focus:ring-forge-accent/20 transition-all;
+    color: var(--text-primary);
     backdrop-filter: blur(8px);
   }
 
@@ -71,17 +159,24 @@
   }
 
   .btn-ghost {
-    @apply border border-forge-border/80 text-forge-muted px-4 py-2.5 rounded-xl
-           hover:border-white/30 hover:text-white hover:bg-white/5
-           active:scale-95 transition-all text-sm backdrop-blur-sm;
-  }
+  @apply border px-4 py-2.5 rounded-xl
+         hover:bg-white/5
+         active:scale-95 transition-all text-sm backdrop-blur-sm;
+  border-color: var(--forge-border);
+  color: var(--forge-muted);
+}
+.btn-ghost:hover {
+  border-color: var(--border-strong);
+  color: var(--text-primary);
+}
+  .btn-ghost:hover { color: var(--text-primary); }
 
   .card {
     @apply rounded-2xl p-4 border transition-all;
-    background: rgba(22, 27, 34, 0.75);
-    border-color: rgba(33, 38, 45, 0.8);
+    background: var(--surface-card);
+    border-color: var(--surface-card-border);
     backdrop-filter: blur(12px);
-    box-shadow: 0 1px 3px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.04);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.12), inset 0 1px 0 rgba(255,255,255,0.04);
   }
 
   .card-hover {
@@ -89,24 +184,19 @@
   }
 
   .glass {
-    background: rgba(16, 20, 28, 0.6);
+    background: var(--surface-card);
     backdrop-filter: blur(20px);
-    border: 1px solid rgba(255,255,255,0.06);
+    border: 1px solid var(--border-soft);
   }
 
   .badge-tp { @apply bg-emerald-500/15 text-emerald-400 text-xs px-2.5 py-0.5 rounded-full font-medium border border-emerald-500/20; }
   .badge-sl { @apply bg-red-500/15 text-red-400 text-xs px-2.5 py-0.5 rounded-full font-medium border border-red-500/20; }
   .badge-be { @apply bg-blue-500/15 text-blue-400 text-xs px-2.5 py-0.5 rounded-full font-medium border border-blue-500/20; }
   .badge-missed { @apply bg-gray-500/15 text-gray-400 text-xs px-2.5 py-0.5 rounded-full font-medium border border-gray-500/20; }
-  
-  .badge-tp { @apply bg-emerald-500/15 text-emerald-400 text-xs px-2.5 py-0.5 rounded-full font-medium border border-emerald-500/20; }
-.badge-sl { @apply bg-red-500/15 text-red-400 text-xs px-2.5 py-0.5 rounded-full font-medium border border-red-500/20; }
-.badge-be { @apply bg-blue-500/15 text-blue-400 text-xs px-2.5 py-0.5 rounded-full font-medium border border-blue-500/20; }
-.badge-missed { @apply bg-gray-500/15 text-gray-400 text-xs px-2.5 py-0.5 rounded-full font-medium border border-gray-500/20; }
-.badge-manual { @apply bg-orange-500/15 text-orange-400 text-xs px-2.5 py-0.5 rounded-full font-medium border border-orange-500/20; }
+  .badge-manual { @apply bg-orange-500/15 text-orange-400 text-xs px-2.5 py-0.5 rounded-full font-medium border border-orange-500/20; }
 
-  .label { @apply text-xs text-forge-muted uppercase tracking-widest mb-1.5 block font-medium; }
-  .value { @apply text-sm font-medium text-white; }
+  .label { @apply text-xs uppercase tracking-widest mb-1.5 block font-medium; color: var(--forge-muted); }
+  .value { @apply text-sm font-medium; color: var(--text-primary); }
 
   /* Mobile-first page, desktop expands */
   .page {
@@ -122,17 +212,22 @@
     }
   }
 
-  .section-title { @apply text-xs text-forge-muted uppercase tracking-widest mb-3 font-medium; }
+  .section-title { @apply text-xs uppercase tracking-widest mb-3 font-medium; color: var(--forge-muted); }
 
   /* Tag/badge selectable */
   .tag {
     @apply px-3 py-1.5 rounded-xl text-xs font-medium border cursor-pointer transition-all select-none;
-    @apply border-forge-border text-forge-muted hover:border-white/30 hover:text-white;
+    @apply border-forge-border hover:border-white/30;
+    color: var(--forge-muted);
   }
+  .tag:hover { color: var(--text-primary); }
   .tag-active {
     @apply border-forge-accent/60 text-forge-accent bg-forge-accent/10
            shadow-[0_0_12px_rgba(247,183,49,0.15)];
   }
+
+  /* Utilitaire : hover vers la couleur de texte principale du thème actif */
+  .hover-text-primary:hover { color: var(--text-primary); }
 
   /* Smooth slide-up animation */
   @keyframes slide-up {

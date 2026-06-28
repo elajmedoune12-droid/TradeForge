@@ -6,13 +6,15 @@ import { useAuth } from '../hooks/useAuth'
 
 // ── Toast ───────────────────────────────────────────────────
 const Toast = ({ message, type }) => (
-  <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-50 px-4 py-2.5 rounded-xl text-sm font-medium flex items-center gap-2 shadow-lg whitespace-nowrap"
+  <div
+    className="fixed bottom-24 left-1/2 -translate-x-1/2 z-50 px-4 py-2.5 rounded-xl text-sm font-medium flex items-center gap-2 shadow-lg whitespace-nowrap"
     style={{
       background: type === 'success' ? 'rgba(46,160,67,0.15)' : 'rgba(248,81,73,0.15)',
       border: `1px solid ${type === 'success' ? 'rgba(46,160,67,0.4)' : 'rgba(248,81,73,0.4)'}`,
       color: type === 'success' ? '#2EA043' : '#F85149',
       backdropFilter: 'blur(12px)',
-    }}>
+    }}
+  >
     {type === 'success' ? <Check size={14} /> : <AlertCircle size={14} />}
     {message}
   </div>
@@ -23,13 +25,29 @@ const Field = ({ label, icon: Icon, error, ...props }) => (
   <div>
     <label className="label">{label}</label>
     <div className="relative">
-      {Icon && <Icon size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-forge-muted pointer-events-none" />}
+      {Icon && (
+        <Icon size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-forge-muted pointer-events-none" />
+      )}
       <input
         className={`w-full ${Icon ? 'pl-9' : ''} ${error ? 'border-forge-red/60 focus:border-forge-red/80' : ''}`}
         {...props}
       />
     </div>
-    {error && <p className="text-xs text-forge-red mt-1 flex items-center gap-1"><AlertCircle size={10} />{error}</p>}
+    {error && (
+      <p className="text-xs text-forge-red mt-1 flex items-center gap-1">
+        <AlertCircle size={10} />{error}
+      </p>
+    )}
+  </div>
+)
+
+// ── SectionIcon ─────────────────────────────────────────────
+const SectionIcon = ({ children, bg }) => (
+  <div
+    className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0"
+    style={{ background: bg }}
+  >
+    {children}
   </div>
 )
 
@@ -38,20 +56,17 @@ export default function Profile() {
   const navigate = useNavigate()
   const fileRef = useRef(null)
 
-  // ── Profile state ───────────────────────────────────────
-  const [username, setUsername]     = useState('')
-  const [avatarUrl, setAvatarUrl]   = useState(null)
-  const [avatarFile, setAvatarFile] = useState(null)
+  const [username, setUsername]           = useState('')
+  const [avatarUrl, setAvatarUrl]         = useState(null)
+  const [avatarFile, setAvatarFile]       = useState(null)
   const [avatarPreview, setAvatarPreview] = useState(null)
   const [profileLoading, setProfileLoading] = useState(false)
   const [profileError, setProfileError]     = useState('')
 
-  // ── Email state ─────────────────────────────────────────
-  const [email, setEmail]           = useState(user?.email || '')
+  const [email, setEmail]               = useState(user?.email || '')
   const [emailLoading, setEmailLoading] = useState(false)
   const [emailError, setEmailError]     = useState('')
 
-  // ── Password state ──────────────────────────────────────
   const [currentPwd, setCurrentPwd]   = useState('')
   const [newPwd, setNewPwd]           = useState('')
   const [confirmPwd, setConfirmPwd]   = useState('')
@@ -61,18 +76,15 @@ export default function Profile() {
   const [pwdLoading, setPwdLoading]   = useState(false)
   const [pwdError, setPwdError]       = useState('')
 
-  // ── Delete state ────────────────────────────────────────
-  const [showDelete, setShowDelete]     = useState(false)
+  const [showDelete, setShowDelete]       = useState(false)
   const [deleteConfirm, setDeleteConfirm] = useState('')
 
-  // ── Toast ───────────────────────────────────────────────
   const [toast, setToast] = useState(null)
   const showToast = (message, type = 'success') => {
     setToast({ message, type })
     setTimeout(() => setToast(null), 3000)
   }
 
-  // Load existing profile from user_metadata
   useEffect(() => {
     if (!user) return
     const meta = user.user_metadata || {}
@@ -80,7 +92,6 @@ export default function Profile() {
     setAvatarUrl(meta.avatar_url || null)
   }, [user])
 
-  // ── Avatar picker ───────────────────────────────────────
   const handleAvatarChange = (e) => {
     const file = e.target.files?.[0]
     if (!file) return
@@ -95,49 +106,31 @@ export default function Profile() {
     setAvatarUrl(null)
   }
 
-  // ── Save profile (username + avatar) ───────────────────
   const handleProfileSave = async () => {
     setProfileError('')
     if (username && username.length < 2) { setProfileError('Pseudo trop court (min 2 caractères)'); return }
     setProfileLoading(true)
 
     let finalAvatarUrl = avatarUrl
-
-    // Upload new avatar if selected
     if (avatarFile) {
       const ext = avatarFile.name.split('.').pop()
       const path = `avatars/${user.id}.${ext}`
       const { error: upErr } = await supabase.storage
         .from('trade-images')
         .upload(path, avatarFile, { upsert: true })
-      if (upErr) {
-        setProfileLoading(false)
-        setProfileError('Erreur upload avatar')
-        return
-      }
+      if (upErr) { setProfileLoading(false); setProfileError('Erreur upload avatar'); return }
       const { data: urlData } = supabase.storage.from('trade-images').getPublicUrl(path)
       finalAvatarUrl = urlData.publicUrl
     }
 
-    // Update user_metadata
     const { error } = await supabase.auth.updateUser({
-      data: {
-        username: username || null,
-        avatar_url: finalAvatarUrl || null,
-      }
+      data: { username: username || null, avatar_url: finalAvatarUrl || null }
     })
-
     setProfileLoading(false)
-    if (error) {
-      setProfileError(error.message)
-    } else {
-      setAvatarUrl(finalAvatarUrl)
-      setAvatarFile(null)
-      showToast('Profil mis à jour')
-    }
+    if (error) { setProfileError(error.message) }
+    else { setAvatarUrl(finalAvatarUrl); setAvatarFile(null); showToast('Profil mis à jour') }
   }
 
-  // ── Update email ────────────────────────────────────────
   const handleEmailUpdate = async () => {
     setEmailError('')
     if (!email || email === user?.email) return
@@ -149,7 +142,6 @@ export default function Profile() {
     else showToast('Vérifie ta boîte mail pour confirmer')
   }
 
-  // ── Update password ─────────────────────────────────────
   const handlePasswordUpdate = async () => {
     setPwdError('')
     if (!newPwd) { setPwdError('Nouveau mot de passe requis'); return }
@@ -170,8 +162,8 @@ export default function Profile() {
     : /[A-Z]/.test(newPwd) && /[0-9]/.test(newPwd) ? { label: 'Fort', color: '#2EA043', width: '100%' }
     : { label: 'Moyen', color: '#F7B731', width: '65%' }
 
-  const displayAvatar = avatarPreview || avatarUrl
-  const emailChanged  = email !== user?.email && email.length > 0
+  const displayAvatar  = avatarPreview || avatarUrl
+  const emailChanged   = email !== user?.email && email.length > 0
   const profileChanged = username !== (user?.user_metadata?.username || '') || avatarFile || (!avatarUrl && user?.user_metadata?.avatar_url)
 
   return (
@@ -180,31 +172,39 @@ export default function Profile() {
 
       {/* Header */}
       <div className="flex items-center gap-3 mb-6">
-        <button onClick={() => navigate(-1)}
+        <button
+          onClick={() => navigate(-1)}
           className="w-8 h-8 rounded-xl flex items-center justify-center transition-all active:scale-95"
-          style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.08)' }}>
+          style={{
+            background: 'var(--surface-6)',
+            border: '1px solid var(--border-soft)',
+            color: 'var(--text-primary)',
+          }}
+        >
           <ArrowLeft size={15} />
         </button>
         <div>
-          <h1 className="text-lg font-medium">Profil</h1>
-          <p className="text-xs text-forge-muted">Modifier vos informations</p>
+          <h1 className="text-lg font-medium" style={{ color: 'var(--text-primary)' }}>Profil</h1>
+          <p className="text-xs" style={{ color: 'var(--forge-muted)' }}>Modifier vos informations</p>
         </div>
       </div>
 
       {/* ── Avatar + pseudo ── */}
       <div className="card mb-4">
         <div className="flex items-center gap-2 mb-4">
-          <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: 'rgba(247,183,49,0.12)' }}>
+          <SectionIcon bg="rgba(247,183,49,0.12)">
             <User size={13} className="text-forge-accent" />
-          </div>
-          <p className="text-sm font-medium">Identité</p>
+          </SectionIcon>
+          <p className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>Identité</p>
         </div>
 
         {/* Avatar picker */}
         <div className="flex items-center gap-4 mb-5">
           <div className="relative flex-shrink-0">
-            <div className="w-20 h-20 rounded-2xl overflow-hidden flex items-center justify-center"
-              style={{ background: 'rgba(247,183,49,0.1)', border: '2px solid rgba(247,183,49,0.25)' }}>
+            <div
+              className="w-20 h-20 rounded-2xl overflow-hidden flex items-center justify-center"
+              style={{ background: 'rgba(247,183,49,0.1)', border: '2px solid rgba(247,183,49,0.25)' }}
+            >
               {displayAvatar ? (
                 <img src={displayAvatar} alt="avatar" className="w-full h-full object-cover" />
               ) : (
@@ -213,28 +213,35 @@ export default function Profile() {
                 </span>
               )}
             </div>
-            {/* Camera button */}
-            <button onClick={() => fileRef.current?.click()}
+            <button
+              onClick={() => fileRef.current?.click()}
               className="absolute -bottom-1 -right-1 w-7 h-7 rounded-xl flex items-center justify-center transition-all active:scale-95"
-              style={{ background: '#F7B731', boxShadow: '0 0 12px rgba(247,183,49,0.4)' }}>
+              style={{ background: '#F7B731', boxShadow: '0 0 12px rgba(247,183,49,0.4)' }}
+            >
               <Camera size={12} style={{ color: '#070A0F' }} />
             </button>
             <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleAvatarChange} />
           </div>
 
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium mb-0.5">{username || user?.email?.split('@')[0]}</p>
-            <p className="text-xs text-forge-muted mb-3">{user?.email}</p>
+            <p className="text-sm font-medium mb-0.5" style={{ color: 'var(--text-primary)' }}>
+              {username || user?.email?.split('@')[0]}
+            </p>
+            <p className="text-xs mb-3" style={{ color: 'var(--forge-muted)' }}>{user?.email}</p>
             <div className="flex gap-2">
-              <button onClick={() => fileRef.current?.click()}
+              <button
+                onClick={() => fileRef.current?.click()}
                 className="text-xs px-3 py-1.5 rounded-lg transition-all active:scale-95"
-                style={{ background: 'rgba(247,183,49,0.1)', color: '#F7B731', border: '1px solid rgba(247,183,49,0.25)' }}>
+                style={{ background: 'rgba(247,183,49,0.1)', color: '#F7B731', border: '1px solid rgba(247,183,49,0.25)' }}
+              >
                 Changer
               </button>
               {displayAvatar && (
-                <button onClick={removeAvatar}
+                <button
+                  onClick={removeAvatar}
                   className="text-xs px-3 py-1.5 rounded-lg transition-all active:scale-95"
-                  style={{ background: 'rgba(248,81,73,0.08)', color: '#F85149', border: '1px solid rgba(248,81,73,0.2)' }}>
+                  style={{ background: 'rgba(248,81,73,0.08)', color: '#F85149', border: '1px solid rgba(248,81,73,0.2)' }}
+                >
                   Supprimer
                 </button>
               )}
@@ -242,7 +249,6 @@ export default function Profile() {
           </div>
         </div>
 
-        {/* Username */}
         <Field
           label="Pseudo"
           icon={AtSign}
@@ -253,11 +259,18 @@ export default function Profile() {
           error={profileError}
           maxLength={30}
         />
-        {username && <p className="text-[10px] text-forge-muted mt-1 text-right">{username.length}/30</p>}
+        {username && (
+          <p className="text-[10px] mt-1 text-right" style={{ color: 'var(--forge-muted)' }}>
+            {username.length}/30
+          </p>
+        )}
 
-        <button onClick={handleProfileSave} disabled={!profileChanged || profileLoading}
+        <button
+          onClick={handleProfileSave}
+          disabled={!profileChanged || profileLoading}
           className="mt-3 w-full py-2.5 rounded-xl text-sm font-medium transition-all active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-          style={{ background: 'rgba(247,183,49,0.12)', color: '#F7B731', border: '1px solid rgba(247,183,49,0.25)' }}>
+          style={{ background: 'rgba(247,183,49,0.12)', color: '#F7B731', border: '1px solid rgba(247,183,49,0.25)' }}
+        >
           <Check size={13} />
           {profileLoading ? 'Sauvegarde...' : 'Sauvegarder le profil'}
         </button>
@@ -266,33 +279,49 @@ export default function Profile() {
       {/* ── Email ── */}
       <div className="card mb-4">
         <div className="flex items-center gap-2 mb-4">
-          <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: 'rgba(88,166,255,0.12)' }}>
+          <SectionIcon bg="rgba(88,166,255,0.12)">
             <Mail size={13} style={{ color: '#58a6ff' }} />
-          </div>
-          <p className="text-sm font-medium">Adresse email</p>
+          </SectionIcon>
+          <p className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>Adresse email</p>
         </div>
-        <Field label="Email" icon={Mail} type="email" value={email}
+
+        <Field
+          label="Email"
+          icon={Mail}
+          type="email"
+          value={email}
           onChange={e => { setEmail(e.target.value); setEmailError('') }}
-          placeholder="votre@email.com" error={emailError} />
-        <button onClick={handleEmailUpdate} disabled={!emailChanged || emailLoading}
+          placeholder="votre@email.com"
+          error={emailError}
+        />
+
+        <button
+          onClick={handleEmailUpdate}
+          disabled={!emailChanged || emailLoading}
           className="mt-3 w-full py-2.5 rounded-xl text-sm font-medium transition-all active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed"
           style={{
-            background: emailChanged ? 'rgba(88,166,255,0.12)' : 'rgba(255,255,255,0.04)',
-            color: emailChanged ? '#58a6ff' : '#8B949E',
-            border: `1px solid ${emailChanged ? 'rgba(88,166,255,0.3)' : 'rgba(255,255,255,0.08)'}`,
-          }}>
+            background: emailChanged ? 'rgba(88,166,255,0.12)' : 'var(--surface-4)',
+            color: emailChanged ? '#58a6ff' : 'var(--forge-muted)',
+            border: `1px solid ${emailChanged ? 'rgba(88,166,255,0.3)' : 'var(--border-soft)'}`,
+          }}
+        >
           {emailLoading ? 'Mise à jour...' : emailChanged ? 'Confirmer le nouvel email' : 'Email inchangé'}
         </button>
-        {emailChanged && <p className="text-[10px] text-forge-muted mt-2 text-center">Un email de confirmation sera envoyé</p>}
+
+        {emailChanged && (
+          <p className="text-[10px] mt-2 text-center" style={{ color: 'var(--forge-muted)' }}>
+            Un email de confirmation sera envoyé
+          </p>
+        )}
       </div>
 
       {/* ── Mot de passe ── */}
       <div className="card mb-4">
         <div className="flex items-center gap-2 mb-4">
-          <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: 'rgba(247,183,49,0.12)' }}>
+          <SectionIcon bg="rgba(247,183,49,0.12)">
             <Lock size={13} className="text-forge-accent" />
-          </div>
-          <p className="text-sm font-medium">Mot de passe</p>
+          </SectionIcon>
+          <p className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>Mot de passe</p>
         </div>
 
         <div className="space-y-3">
@@ -301,11 +330,21 @@ export default function Profile() {
             <label className="label">Mot de passe actuel</label>
             <div className="relative">
               <Lock size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-forge-muted pointer-events-none" />
-              <input type={showCurrent ? 'text' : 'password'} value={currentPwd}
+              <input
+                type={showCurrent ? 'text' : 'password'}
+                value={currentPwd}
                 onChange={e => { setCurrentPwd(e.target.value); setPwdError('') }}
-                placeholder="••••••••" className="w-full pl-9 pr-9" />
-              <button type="button" onClick={() => setShowCurrent(v => !v)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-forge-muted hover:text-white transition-colors">
+                placeholder="••••••••"
+                className="w-full pl-9 pr-9"
+              />
+              <button
+                type="button"
+                onClick={() => setShowCurrent(v => !v)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 transition-colors"
+                style={{ color: 'var(--forge-muted)' }}
+                onMouseEnter={e => e.currentTarget.style.color = 'var(--text-primary)'}
+                onMouseLeave={e => e.currentTarget.style.color = 'var(--forge-muted)'}
+              >
                 {showCurrent ? <EyeOff size={14} /> : <Eye size={14} />}
               </button>
             </div>
@@ -316,19 +355,31 @@ export default function Profile() {
             <label className="label">Nouveau mot de passe</label>
             <div className="relative">
               <Lock size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-forge-muted pointer-events-none" />
-              <input type={showNew ? 'text' : 'password'} value={newPwd}
+              <input
+                type={showNew ? 'text' : 'password'}
+                value={newPwd}
                 onChange={e => { setNewPwd(e.target.value); setPwdError('') }}
-                placeholder="••••••••" className="w-full pl-9 pr-9" />
-              <button type="button" onClick={() => setShowNew(v => !v)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-forge-muted hover:text-white transition-colors">
+                placeholder="••••••••"
+                className="w-full pl-9 pr-9"
+              />
+              <button
+                type="button"
+                onClick={() => setShowNew(v => !v)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 transition-colors"
+                style={{ color: 'var(--forge-muted)' }}
+                onMouseEnter={e => e.currentTarget.style.color = 'var(--text-primary)'}
+                onMouseLeave={e => e.currentTarget.style.color = 'var(--forge-muted)'}
+              >
                 {showNew ? <EyeOff size={14} /> : <Eye size={14} />}
               </button>
             </div>
             {pwdStrength && (
               <div className="mt-1.5">
-                <div className="h-1 bg-forge-border rounded-full overflow-hidden">
-                  <div className="h-full rounded-full transition-all duration-300"
-                    style={{ width: pwdStrength.width, background: pwdStrength.color }} />
+                <div className="h-1 rounded-full overflow-hidden" style={{ background: 'var(--border-soft)' }}>
+                  <div
+                    className="h-full rounded-full transition-all duration-300"
+                    style={{ width: pwdStrength.width, background: pwdStrength.color }}
+                  />
                 </div>
                 <p className="text-[10px] mt-0.5" style={{ color: pwdStrength.color }}>{pwdStrength.label}</p>
               </div>
@@ -340,12 +391,24 @@ export default function Profile() {
             <label className="label">Confirmer</label>
             <div className="relative">
               <Lock size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-forge-muted pointer-events-none" />
-              <input type={showConfirm ? 'text' : 'password'} value={confirmPwd}
+              <input
+                type={showConfirm ? 'text' : 'password'}
+                value={confirmPwd}
                 onChange={e => { setConfirmPwd(e.target.value); setPwdError('') }}
                 placeholder="••••••••"
-                className={`w-full pl-9 pr-9 ${confirmPwd && confirmPwd !== newPwd ? 'border-forge-red/60' : ''} ${confirmPwd && confirmPwd === newPwd && newPwd.length >= 6 ? 'border-forge-green/60' : ''}`} />
-              <button type="button" onClick={() => setShowConfirm(v => !v)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-forge-muted hover:text-white transition-colors">
+                className={`w-full pl-9 pr-9
+                  ${confirmPwd && confirmPwd !== newPwd ? 'border-forge-red/60' : ''}
+                  ${confirmPwd && confirmPwd === newPwd && newPwd.length >= 6 ? 'border-forge-green/60' : ''}
+                `}
+              />
+              <button
+                type="button"
+                onClick={() => setShowConfirm(v => !v)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 transition-colors"
+                style={{ color: 'var(--forge-muted)' }}
+                onMouseEnter={e => e.currentTarget.style.color = 'var(--text-primary)'}
+                onMouseLeave={e => e.currentTarget.style.color = 'var(--forge-muted)'}
+              >
                 {showConfirm ? <EyeOff size={14} /> : <Eye size={14} />}
               </button>
               {confirmPwd && confirmPwd === newPwd && newPwd.length >= 6 && (
@@ -355,11 +418,18 @@ export default function Profile() {
           </div>
         </div>
 
-        {pwdError && <p className="text-xs text-forge-red mt-2 flex items-center gap-1"><AlertCircle size={10} />{pwdError}</p>}
+        {pwdError && (
+          <p className="text-xs text-forge-red mt-2 flex items-center gap-1">
+            <AlertCircle size={10} />{pwdError}
+          </p>
+        )}
 
-        <button onClick={handlePasswordUpdate} disabled={!currentPwd || !newPwd || !confirmPwd || pwdLoading}
+        <button
+          onClick={handlePasswordUpdate}
+          disabled={!currentPwd || !newPwd || !confirmPwd || pwdLoading}
           className="mt-3 w-full py-2.5 rounded-xl text-sm font-medium transition-all active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-          style={{ background: 'rgba(247,183,49,0.12)', color: '#F7B731', border: '1px solid rgba(247,183,49,0.25)' }}>
+          style={{ background: 'rgba(247,183,49,0.12)', color: '#F7B731', border: '1px solid rgba(247,183,49,0.25)' }}
+        >
           <Shield size={13} />
           {pwdLoading ? 'Mise à jour...' : 'Changer le mot de passe'}
         </button>
@@ -368,45 +438,62 @@ export default function Profile() {
       {/* ── Danger zone ── */}
       <div className="card mb-6" style={{ borderColor: 'rgba(248,81,73,0.2)' }}>
         <div className="flex items-center gap-2 mb-3">
-          <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: 'rgba(248,81,73,0.1)' }}>
+          <SectionIcon bg="rgba(248,81,73,0.1)">
             <Trash2 size={13} className="text-forge-red" />
-          </div>
+          </SectionIcon>
           <p className="text-sm font-medium text-forge-red">Zone dangereuse</p>
         </div>
 
         {!showDelete ? (
-          <button onClick={() => setShowDelete(true)}
+          <button
+            onClick={() => setShowDelete(true)}
             className="w-full py-2.5 rounded-xl text-sm font-medium transition-all active:scale-95"
-            style={{ background: 'rgba(248,81,73,0.08)', color: '#F85149', border: '1px solid rgba(248,81,73,0.2)' }}>
+            style={{ background: 'rgba(248,81,73,0.08)', color: '#F85149', border: '1px solid rgba(248,81,73,0.2)' }}
+          >
             Supprimer mon compte
           </button>
         ) : (
           <div className="space-y-3">
-            <p className="text-xs text-forge-muted leading-relaxed">
-              Action <span className="text-forge-red font-medium">irréversible</span>. Tapez <span className="font-mono text-white">SUPPRIMER</span> pour confirmer.
+            <p className="text-xs leading-relaxed" style={{ color: 'var(--forge-muted)' }}>
+              Action <span className="text-forge-red font-medium">irréversible</span>. Tapez{' '}
+              <span className="font-mono" style={{ color: 'var(--text-primary)' }}>SUPPRIMER</span> pour confirmer.
             </p>
-            <input type="text" value={deleteConfirm} onChange={e => setDeleteConfirm(e.target.value)}
-              placeholder="Tapez SUPPRIMER" className="w-full text-sm" />
+            <input
+              type="text"
+              value={deleteConfirm}
+              onChange={e => setDeleteConfirm(e.target.value)}
+              placeholder="Tapez SUPPRIMER"
+              className="w-full text-sm"
+            />
             <div className="flex gap-2">
-              <button onClick={() => { setShowDelete(false); setDeleteConfirm('') }}
-                className="flex-1 py-2 rounded-xl text-xs text-forge-muted border border-forge-border hover:border-white/20 transition-all">
+              <button
+                onClick={() => { setShowDelete(false); setDeleteConfirm('') }}
+                className="flex-1 py-2 rounded-xl text-xs transition-all"
+                style={{
+                  color: 'var(--forge-muted)',
+                  border: '1px solid var(--border-soft)',
+                }}
+                onMouseEnter={e => e.currentTarget.style.borderColor = 'var(--border-strong)'}
+                onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--border-soft)'}
+              >
                 Annuler
               </button>
-              <button disabled={deleteConfirm !== 'SUPPRIMER'}
-onClick={async () => {
-  const { data: { session } } = await supabase.auth.getSession()
-  await fetch('/api/delete-account', {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${session.access_token}` }
-  })
-  // Vider la session localement sans appeler Supabase
-  await supabase.auth.signOut({ scope: 'local' })
-  navigate('/login')
-}}
-  className="flex-1 py-2 rounded-xl text-xs font-medium transition-all active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed"
-  style={{ background: 'rgba(248,81,73,0.15)', color: '#F85149', border: '1px solid rgba(248,81,73,0.3)' }}>
-  Confirmer
-</button>
+              <button
+                disabled={deleteConfirm !== 'SUPPRIMER'}
+                onClick={async () => {
+                  const { data: { session } } = await supabase.auth.getSession()
+                  await fetch('/api/delete-account', {
+                    method: 'POST',
+                    headers: { Authorization: `Bearer ${session.access_token}` }
+                  })
+                  await supabase.auth.signOut({ scope: 'local' })
+                  navigate('/app/login')
+                }}
+                className="flex-1 py-2 rounded-xl text-xs font-medium transition-all active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed"
+                style={{ background: 'rgba(248,81,73,0.15)', color: '#F85149', border: '1px solid rgba(248,81,73,0.3)' }}
+              >
+                Confirmer
+              </button>
             </div>
           </div>
         )}

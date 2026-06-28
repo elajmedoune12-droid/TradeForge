@@ -20,9 +20,16 @@ const pct   = (value, goal) => goal ? clamp(Math.round((value / goal) * 100), 0,
 const CustomTooltip = ({ active, payload, label }) => {
   if (!active || !payload?.length) return null
   return (
-    <div className="rounded-xl px-3 py-2 text-xs"
-      style={{ background: '#161B22', border: '1px solid rgba(247,183,49,0.2)', backdropFilter: 'blur(12px)' }}>
-      <p className="text-forge-muted mb-0.5">{label}</p>
+    <div
+      className="rounded-xl px-3 py-2 text-xs"
+      style={{
+        background: 'var(--modal-bg)',
+        border: '1px solid rgba(247,183,49,0.2)',
+        backdropFilter: 'blur(12px)',
+        color: 'var(--text-primary)',
+      }}
+    >
+      <p className="mb-0.5" style={{ color: 'var(--forge-muted)' }}>{label}</p>
       {payload.map((p, i) => (
         <p key={i} className="font-mono font-semibold" style={{ color: p.color || p.fill }}>
           {p.name === 'winRate' ? `${p.value}%` : p.name === 'profit' ? `${p.value > 0 ? '+' : ''}${p.value}R` : p.value}
@@ -42,14 +49,17 @@ const CircleProgress = ({ pct: p, size = 76, color = '#F7B731', label, sublabel 
     <div className="flex flex-col items-center gap-1.5">
       <div className="relative" style={{ width: size, height: size }}>
         <svg width={size} height={size} style={{ transform: 'rotate(-90deg)' }}>
-          <circle cx={size/2} cy={size/2} r={r} fill="none" stroke="rgba(255,255,255,0.07)" strokeWidth={8} />
+          <circle cx={size/2} cy={size/2} r={r} fill="none" stroke="var(--surface-8)" strokeWidth={8} />
           <circle
             cx={size/2} cy={size/2} r={r} fill="none"
             stroke={done ? '#2EA043' : color}
             strokeWidth={8}
             strokeDasharray={`${dash} ${circ}`}
             strokeLinecap="round"
-            style={{ transition: 'stroke-dasharray 0.8s ease', filter: done ? 'drop-shadow(0 0 4px #2EA043)' : `drop-shadow(0 0 3px ${color}88)` }}
+            style={{
+              transition: 'stroke-dasharray 0.8s ease',
+              filter: done ? 'drop-shadow(0 0 4px #2EA043)' : `drop-shadow(0 0 3px ${color}88)`,
+            }}
           />
         </svg>
         <div className="absolute inset-0 flex items-center justify-center">
@@ -58,8 +68,8 @@ const CircleProgress = ({ pct: p, size = 76, color = '#F7B731', label, sublabel 
           </span>
         </div>
       </div>
-      <p className="text-[10px] text-forge-muted text-center leading-tight font-medium">{label}</p>
-      {sublabel && <p className="text-[10px] text-forge-muted/50 text-center">{sublabel}</p>}
+      <p className="text-[10px] text-center leading-tight font-medium" style={{ color: 'var(--forge-muted)' }}>{label}</p>
+      {sublabel && <p className="text-[10px] text-center" style={{ color: 'var(--text-faint)' }}>{sublabel}</p>}
     </div>
   )
 }
@@ -71,16 +81,22 @@ const LinearProgress = ({ label, current, goal, unit = '', color = '#F7B731' }) 
   return (
     <div>
       <div className="flex justify-between items-center mb-1">
-        <span className="text-xs text-forge-muted">{label}</span>
+        <span className="text-xs" style={{ color: 'var(--forge-muted)' }}>{label}</span>
         <span className="text-xs font-mono" style={{ color: done ? '#2EA043' : color }}>
           {current}{unit}
-          <span className="text-forge-muted/50 ml-1">/ {goal}{unit}</span>
+          <span className="ml-1" style={{ color: 'var(--text-faint)' }}>/ {goal}{unit}</span>
           {done && <span className="ml-1">✓</span>}
         </span>
       </div>
-      <div className="h-1.5 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.07)' }}>
-        <div className="h-full rounded-full transition-all duration-700"
-          style={{ width: `${p}%`, background: done ? '#2EA043' : color, boxShadow: done ? '0 0 6px rgba(46,160,67,0.5)' : `0 0 4px ${color}55` }} />
+      <div className="h-1.5 rounded-full overflow-hidden" style={{ background: 'var(--surface-8)' }}>
+        <div
+          className="h-full rounded-full transition-all duration-700"
+          style={{
+            width: `${p}%`,
+            background: done ? '#2EA043' : color,
+            boxShadow: done ? '0 0 6px rgba(46,160,67,0.5)' : `0 0 4px ${color}55`,
+          }}
+        />
       </div>
     </div>
   )
@@ -91,26 +107,48 @@ const GoalInput = ({ label, value, onChange, unit = '', min = 0, max = 999, plac
   <div>
     <label className="label">{label}</label>
     <div className="relative">
-      <input type="number" min={min} max={max} value={value}
+      <input
+        type="number"
+        min={min}
+        max={max}
+        value={value}
         onChange={e => onChange(e.target.value === '' ? '' : +e.target.value)}
-        placeholder={placeholder} className="w-full pr-8" />
-      {unit && <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-forge-muted pointer-events-none">{unit}</span>}
+        placeholder={placeholder}
+        className="w-full pr-8"
+      />
+      {unit && (
+        <span
+          className="absolute right-3 top-1/2 -translate-y-1/2 text-xs pointer-events-none"
+          style={{ color: 'var(--forge-muted)' }}
+        >
+          {unit}
+        </span>
+      )}
     </div>
   </div>
 )
 
 // ── StatCard ─────────────────────────────────────────────────
 const StatCard = ({ label, value, sub, color, icon: Icon, glow }) => (
-  <div className="rounded-2xl p-3 relative overflow-hidden"
-    style={{ background: 'rgba(22,27,34,0.8)', border: `1px solid ${glow ? `${glow}25` : 'rgba(255,255,255,0.07)'}` }}>
-    {glow && <div className="absolute inset-0 opacity-[0.05] pointer-events-none rounded-2xl"
-      style={{ background: `radial-gradient(ellipse at top left, ${glow}, transparent 70%)` }} />}
+  <div
+    className="rounded-2xl p-3 relative overflow-hidden"
+    style={{
+      background: 'var(--surface-card)',
+      border: `1px solid ${glow ? `${glow}25` : 'var(--border-soft)'}`,
+    }}
+  >
+    {glow && (
+      <div
+        className="absolute inset-0 opacity-[0.05] pointer-events-none rounded-2xl"
+        style={{ background: `radial-gradient(ellipse at top left, ${glow}, transparent 70%)` }}
+      />
+    )}
     <div className="flex items-center justify-between mb-1">
-      <p className="text-[10px] text-forge-muted uppercase tracking-wide">{label}</p>
-      {Icon && <Icon size={12} style={{ color: glow || '#8B949E', opacity: 0.6 }} />}
+      <p className="text-[10px] uppercase tracking-wide" style={{ color: 'var(--forge-muted)' }}>{label}</p>
+      {Icon && <Icon size={12} style={{ color: glow || 'var(--forge-muted)', opacity: 0.6 }} />}
     </div>
-    <p className={`text-xl font-mono font-semibold leading-none ${color || 'text-white'}`}>{value}</p>
-    {sub && <p className="text-[10px] text-forge-muted mt-1">{sub}</p>}
+    <p className={`text-xl font-mono font-semibold leading-none ${color || ''}`} style={!color ? { color: 'var(--text-primary)' } : {}}>{value}</p>
+    {sub && <p className="text-[10px] mt-1" style={{ color: 'var(--forge-muted)' }}>{sub}</p>}
   </div>
 )
 
@@ -159,15 +197,14 @@ export default function MonthlyAnalysis() {
     [stats]
   )
 
-  // Meilleur / pire jour de la semaine
   const dayStats = useMemo(() => {
     if (!stats?.trades?.length) return []
     const map = {}
     stats.trades.forEach(t => {
       if (!t.day) return
       if (!map[t.day]) map[t.day] = { wins: 0, total: 0, profit: 0, trades: [] }
-map[t.day].total++
-map[t.day].trades.push(t)
+      map[t.day].total++
+      map[t.day].trades.push(t)
       if (t.result === 'tp') map[t.day].profit += (t.rr_won || 0)
       if (t.result === 'sl') map[t.day].profit += (t.rr_won ?? -1)
       if (t.result === 'manual_exit') map[t.day].profit += (t.rr_won || 0)
@@ -180,25 +217,23 @@ map[t.day].trades.push(t)
     })).sort((a, b) => b.profit - a.profit)
   }, [stats])
 
-  // Session stats
   const sessionStats = useMemo(() => {
     if (!stats?.trades?.length) return []
     const map = {}
     stats.trades.forEach(t => {
       if (!t.session) return
       if (!map[t.session]) map[t.session] = { wins: 0, total: 0, profit: 0, trades: [] }
-map[t.session].trades.push(t)
+      map[t.session].trades.push(t)
       map[t.session].total++
       if (t.result === 'tp') { map[t.session].wins++; map[t.session].profit += (t.rr_won || 0) }
-if (t.result === 'sl') map[t.session].profit += (t.rr_won ?? -1)
-if (t.result === 'manual_exit') map[t.session].profit += (t.rr_won || 0)
+      if (t.result === 'sl') map[t.session].profit += (t.rr_won ?? -1)
+      if (t.result === 'manual_exit') map[t.session].profit += (t.rr_won || 0)
     })
     return Object.entries(map)
       .map(([s, d]) => ({ name: s, wr: calcWinRate(d.trades), profit: +d.profit.toFixed(2), total: d.total }))
       .sort((a, b) => b.profit - a.profit)
   }, [stats])
 
-  // Tendance 6 mois
   const monthlyTrend = useMemo(() => {
     return Array.from({ length: 6 }, (_, i) => {
       const d = subMonths(current, 5 - i)
@@ -213,7 +248,6 @@ if (t.result === 'manual_exit') map[t.session].profit += (t.rr_won || 0)
     })
   }, [trades, current, year, month])
 
-  // Progressions objectifs
   const progressItems = goal ? [
     goal.goal_trades     && { label: 'Trades',     current: stats?.total ?? 0,   goal: goal.goal_trades,     unit: '',    color: '#58a6ff' },
     goal.goal_winrate    && { label: 'Win Rate',    current: stats?.winRate ?? 0, goal: goal.goal_winrate,    unit: '%',   color: '#F7B731' },
@@ -228,7 +262,6 @@ if (t.result === 'manual_exit') map[t.session].profit += (t.rr_won || 0)
 
   const isCurrentMonth = year === new Date().getFullYear() && month === new Date().getMonth() + 1
 
-  // Contexte IA
   const aiContext = useMemo(() => ({
     market: `Analyse mensuelle ${fmtMonth(year, month)}`,
     type: null, result: null, rr_planned: null, rr_won: null,
@@ -239,66 +272,76 @@ if (t.result === 'manual_exit') map[t.session].profit += (t.rr_won || 0)
   }), [stats, goal, disciplineAvg, year, month])
 
   if (tradesLoading || goalLoading) return (
-  <div className="page space-y-4">
-    {/* Nav mois */}
-    <div className="flex items-center justify-between mb-5">
-      <div className="w-9 h-9 rounded-xl animate-pulse" style={{ background: 'rgba(255,255,255,0.07)' }} />
-      <div className="h-5 w-36 rounded-lg animate-pulse" style={{ background: 'rgba(255,255,255,0.07)' }} />
-      <div className="w-9 h-9 rounded-xl animate-pulse" style={{ background: 'rgba(255,255,255,0.07)' }} />
+    <div className="page space-y-4">
+      <div className="flex items-center justify-between mb-5">
+        <div className="w-9 h-9 rounded-xl animate-pulse" style={{ background: 'var(--skeleton-bg-soft)' }} />
+        <div className="h-5 w-36 rounded-lg animate-pulse" style={{ background: 'var(--skeleton-bg-soft)' }} />
+        <div className="w-9 h-9 rounded-xl animate-pulse" style={{ background: 'var(--skeleton-bg-soft)' }} />
+      </div>
+      <div className="rounded-2xl animate-pulse" style={{ background: 'var(--skeleton-bg-soft)', height: '180px' }} />
+      <div className="grid grid-cols-2 gap-2">
+        <SkeletonCard /><SkeletonCard />
+        <SkeletonCard /><SkeletonCard />
+      </div>
+      <div className="rounded-2xl animate-pulse" style={{ background: 'var(--skeleton-bg-soft)', height: '160px' }} />
+      <SkeletonCard />
     </div>
-    {/* Objectifs */}
-    <div className="rounded-2xl animate-pulse" style={{ background: 'rgba(255,255,255,0.04)', height: '180px' }} />
-    {/* KPIs */}
-    <div className="grid grid-cols-2 gap-2">
-      <SkeletonCard /><SkeletonCard />
-      <SkeletonCard /><SkeletonCard />
-    </div>
-    {/* Graphique */}
-    <div className="rounded-2xl animate-pulse" style={{ background: 'rgba(255,255,255,0.04)', height: '160px' }} />
-    <SkeletonCard />
-  </div>
-)
+  )
 
   return (
     <div className="page">
 
       {/* ── Sélecteur de mois ── */}
       <div className="flex items-center justify-between mb-5">
-        <button onClick={() => setCurrent(d => subMonths(d, 1))}
-          className="w-9 h-9 rounded-xl flex items-center justify-center transition-all active:scale-95 hover:bg-white/5"
-          style={{ border: '1px solid rgba(255,255,255,0.08)' }}>
+        <button
+          onClick={() => setCurrent(d => subMonths(d, 1))}
+          className="w-9 h-9 rounded-xl flex items-center justify-center transition-all active:scale-95 hover-text-primary"
+          style={{ border: '1px solid var(--border-soft)', color: 'var(--forge-muted)' }}
+        >
           <ChevronLeft size={18} />
         </button>
 
         <div className="text-center">
-          <h1 className="text-base font-semibold capitalize">{fmtMonth(year, month)}</h1>
+          <h1 className="text-base font-semibold capitalize" style={{ color: 'var(--text-primary)' }}>
+            {fmtMonth(year, month)}
+          </h1>
           {isCurrentMonth && (
             <span className="text-[10px] text-forge-accent font-mono">● mois en cours</span>
           )}
         </div>
 
-        <button onClick={() => setCurrent(d => addMonths(d, 1))}
+        <button
+          onClick={() => setCurrent(d => addMonths(d, 1))}
           disabled={isCurrentMonth}
-          className="w-9 h-9 rounded-xl flex items-center justify-center transition-all active:scale-95 hover:bg-white/5 disabled:opacity-30"
-          style={{ border: '1px solid rgba(255,255,255,0.08)' }}>
+          className="w-9 h-9 rounded-xl flex items-center justify-center transition-all active:scale-95 hover-text-primary disabled:opacity-30"
+          style={{ border: '1px solid var(--border-soft)', color: 'var(--forge-muted)' }}
+        >
           <ChevronRight size={18} />
         </button>
       </div>
 
       {/* ── Objectifs ── */}
       {!editing ? (
-        <div className="rounded-2xl p-4 mb-5"
-          style={{ background: 'rgba(16,20,28,0.8)', border: goal ? '1px solid rgba(247,183,49,0.2)' : '1px solid rgba(255,255,255,0.07)', boxShadow: goal ? '0 0 24px rgba(247,183,49,0.04)' : 'none' }}>
+        <div
+          className="rounded-2xl p-4 mb-5"
+          style={{
+            background: 'var(--surface-card)',
+            border: goal ? '1px solid rgba(247,183,49,0.2)' : '1px solid var(--border-soft)',
+            boxShadow: goal ? '0 0 24px rgba(247,183,49,0.04)' : 'none',
+          }}
+        >
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
               <div className="w-6 h-6 rounded-lg flex items-center justify-center" style={{ background: 'rgba(247,183,49,0.12)' }}>
                 <Target size={12} className="text-forge-accent" />
               </div>
-              <p className="text-sm font-medium">Objectifs du mois</p>
+              <p className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>Objectifs du mois</p>
             </div>
-            <button onClick={openEdit}
-              className="flex items-center gap-1 text-xs transition-colors hover:text-white"
-              style={{ color: goal ? '#F7B731' : '#8B949E' }}>
+            <button
+              onClick={openEdit}
+              className="flex items-center gap-1 text-xs transition-colors hover-text-primary"
+              style={{ color: goal ? '#F7B731' : 'var(--forge-muted)' }}
+            >
               <Pencil size={11} />
               {goal ? 'Modifier' : 'Définir'}
             </button>
@@ -306,20 +349,23 @@ if (t.result === 'manual_exit') map[t.session].profit += (t.rr_won || 0)
 
           {!goal ? (
             <div className="text-center py-5">
-              <p className="text-sm text-forge-muted mb-2">Aucun objectif pour ce mois</p>
-              <button onClick={openEdit}
+              <p className="text-sm mb-2" style={{ color: 'var(--forge-muted)' }}>Aucun objectif pour ce mois</p>
+              <button
+                onClick={openEdit}
                 className="text-xs px-4 py-2 rounded-xl transition-all active:scale-95"
-                style={{ background: 'rgba(247,183,49,0.1)', color: '#F7B731', border: '1px solid rgba(247,183,49,0.2)' }}>
+                style={{ background: 'rgba(247,183,49,0.1)', color: '#F7B731', border: '1px solid rgba(247,183,49,0.2)' }}
+              >
                 Définir des objectifs →
               </button>
             </div>
           ) : progressItems.length === 0 ? (
-            <p className="text-sm text-forge-muted text-center py-2">Objectifs sans valeurs définies.</p>
+            <p className="text-sm text-center py-2" style={{ color: 'var(--forge-muted)' }}>Objectifs sans valeurs définies.</p>
           ) : (
             <>
               <div className={`grid gap-4 mb-4 ${progressItems.length <= 2 ? 'grid-cols-2' : 'grid-cols-4'}`}>
                 {progressItems.map((item, i) => (
-                  <CircleProgress key={i}
+                  <CircleProgress
+                    key={i}
                     pct={pct(item.current, item.goal)}
                     color={item.color}
                     label={item.label}
@@ -327,7 +373,7 @@ if (t.result === 'manual_exit') map[t.session].profit += (t.rr_won || 0)
                   />
                 ))}
               </div>
-              <div className="space-y-3 pt-3 border-t" style={{ borderColor: 'rgba(255,255,255,0.06)' }}>
+              <div className="space-y-3 pt-3 border-t" style={{ borderColor: 'var(--border-soft)' }}>
                 {progressItems.map((item, i) => (
                   <LinearProgress key={i} {...item} />
                 ))}
@@ -336,35 +382,50 @@ if (t.result === 'manual_exit') map[t.session].profit += (t.rr_won || 0)
           )}
         </div>
       ) : (
-        <div className="rounded-2xl p-4 mb-5"
-          style={{ background: 'rgba(16,20,28,0.95)', border: '1px solid rgba(247,183,49,0.25)', boxShadow: '0 0 24px rgba(247,183,49,0.06)' }}>
+        <div
+          className="rounded-2xl p-4 mb-5"
+          style={{
+            background: 'var(--surface-card)',
+            border: '1px solid rgba(247,183,49,0.25)',
+            boxShadow: '0 0 24px rgba(247,183,49,0.06)',
+          }}
+        >
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
               <Target size={14} className="text-forge-accent" />
-              <p className="text-sm font-medium">Objectifs du mois</p>
+              <p className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>Objectifs du mois</p>
             </div>
-            <button onClick={() => setEditing(false)} className="text-forge-muted hover:text-white">
+            <button
+              onClick={() => setEditing(false)}
+              className="transition-colors hover-text-primary"
+              style={{ color: 'var(--forge-muted)' }}
+            >
               <X size={16} />
             </button>
           </div>
           <div className="grid grid-cols-2 gap-3 mb-3">
-            <GoalInput label="Nombre de trades" value={form.goal_trades}     onChange={v => set('goal_trades', v)}     min={1}   max={200} placeholder="ex: 20" />
-            <GoalInput label="Win Rate"          value={form.goal_winrate}   onChange={v => set('goal_winrate', v)}    min={1}   max={100} unit="%" placeholder="ex: 55" />
-            <GoalInput label="Profit"            value={form.goal_profit}    onChange={v => set('goal_profit', v)}     min={-99} max={999} unit="R" placeholder="ex: 10" />
-            <GoalInput label="Discipline moy."   value={form.goal_discipline} onChange={v => set('goal_discipline', v)} min={1}  max={10} placeholder="ex: 8" />
+            <GoalInput label="Nombre de trades"  value={form.goal_trades}      onChange={v => set('goal_trades', v)}      min={1}   max={200} placeholder="ex: 20" />
+            <GoalInput label="Win Rate"           value={form.goal_winrate}     onChange={v => set('goal_winrate', v)}     min={1}   max={100} unit="%" placeholder="ex: 55" />
+            <GoalInput label="Profit"             value={form.goal_profit}      onChange={v => set('goal_profit', v)}      min={-99} max={999} unit="R" placeholder="ex: 10" />
+            <GoalInput label="Discipline moy."    value={form.goal_discipline}  onChange={v => set('goal_discipline', v)}  min={1}   max={10}  placeholder="ex: 8" />
           </div>
-          <p className="text-[11px] text-forge-muted mb-3">Laissez vide les objectifs à ne pas suivre.</p>
+          <p className="text-[11px] mb-3" style={{ color: 'var(--forge-muted)' }}>Laissez vide les objectifs à ne pas suivre.</p>
           <div className="flex gap-2">
             {goal && (
-              <button onClick={async () => { await remove(); setEditing(false) }}
-                className="flex items-center gap-1 text-xs text-forge-red hover:opacity-80 transition-opacity px-2">
+              <button
+                onClick={async () => { await remove(); setEditing(false) }}
+                className="flex items-center gap-1 text-xs text-forge-red hover:opacity-80 transition-opacity px-2"
+              >
                 <Trash2 size={12} /> Supprimer
               </button>
             )}
             <div className="flex-1" />
             <button onClick={() => setEditing(false)} className="btn-ghost text-xs py-2 px-4">Annuler</button>
-            <button onClick={handleSave} disabled={saving}
-              className="btn-primary text-xs py-2 px-4 flex items-center gap-1.5 disabled:opacity-50">
+            <button
+              onClick={handleSave}
+              disabled={saving}
+              className="btn-primary text-xs py-2 px-4 flex items-center gap-1.5 disabled:opacity-50"
+            >
               <Check size={13} />
               {saving ? 'Enregistrement...' : 'Enregistrer'}
             </button>
@@ -375,8 +436,8 @@ if (t.result === 'manual_exit') map[t.session].profit += (t.rr_won || 0)
       {/* ── Pas de trades ── */}
       {(!stats || stats.total === 0) ? (
         <div className="text-center py-16">
-          <BarChart2 size={32} className="mx-auto mb-3 text-forge-muted opacity-30" />
-          <p className="text-sm text-forge-muted">Aucun trade ce mois-ci.</p>
+          <BarChart2 size={32} className="mx-auto mb-3 opacity-30" style={{ color: 'var(--forge-muted)' }} />
+          <p className="text-sm" style={{ color: 'var(--forge-muted)' }}>Aucun trade ce mois-ci.</p>
         </div>
       ) : (
         <>
@@ -399,51 +460,60 @@ if (t.result === 'manual_exit') map[t.session].profit += (t.rr_won || 0)
           </div>
 
           {/* ── Distribution résultats ── */}
-          <div className="rounded-2xl p-4 mb-4"
-            style={{ background: 'rgba(16,20,28,0.8)', border: '1px solid rgba(255,255,255,0.07)' }}>
-            <p className="text-xs font-medium text-forge-muted uppercase tracking-wide mb-3">Distribution</p>
+          <div
+            className="rounded-2xl p-4 mb-4"
+            style={{ background: 'var(--surface-card)', border: '1px solid var(--border-soft)' }}
+          >
+            <p className="text-xs font-medium uppercase tracking-wide mb-3" style={{ color: 'var(--forge-muted)' }}>Distribution</p>
             <div className="flex gap-1 h-2 rounded-full overflow-hidden mb-3">
-  {stats.tp     > 0 && <div style={{ flex: stats.tp,     background: '#2EA043' }} />}
-  {stats.sl     > 0 && <div style={{ flex: stats.sl,     background: '#F85149' }} />}
-  {stats.be     > 0 && <div style={{ flex: stats.be,     background: '#58a6ff' }} />}
-  {stats.missed > 0 && <div style={{ flex: stats.missed, background: '#8B949E' }} />}
-  {(stats.trades?.filter(t => t.result === 'manual_exit').length > 0) && <div style={{ flex: stats.trades.filter(t => t.result === 'manual_exit').length, background: '#F79009' }} />}
-</div>
-<div className="grid grid-cols-5 gap-1 text-center">
-  {[
-    { label: 'TP',     count: stats.tp,     color: '#2EA043' },
-    { label: 'SL',     count: stats.sl,     color: '#F85149' },
-    { label: 'BE',     count: stats.be,     color: '#58a6ff' },
-    { label: 'Missed', count: stats.missed, color: '#8B949E' },
-    { label: 'Manuel', count: stats.trades?.filter(t => t.result === 'manual_exit').length ?? 0, color: '#F79009' },
-  ].map(({ label, count, color }) => (
-    <div key={label}>
-      <p className="text-lg font-mono font-semibold" style={{ color }}>{count}</p>
-      <p className="text-[10px] text-forge-muted">{label}</p>
-    </div>
-  ))}
-</div>
+              {stats.tp     > 0 && <div style={{ flex: stats.tp,     background: '#2EA043' }} />}
+              {stats.sl     > 0 && <div style={{ flex: stats.sl,     background: '#F85149' }} />}
+              {stats.be     > 0 && <div style={{ flex: stats.be,     background: '#58a6ff' }} />}
+              {stats.missed > 0 && <div style={{ flex: stats.missed, background: '#8B949E' }} />}
+              {(stats.trades?.filter(t => t.result === 'manual_exit').length > 0) && (
+                <div style={{ flex: stats.trades.filter(t => t.result === 'manual_exit').length, background: '#F79009' }} />
+              )}
+            </div>
+            <div className="grid grid-cols-5 gap-1 text-center">
+              {[
+                { label: 'TP',     count: stats.tp,     color: '#2EA043' },
+                { label: 'SL',     count: stats.sl,     color: '#F85149' },
+                { label: 'BE',     count: stats.be,     color: '#58a6ff' },
+                { label: 'Missed', count: stats.missed, color: '#8B949E' },
+                { label: 'Manuel', count: stats.trades?.filter(t => t.result === 'manual_exit').length ?? 0, color: '#F79009' },
+              ].map(({ label, count, color }) => (
+                <div key={label}>
+                  <p className="text-lg font-mono font-semibold" style={{ color }}>{count}</p>
+                  <p className="text-[10px]" style={{ color: 'var(--forge-muted)' }}>{label}</p>
+                </div>
+              ))}
+            </div>
           </div>
 
           {/* ── Tendance 6 mois ── */}
-          <div className="rounded-2xl p-4 mb-4"
-            style={{ background: 'rgba(16,20,28,0.8)', border: '1px solid rgba(255,255,255,0.07)' }}>
+          <div
+            className="rounded-2xl p-4 mb-4"
+            style={{ background: 'var(--surface-card)', border: '1px solid var(--border-soft)' }}
+          >
             <div className="flex items-center justify-between mb-3">
-              <p className="text-xs font-medium text-forge-muted uppercase tracking-wide">Tendance 6 mois</p>
-              <div className="flex gap-3 text-[10px] text-forge-muted">
-                <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-forge-accent inline-block" />Win Rate</span>
+              <p className="text-xs font-medium uppercase tracking-wide" style={{ color: 'var(--forge-muted)' }}>Tendance 6 mois</p>
+              <div className="flex gap-3 text-[10px]" style={{ color: 'var(--forge-muted)' }}>
+                <span className="flex items-center gap-1">
+                  <span className="w-2 h-2 rounded-full bg-forge-accent inline-block" />Win Rate
+                </span>
               </div>
             </div>
             <ResponsiveContainer width="100%" height={110}>
               <BarChart data={monthlyTrend} barSize={28} margin={{ top: 0, right: 0, left: -28, bottom: 0 }}>
-                <CartesianGrid vertical={false} stroke="rgba(255,255,255,0.04)" />
-                <XAxis dataKey="name" tick={{ fill: '#8B949E', fontSize: 10 }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fill: '#8B949E', fontSize: 10 }} axisLine={false} tickLine={false} domain={[0, 100]} tickFormatter={v => `${v}%`} />
-                <ReferenceLine y={50} stroke="rgba(255,255,255,0.12)" strokeDasharray="4 4" />
+                <CartesianGrid vertical={false} stroke="var(--border-soft)" />
+                <XAxis dataKey="name" tick={{ fill: 'var(--forge-muted)', fontSize: 10 }} axisLine={false} tickLine={false} />
+                <YAxis tick={{ fill: 'var(--forge-muted)', fontSize: 10 }} axisLine={false} tickLine={false} domain={[0, 100]} tickFormatter={v => `${v}%`} />
+                <ReferenceLine y={50} stroke="var(--border-medium)" strokeDasharray="4 4" />
                 <Tooltip content={<CustomTooltip />} />
                 <Bar dataKey="winRate" radius={[4, 4, 0, 0]}>
                   {monthlyTrend.map((entry, i) => (
-                    <Cell key={i}
+                    <Cell
+                      key={i}
                       fill={entry.isCurrentMonth ? '#F7B731' : entry.winRate >= 50 ? '#2EA043' : '#F85149'}
                       opacity={entry.isCurrentMonth ? 1 : 0.75}
                     />
@@ -455,24 +525,27 @@ if (t.result === 'manual_exit') map[t.session].profit += (t.rr_won || 0)
 
           {/* ── Perf par jour de semaine ── */}
           {dayStats.length > 0 && (
-            <div className="rounded-2xl p-4 mb-4"
-              style={{ background: 'rgba(16,20,28,0.8)', border: '1px solid rgba(255,255,255,0.07)' }}>
-              <p className="text-xs font-medium text-forge-muted uppercase tracking-wide mb-3">Performance par jour</p>
+            <div
+              className="rounded-2xl p-4 mb-4"
+              style={{ background: 'var(--surface-card)', border: '1px solid var(--border-soft)' }}
+            >
+              <p className="text-xs font-medium uppercase tracking-wide mb-3" style={{ color: 'var(--forge-muted)' }}>Performance par jour</p>
               <div className="space-y-2">
                 {dayStats.map((d, i) => (
                   <div key={d.name} className="flex items-center gap-3">
                     <div className="flex items-center gap-1.5 w-16 flex-shrink-0">
                       {i === 0 && <Trophy size={10} className="text-forge-accent" />}
-                      <span className="text-xs text-forge-muted">{d.name}</span>
+                      <span className="text-xs" style={{ color: 'var(--forge-muted)' }}>{d.name}</span>
                     </div>
-                    <div className="flex-1 h-2 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.06)' }}>
-                      <div className="h-full rounded-full transition-all"
-                        style={{ width: `${d.winRate}%`, background: d.winRate >= 50 ? '#2EA043' : '#F85149' }} />
+                    <div className="flex-1 h-2 rounded-full overflow-hidden" style={{ background: 'var(--surface-8)' }}>
+                      <div
+                        className="h-full rounded-full transition-all"
+                        style={{ width: `${d.winRate}%`, background: d.winRate >= 50 ? '#2EA043' : '#F85149' }}
+                      />
                     </div>
                     <div className="flex items-center gap-2 text-[10px] w-20 text-right flex-shrink-0">
                       <span style={{ color: d.winRate >= 50 ? '#2EA043' : '#F85149' }}>{d.winRate}%</span>
-                      <span className="text-forge-muted font-mono"
-                        style={{ color: d.profit >= 0 ? '#2EA043' : '#F85149' }}>
+                      <span className="font-mono" style={{ color: d.profit >= 0 ? '#2EA043' : '#F85149' }}>
                         {d.profit >= 0 ? '+' : ''}{d.profit}R
                       </span>
                     </div>
@@ -484,22 +557,29 @@ if (t.result === 'manual_exit') map[t.session].profit += (t.rr_won || 0)
 
           {/* ── Perf par session ── */}
           {sessionStats.length > 0 && (
-            <div className="rounded-2xl p-4 mb-4"
-              style={{ background: 'rgba(16,20,28,0.8)', border: '1px solid rgba(255,255,255,0.07)' }}>
-              <p className="text-xs font-medium text-forge-muted uppercase tracking-wide mb-3">Performance par session</p>
+            <div
+              className="rounded-2xl p-4 mb-4"
+              style={{ background: 'var(--surface-card)', border: '1px solid var(--border-soft)' }}
+            >
+              <p className="text-xs font-medium uppercase tracking-wide mb-3" style={{ color: 'var(--forge-muted)' }}>Performance par session</p>
               <div className="grid grid-cols-2 gap-2">
                 {sessionStats.map((s, i) => (
-                  <div key={s.name} className="rounded-xl p-3"
-                    style={{ background: i === 0 ? 'rgba(247,183,49,0.06)' : 'rgba(255,255,255,0.03)', border: `1px solid ${i === 0 ? 'rgba(247,183,49,0.2)' : 'rgba(255,255,255,0.06)'}` }}>
+                  <div
+                    key={s.name}
+                    className="rounded-xl p-3"
+                    style={{
+                      background: i === 0 ? 'rgba(247,183,49,0.06)' : 'var(--surface-3)',
+                      border: `1px solid ${i === 0 ? 'rgba(247,183,49,0.2)' : 'var(--border-soft)'}`,
+                    }}
+                  >
                     <div className="flex items-center justify-between mb-1">
-                      <p className="text-xs font-medium truncate">{s.name}</p>
+                      <p className="text-xs font-medium truncate" style={{ color: 'var(--text-primary)' }}>{s.name}</p>
                       {i === 0 && <Trophy size={10} className="text-forge-accent flex-shrink-0" />}
                     </div>
-                    <p className="text-sm font-mono font-semibold"
-                      style={{ color: s.profit >= 0 ? '#2EA043' : '#F85149' }}>
+                    <p className="text-sm font-mono font-semibold" style={{ color: s.profit >= 0 ? '#2EA043' : '#F85149' }}>
                       {s.profit >= 0 ? '+' : ''}{s.profit}R
                     </p>
-                    <p className="text-[10px] text-forge-muted">{s.wr}% · {s.total} trades</p>
+                    <p className="text-[10px]" style={{ color: 'var(--forge-muted)' }}>{s.wr}% · {s.total} trades</p>
                   </div>
                 ))}
               </div>
@@ -507,53 +587,64 @@ if (t.result === 'manual_exit') map[t.session].profit += (t.rr_won || 0)
           )}
 
           {/* ── Coach IA ── */}
-          <button onClick={() => setShowAI(true)}
+          <button
+            onClick={() => setShowAI(true)}
             className="w-full rounded-2xl p-4 mb-4 flex items-center gap-3 text-left transition-all active:scale-[0.99]"
-            style={{ background: 'rgba(247,183,49,0.05)', border: '1px solid rgba(247,183,49,0.18)', boxShadow: '0 0 20px rgba(247,183,49,0.03)' }}>
-            <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
-              style={{ background: 'rgba(247,183,49,0.12)' }}>
+            style={{
+              background: 'rgba(247,183,49,0.05)',
+              border: '1px solid rgba(247,183,49,0.18)',
+              boxShadow: '0 0 20px rgba(247,183,49,0.03)',
+            }}
+          >
+            <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: 'rgba(247,183,49,0.12)' }}>
               <Sparkles size={18} className="text-forge-accent" />
             </div>
             <div className="flex-1">
               <p className="text-sm font-semibold text-forge-accent">Analyse IA du mois</p>
-              <p className="text-xs text-forge-muted mt-0.5">
+              <p className="text-xs mt-0.5" style={{ color: 'var(--forge-muted)' }}>
                 {stats.winRate}% win rate · {stats.total} trades · {stats.profit >= 0 ? '+' : ''}{stats.profit}R
               </p>
             </div>
-            <ChevronRight size={15} className="text-forge-muted" />
+            <ChevronRight size={15} style={{ color: 'var(--forge-muted)' }} />
           </button>
 
-          {/* ── Feedback IA textuel ── */}
+          {/* ── Feedback textuel ── */}
           {feedback && (
-            <div className="rounded-2xl p-4 mb-4"
-              style={{ background: 'rgba(16,20,28,0.8)', border: '1px solid rgba(255,255,255,0.07)' }}>
-              <p className="text-xs font-medium text-forge-muted uppercase tracking-wide mb-3">Conclusions</p>
+            <div
+              className="rounded-2xl p-4 mb-4"
+              style={{ background: 'var(--surface-card)', border: '1px solid var(--border-soft)' }}
+            >
+              <p className="text-xs font-medium uppercase tracking-wide mb-3" style={{ color: 'var(--forge-muted)' }}>Conclusions</p>
               <div className="space-y-2">
                 {feedback.split('\n').map((line, i) => {
-  const isGood = line.startsWith('✅')
-  const isWarn = line.startsWith('⚠️')
-  const isBad  = line.startsWith('❌')
-  const color  = isGood ? '#2EA043' : isWarn ? '#F7B731' : isBad ? '#F85149' : '#8B949E'
-  const clean  = line.replace(/^[✅⚠️❌]\s*/, '')
-  const dot    = isGood ? '✓' : isWarn ? '!' : isBad ? '✗' : '·'
-  return (
-    <div key={i} className="flex items-start gap-2.5 p-2.5 rounded-xl"
-      style={{ background: `${color}0D`, border: `1px solid ${color}20` }}>
-      <span className="text-xs font-bold flex-shrink-0 mt-0.5 w-4 h-4 rounded-full flex items-center justify-center"
-        style={{ background: `${color}20`, color }}>
-        {dot}
-      </span>
-      <p className="text-sm leading-relaxed" style={{ color: '#E6EDF3' }}>{clean}</p>
-    </div>
-  )
-})}
+                  const isGood = line.startsWith('✅')
+                  const isWarn = line.startsWith('⚠️')
+                  const isBad  = line.startsWith('❌')
+                  const color  = isGood ? '#2EA043' : isWarn ? '#F7B731' : isBad ? '#F85149' : 'var(--forge-muted)'
+                  const clean  = line.replace(/^[✅⚠️❌]\s*/, '')
+                  const dot    = isGood ? '✓' : isWarn ? '!' : isBad ? '✗' : '·'
+                  return (
+                    <div
+                      key={i}
+                      className="flex items-start gap-2.5 p-2.5 rounded-xl"
+                      style={{ background: `${color}0D`, border: `1px solid ${color}20` }}
+                    >
+                      <span
+                        className="text-xs font-bold flex-shrink-0 mt-0.5 w-4 h-4 rounded-full flex items-center justify-center"
+                        style={{ background: `${color}20`, color }}
+                      >
+                        {dot}
+                      </span>
+                      <p className="text-sm leading-relaxed" style={{ color: 'var(--text-secondary)' }}>{clean}</p>
+                    </div>
+                  )
+                })}
               </div>
             </div>
           )}
         </>
       )}
 
-      {/* ── Coach IA modal ── */}
       {showAI && <AIAssistant trade={aiContext} onClose={() => setShowAI(false)} />}
     </div>
   )

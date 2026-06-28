@@ -26,7 +26,7 @@ const CustomTooltip = ({ active, payload, label }) => {
   const val = payload[0].value
   return (
     <div className="rounded-xl px-3 py-2 text-xs"
-      style={{ background: '#161B22', border: '1px solid rgba(247,183,49,0.25)', backdropFilter: 'blur(12px)' }}>
+      style={{ background: 'var(--modal-bg)', border: '1px solid rgba(247,183,49,0.25)', backdropFilter: 'blur(12px)' }}>
       <p className="text-forge-muted mb-0.5">{label}</p>
       <p className="font-mono font-semibold" style={{ color: val >= 0 ? '#2EA043' : '#F85149' }}>
         {val >= 0 ? '+' : ''}{val.toFixed(2)}R
@@ -46,7 +46,7 @@ const StatCard = ({ label, value, sub, color, icon: Icon, glow }) => (
       <p className="label mb-0">{label}</p>
       {Icon && <Icon size={13} style={{ color: glow || '#8B949E', opacity: 0.7 }} />}
     </div>
-    <p className={`text-2xl font-mono font-semibold leading-none ${color || 'text-white'}`}>{value}</p>
+    <p className={`text-2xl font-mono font-semibold leading-none ${color || ''}`} style={color ? {} : { color: 'var(--text-primary)' }}>{value}</p>
     {sub && <p className="text-[11px] text-forge-muted mt-0.5">{sub}</p>}
   </div>
 )
@@ -139,26 +139,26 @@ function TradeCalendar({ trades, allTrades, onDayClick }) {
   return (
     <div className="mb-4 rounded-2xl overflow-hidden"
       style={{
-        background: 'rgba(10,13,20,0.98)',
-        border: '1px solid rgba(255,255,255,0.07)',
+        background: 'var(--calendar-bg)',
+        border: '1px solid var(--surface-6)',
         boxShadow: '0 24px 64px rgba(0,0,0,0.5)',
       }}>
 
       {/* Header navigation */}
-      <div className="px-5 pt-5 pb-4" style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+      <div className="px-5 pt-5 pb-4" style={{ borderBottom: '1px solid var(--surface-4)' }}>
         <div className="flex items-center justify-between mb-4">
           <button onClick={() => setCurrentMonth(d => subMonths(d, 1))}
             className="w-9 h-9 rounded-xl flex items-center justify-center transition-all active:scale-95 hover:bg-white/5"
-            style={{ border: '1px solid rgba(255,255,255,0.08)' }}>
+            style={{ border: '1px solid var(--surface-8)' }}>
             <ChevronLeft size={16} style={{ color: '#8B949E' }} />
           </button>
-          <p className="text-base font-bold capitalize text-white tracking-wide">
+          <p className="text-base font-bold capitalize tracking-wide" style={{ color: 'var(--text-primary)' }}>
             {format(currentMonth, 'MMMM yyyy', { locale: fr })}
           </p>
           <button onClick={() => setCurrentMonth(d => addMonths(d, 1))}
             disabled={isSameMonth(currentMonth, new Date())}
             className="w-9 h-9 rounded-xl flex items-center justify-center transition-all active:scale-95 hover:bg-white/5 disabled:opacity-20"
-            style={{ border: '1px solid rgba(255,255,255,0.08)' }}>
+            style={{ border: '1px solid var(--surface-8)' }}>
             <ChevronRight size={16} style={{ color: '#8B949E' }} />
           </button>
         </div>
@@ -166,8 +166,8 @@ function TradeCalendar({ trades, allTrades, onDayClick }) {
         {/* Stats mois */}
         <div className="grid grid-cols-4 gap-2">
           {[
-            { label: 'Trades',   value: monthStats.count || '—', color: '#fff' },
-            { label: 'Jours',    value: monthStats.days  || '—', color: '#fff' },
+            { label: 'Trades',   value: monthStats.count || '—', color: 'var(--text-primary)' },
+            { label: 'Jours',    value: monthStats.days  || '—', color: 'var(--text-primary)' },
             { label: 'Win Rate',
               value: monthStats.count ? `${monthStats.winRate}%` : '—',
               color: !monthStats.count ? '#8B949E' : monthStats.winRate >= 50 ? '#2EA043' : '#F85149' },
@@ -176,7 +176,7 @@ function TradeCalendar({ trades, allTrades, onDayClick }) {
               color: !monthStats.count ? '#8B949E' : monthStats.profit >= 0 ? '#2EA043' : '#F85149' },
           ].map(s => (
             <div key={s.label} className="text-center rounded-xl py-2.5 px-1"
-              style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}>
+              style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-5)' }}>
               <p className="text-[9px] font-medium uppercase tracking-widest mb-1.5"
                 style={{ color: 'rgba(139,148,158,0.6)' }}>{s.label}</p>
               <p className="text-sm font-mono font-black leading-none" style={{ color: s.color }}>{s.value}</p>
@@ -210,7 +210,7 @@ function TradeCalendar({ trades, allTrades, onDayClick }) {
             {weekRows.map((week, wi) => (
               <div key={wi} className="grid grid-cols-7 gap-1.5 mb-1.5">
                 {week.map((day, di) => {
-                  if (!day) return <div key={di} className="rounded-xl" style={{ aspectRatio: '1', background: 'rgba(255,255,255,0.01)' }} />
+                  if (!day) return <div key={di} className="rounded-xl" style={{ aspectRatio: '1', background: 'var(--calendar-empty-cell)' }} />
 
                   const iso      = format(day, 'yyyy-MM-dd')
                   const ts       = byDate[iso]
@@ -236,14 +236,14 @@ function TradeCalendar({ trades, allTrades, onDayClick }) {
                           : isBreak ? 'linear-gradient(145deg, rgba(88,166,255,0.15) 0%, rgba(88,166,255,0.05) 100%)'
                           : isToday ? 'rgba(247,183,49,0.06)'
                           : isSun   ? 'rgba(247,183,49,0.02)'
-                          : 'rgba(255,255,255,0.025)',
+                          : 'var(--surface-1)',
                         border: `1px solid ${
                           isToday  ? 'rgba(247,183,49,0.6)'
                           : isPos  ? 'rgba(46,160,67,0.4)'
                           : isNeg  ? 'rgba(248,81,73,0.4)'
                           : isBreak ? 'rgba(88,166,255,0.3)'
                           : isSun  ? 'rgba(247,183,49,0.1)'
-                          : 'rgba(255,255,255,0.05)'
+                          : 'var(--surface-4)'
                         }`,
                         boxShadow: isPos ? 'inset 0 1px 0 rgba(46,160,67,0.15)'
                           : isNeg ? 'inset 0 1px 0 rgba(248,81,73,0.15)'
@@ -314,12 +314,12 @@ function TradeCalendar({ trades, allTrades, onDayClick }) {
               <div key={i} className="flex-1 flex flex-col items-center justify-center rounded-xl transition-all"
                 style={{
                   minHeight: '44px',
-                  background: w.count === 0 ? 'rgba(255,255,255,0.02)'
+                  background: w.count === 0 ? 'var(--surface-1)'
                     : w.profit > 0 ? 'linear-gradient(145deg, rgba(46,160,67,0.14), rgba(46,160,67,0.05))'
                     : w.profit < 0 ? 'linear-gradient(145deg, rgba(248,81,73,0.14), rgba(248,81,73,0.05))'
                     : 'rgba(88,166,255,0.07)',
                   border: `1px solid ${
-                    w.count === 0 ? 'rgba(255,255,255,0.04)'
+                    w.count === 0 ? 'var(--surface-3)'
                     : w.profit > 0 ? 'rgba(46,160,67,0.25)'
                     : w.profit < 0 ? 'rgba(248,81,73,0.25)'
                     : 'rgba(88,166,255,0.2)'
@@ -337,7 +337,7 @@ function TradeCalendar({ trades, allTrades, onDayClick }) {
                     </span>
                   </>
                 ) : (
-                  <span style={{ color: 'rgba(255,255,255,0.05)', fontSize: 8 }}>—</span>
+                  <span style={{ color: 'var(--surface-4)', fontSize: 8 }}>—</span>
                 )}
               </div>
             ))}
@@ -361,17 +361,17 @@ function DayTradesModal({ trades, onClose, navigate }) {
     <div className="fixed inset-0 z-50 flex items-center justify-center" onClick={onClose}>
       {/* Overlay opaque — pas de backdropFilter ici pour éviter l'effet
           "flou transparent" qui laisse deviner le contenu derrière */}
-      <div className="absolute inset-0" style={{ background: 'rgba(5,7,10,0.88)' }} />
+      <div className="absolute inset-0" style={{ background: 'var(--modal-overlay)' }} />
 
       <div onClick={e => e.stopPropagation()}
         className="relative w-full max-w-sm mx-4 rounded-2xl overflow-hidden"
-        style={{ background: '#0E121A', border: '1px solid rgba(255,255,255,0.12)', boxShadow: '0 24px 64px rgba(0,0,0,0.7)', maxHeight: '80vh' }}>
-        <div className="flex items-center justify-between px-4 pt-4 pb-3 border-b" style={{ borderColor: 'rgba(255,255,255,0.07)' }}>
+        style={{ background: 'var(--modal-bg)', border: '1px solid var(--surface-12)', boxShadow: '0 24px 64px rgba(0,0,0,0.7)', maxHeight: '80vh' }}>
+        <div className="flex items-center justify-between px-4 pt-4 pb-3 border-b" style={{ borderColor: 'var(--surface-6)' }}>
           <div>
-            <p className="text-sm font-semibold text-white">{fmtDate(date)}</p>
+            <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{fmtDate(date)}</p>
             <p className="text-[10px] text-forge-muted mt-0.5">{trades.length} trade{trades.length > 1 ? 's' : ''}</p>
           </div>
-          <button onClick={onClose} className="text-forge-muted hover:text-white transition-colors"><X size={16} /></button>
+          <button onClick={onClose} className="text-forge-muted hover-text-primary transition-colors"><X size={16} /></button>
         </div>
         <div className="overflow-y-auto p-3 space-y-2" style={{ maxHeight: 'calc(80vh - 60px)' }}>
           {trades.map(t => {
@@ -379,13 +379,13 @@ function DayTradesModal({ trades, onClose, navigate }) {
             const color  = colors[t.result] || '#8B949E'
             return (
               <button key={t.id}
-                onClick={() => { onClose(); navigate(`/trades/${t.id}`) }}
+                onClick={() => { onClose(); navigate(`/app/trades/${t.id}`) }}
                 className="w-full flex items-center gap-3 p-3 rounded-xl text-left transition-all active:scale-[0.98] hover:bg-white/5"
                 style={{ border: `1px solid ${color}25`, background: `${color}08` }}>
                 <div className="w-2 h-8 rounded-full flex-shrink-0" style={{ background: color }} />
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
-                    <span className="text-sm font-semibold text-white">{t.market}</span>
+                    <span className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{t.market}</span>
                     <span className="text-xs font-mono" style={{ color: t.type === 'buy' ? '#2EA043' : '#F85149' }}>
                       {t.type?.toUpperCase()}
                     </span>
@@ -424,10 +424,10 @@ export default function Dashboard() {
     {/* Header */}
     <div className="flex items-center justify-between mb-5">
       <div className="space-y-1.5">
-        <div className="h-6 w-32 rounded-lg animate-pulse" style={{ background: 'rgba(255,255,255,0.07)' }} />
-        <div className="h-3 w-24 rounded-lg animate-pulse" style={{ background: 'rgba(255,255,255,0.04)' }} />
+        <div className="h-6 w-32 rounded-lg animate-pulse" style={{ background: 'var(--surface-6)' }} />
+        <div className="h-3 w-24 rounded-lg animate-pulse" style={{ background: 'var(--surface-3)' }} />
       </div>
-      <div className="h-4 w-16 rounded-lg animate-pulse" style={{ background: 'rgba(255,255,255,0.04)' }} />
+      <div className="h-4 w-16 rounded-lg animate-pulse" style={{ background: 'var(--surface-3)' }} />
     </div>
     {/* KPIs */}
     <div className="grid grid-cols-2 gap-3">
@@ -435,11 +435,11 @@ export default function Dashboard() {
       <SkeletonCard /><SkeletonCard />
     </div>
     {/* Graphique */}
-    <div className="rounded-2xl animate-pulse" style={{ background: 'rgba(255,255,255,0.04)', height: '200px' }} />
+    <div className="rounded-2xl animate-pulse" style={{ background: 'var(--surface-3)', height: '200px' }} />
     {/* Distribution */}
     <SkeletonCard />
     {/* Calendrier */}
-    <div className="rounded-2xl animate-pulse" style={{ background: 'rgba(255,255,255,0.04)', height: '340px' }} />
+    <div className="rounded-2xl animate-pulse" style={{ background: 'var(--surface-3)', height: '340px' }} />
   </div>
 )
 
@@ -561,7 +561,7 @@ const total       = trades.length
                   <stop offset="100%" stopColor="#F85149" stopOpacity={0} />
                 </linearGradient>
               </defs>
-              <CartesianGrid vertical={false} stroke="rgba(255,255,255,0.04)" />
+              <CartesianGrid vertical={false} stroke="var(--surface-3)" />
               <XAxis
                 dataKey="label"
                 tick={{ fill: '#8B949E', fontSize: 10 }}
@@ -576,7 +576,7 @@ const total       = trades.length
                 domain={[Math.floor(minEquity) - 1, Math.ceil(maxEquity) + 1]}
                 tickFormatter={v => `${v}R`}
               />
-              <ReferenceLine y={0} stroke="rgba(255,255,255,0.12)" strokeDasharray="4 4" />
+              <ReferenceLine y={0} stroke="var(--surface-12)" strokeDasharray="4 4" />
               <Tooltip content={<CustomTooltip />} />
               <Area
                 type="monotone"
@@ -614,7 +614,7 @@ const total       = trades.length
     <div key={label}>
       <p className="text-xl font-mono font-semibold" style={{ color }}>{count}</p>
       <p className="text-[10px] text-forge-muted">{label}</p>
-      <p className="text-[10px]" style={{ color: 'rgba(255,255,255,0.3)' }}>
+      <p className="text-[10px]" style={{ color: 'var(--text-faint)' }}>
         {total ? Math.round((count / total) * 100) : 0}%
       </p>
     </div>
@@ -682,7 +682,7 @@ const total       = trades.length
   <div className="sm:hidden mb-5">
     <div className="flex items-center justify-between mb-3">
       <p className="section-title mb-0">Trades récents</p>
-      <button onClick={() => navigate('/trades')}
+      <button onClick={() => navigate('/app/trades')}
         className="text-xs font-medium transition-colors"
         style={{ color: '#F7B731' }}>
         Voir tous →
@@ -697,13 +697,13 @@ const total       = trades.length
           const labels = { tp: 'TP', sl: 'SL', be: 'BE', missed: 'Missed', manual_exit: 'Manuel' }
           const color = colors[t.result] || '#8B949E'
           return (
-            <button key={t.id} onClick={() => navigate(`/trades/${t.id}`)}
+            <button key={t.id} onClick={() => navigate(`/app/trades/${t.id}`)}
               className="w-full flex items-center gap-3 p-3 rounded-2xl text-left transition-all active:scale-[0.99]"
-              style={{ background: 'rgba(22,27,34,0.8)', border: '1px solid rgba(255,255,255,0.07)' }}>
+              style={{ background: 'var(--surface-card)', border: '1px solid var(--surface-6)' }}>
               <div className="w-1.5 h-10 rounded-full flex-shrink-0" style={{ background: color }} />
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
-                  <span className="text-sm font-medium text-white">{t.market}</span>
+                  <span className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>{t.market}</span>
                   <span className="text-xs font-mono" style={{ color: t.type === 'buy' ? '#2EA043' : '#F85149' }}>
                     {t.type?.toUpperCase()}
                   </span>
@@ -725,7 +725,7 @@ const total       = trades.length
           )
         })}
     </div>
-    <button onClick={() => navigate('/trades')}
+    <button onClick={() => navigate('/app/trades')}
       className="w-full mt-3 py-3 rounded-2xl text-sm font-medium transition-all active:scale-[0.99]"
       style={{ background: 'rgba(247,183,49,0.07)', border: '1px solid rgba(247,183,49,0.2)', color: '#F7B731' }}>
       Voir tous les trades →

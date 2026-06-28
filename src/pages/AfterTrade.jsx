@@ -5,7 +5,7 @@ import { getTradeById, upsertHindsight, uploadImage } from '../services/supabase
 import { useAuth } from '../hooks/useAuth'
 import { TIMEFRAMES } from '../utils'
 
-// ── Field wrapper — identique à AddTrade ────────────────
+// ── Field wrapper ────────────────────────────────────────
 const Field = ({ label, required, children }) => (
   <div>
     <label className="label">
@@ -19,61 +19,86 @@ const Field = ({ label, required, children }) => (
 // ── Tag pill ─────────────────────────────────────────────
 function TagPill({ tag, onRemove }) {
   return (
-    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-medium border"
+    <span
+      className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-medium border"
       style={{
         background: 'rgba(247,183,49,0.10)',
         color: '#F7B731',
         borderColor: 'rgba(247,183,49,0.3)',
-      }}>
+      }}
+    >
       #{tag}
-      <button type="button" onClick={onRemove} className="text-forge-muted hover:text-forge-red transition-colors">
+      <button
+        type="button"
+        onClick={onRemove}
+        className="transition-colors hover:text-forge-red"
+        style={{ color: 'var(--forge-muted)' }}
+      >
         <X size={10} />
       </button>
     </span>
   )
 }
 
-// ── CaptureItem — photo ou lien ──────────────────────────
+// ── CaptureItem ──────────────────────────────────────────
 function CaptureItem({ cap, onRemove, onTimeframeChange }) {
   return (
-    <div className="flex items-center gap-2 rounded-xl p-2"
-      style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
+    <div
+      className="flex items-center gap-2 rounded-xl p-2"
+      style={{ background: 'var(--surface-4)', border: '1px solid var(--border-soft)' }}
+    >
       {cap.type === 'link' ? (
-        <div className="w-12 h-12 rounded-lg flex items-center justify-center flex-shrink-0"
-          style={{ background: 'rgba(88,166,255,0.1)', border: '1px solid rgba(88,166,255,0.2)' }}>
+        <div
+          className="w-12 h-12 rounded-lg flex items-center justify-center flex-shrink-0"
+          style={{ background: 'rgba(88,166,255,0.1)', border: '1px solid rgba(88,166,255,0.2)' }}
+        >
           <ExternalLink size={16} style={{ color: '#58a6ff' }} />
         </div>
       ) : (
-        <img src={cap.preview || cap.url} alt=""
-          className="w-12 h-12 object-cover rounded-lg flex-shrink-0" />
+        <img
+          src={cap.preview || cap.url}
+          alt=""
+          className="w-12 h-12 object-cover rounded-lg flex-shrink-0"
+        />
       )}
       <div className="flex-1 min-w-0">
         {cap.type === 'link' && (
-          <a href={cap.url} target="_blank" rel="noopener noreferrer"
+          <a
+            href={cap.url}
+            target="_blank"
+            rel="noopener noreferrer"
             className="text-xs truncate block mb-1 hover:underline"
-            style={{ color: '#58a6ff' }}>
+            style={{ color: '#58a6ff' }}
+          >
             {cap.label || cap.url}
           </a>
         )}
-        <select value={cap.timeframe} onChange={e => onTimeframeChange(e.target.value)}
-          className="w-full text-xs py-1.5">
+        <select
+          value={cap.timeframe}
+          onChange={e => onTimeframeChange(e.target.value)}
+          className="w-full text-xs py-1.5"
+        >
           {TIMEFRAMES.map(tf => <option key={tf}>{tf}</option>)}
         </select>
       </div>
-      <button type="button" onClick={onRemove}
-        className="text-forge-muted hover:text-forge-red transition-colors flex-shrink-0">
+      <button
+        type="button"
+        onClick={onRemove}
+        className="transition-colors flex-shrink-0 hover:text-forge-red"
+        style={{ color: 'var(--forge-muted)' }}
+      >
         <X size={16} />
       </button>
     </div>
   )
 }
 
-// ── AddCapturePanel — photo ou lien TradingView ──────────
+// ── AddCapturePanel ──────────────────────────────────────
 function AddCapturePanel({ onAdd }) {
-  const [mode, setMode] = useState('image')
-  const [url, setUrl]   = useState('')
+  const [mode, setMode]   = useState('image')
+  const [url, setUrl]     = useState('')
   const [label, setLabel] = useState('')
-  const [tf, setTf]     = useState('Daily')
+  const [tf, setTf]       = useState('Daily')
 
   const handleAddLink = () => {
     if (!url.trim()) return
@@ -83,18 +108,23 @@ function AddCapturePanel({ onAdd }) {
   }
 
   return (
-    <div className="rounded-xl p-3 space-y-2 mb-2"
-      style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)' }}>
-
+    <div
+      className="rounded-xl p-3 space-y-2 mb-2"
+      style={{ background: 'var(--surface-2)', border: '1px solid var(--border-soft)' }}
+    >
       {/* Mode toggle */}
       <div className="flex gap-1">
         {[['image', 'Image'], ['link', 'Lien TradingView']].map(([v, l]) => (
-          <button key={v} type="button" onClick={() => setMode(v)}
+          <button
+            key={v}
+            type="button"
+            onClick={() => setMode(v)}
             className="flex-1 py-1.5 rounded-lg text-xs font-medium border transition-all"
             style={mode === v
               ? { background: 'rgba(247,183,49,0.12)', color: '#F7B731', borderColor: 'rgba(247,183,49,0.3)' }
-              : { background: 'rgba(255,255,255,0.03)', color: '#8B949E', borderColor: 'rgba(255,255,255,0.08)' }
-            }>
+              : { background: 'var(--surface-3)', color: 'var(--forge-muted)', borderColor: 'var(--border-soft)' }
+            }
+          >
             {l}
           </button>
         ))}
@@ -102,36 +132,57 @@ function AddCapturePanel({ onAdd }) {
 
       {/* Timeframe */}
       <div>
-        <p className="text-[10px] text-forge-muted mb-1">Timeframe</p>
+        <p className="text-[10px] mb-1" style={{ color: 'var(--forge-muted)' }}>Timeframe</p>
         <select value={tf} onChange={e => setTf(e.target.value)} className="w-full text-xs py-1.5">
           {TIMEFRAMES.map(t => <option key={t}>{t}</option>)}
         </select>
       </div>
 
       {mode === 'image' ? (
-        <label className="flex items-center justify-center gap-2 py-3 rounded-xl cursor-pointer text-xs text-forge-muted hover:text-white transition-colors"
-          style={{ border: '2px dashed rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.02)' }}>
+        <label
+          className="flex items-center justify-center gap-2 py-3 rounded-xl cursor-pointer text-xs transition-colors hover-text-primary"
+          style={{
+            border: '2px dashed var(--border-medium)',
+            background: 'var(--surface-1)',
+            color: 'var(--forge-muted)',
+          }}
+        >
           <Upload size={13} /> Choisir une image
-          <input type="file" accept="image/*" multiple className="hidden"
+          <input
+            type="file"
+            accept="image/*"
+            multiple
+            className="hidden"
             onChange={e => {
               Array.from(e.target.files).forEach(file => {
                 onAdd({ type: 'file', file, preview: URL.createObjectURL(file), timeframe: tf })
               })
               e.target.value = ''
-            }} />
+            }}
+          />
         </label>
       ) : (
         <div className="space-y-2">
-          <input value={url} onChange={e => setUrl(e.target.value)}
+          <input
+            value={url}
+            onChange={e => setUrl(e.target.value)}
             placeholder="https://www.tradingview.com/chart/..."
-            className="w-full text-xs" />
+            className="w-full text-xs"
+          />
           <div className="flex gap-2">
-            <input value={label} onChange={e => setLabel(e.target.value)}
+            <input
+              value={label}
+              onChange={e => setLabel(e.target.value)}
               placeholder="Label (ex: Entrée H4)"
-              className="flex-1 text-xs" />
-            <button type="button" onClick={handleAddLink} disabled={!url.trim()}
+              className="flex-1 text-xs"
+            />
+            <button
+              type="button"
+              onClick={handleAddLink}
+              disabled={!url.trim()}
               className="px-3 py-1.5 rounded-lg text-xs font-medium transition-all disabled:opacity-40"
-              style={{ background: 'rgba(247,183,49,0.12)', color: '#F7B731', border: '1px solid rgba(247,183,49,0.25)' }}>
+              style={{ background: 'rgba(247,183,49,0.12)', color: '#F7B731', border: '1px solid rgba(247,183,49,0.25)' }}
+            >
               <Check size={12} />
             </button>
           </div>
@@ -147,9 +198,9 @@ export default function AfterTrade() {
   const navigate = useNavigate()
   const { user } = useAuth()
 
-  const [trade, setTrade]       = useState(null)
-  const [loading, setLoading]   = useState(true)
-  const [saving, setSaving]     = useState(false)
+  const [trade, setTrade]             = useState(null)
+  const [loading, setLoading]         = useState(true)
+  const [saving, setSaving]           = useState(false)
 
   const [form, setForm] = useState({
     main_error: '',
@@ -158,8 +209,8 @@ export default function AfterTrade() {
     notes: '',
   })
 
-  const [captures, setCaptures]       = useState([])  // { type:'file'|'link', ... }
-  const [existingCaps, setExistingCaps] = useState([]) // déjà sauvegardés
+  const [captures, setCaptures]         = useState([])
+  const [existingCaps, setExistingCaps] = useState([])
   const [removedCaps, setRemovedCaps]   = useState([])
   const [showAddPanel, setShowAddPanel] = useState(false)
 
@@ -196,23 +247,14 @@ export default function AfterTrade() {
   }, [id])
 
   // ── Captures handlers ────────────────────────────────
-  const addCapture = (cap) => {
-    setCaptures(c => [...c, cap])
-    setShowAddPanel(false)
-  }
-
-  const removeNew = (i) => setCaptures(c => c.filter((_, idx) => idx !== i))
-
+  const addCapture = (cap) => { setCaptures(c => [...c, cap]); setShowAddPanel(false) }
+  const removeNew  = (i)   => setCaptures(c => c.filter((_, idx) => idx !== i))
   const removeExisting = (cap) => {
     setExistingCaps(c => c.filter(x => x.url !== cap.url))
     if (cap.path) setRemovedCaps(r => [...r, cap.path])
   }
-
-  const updateNew = (i, tf) =>
-    setCaptures(c => c.map((cap, idx) => idx === i ? { ...cap, timeframe: tf } : cap))
-
-  const updateExisting = (i, tf) =>
-    setExistingCaps(c => c.map((cap, idx) => idx === i ? { ...cap, timeframe: tf } : cap))
+  const updateNew      = (i, tf) => setCaptures(c => c.map((cap, idx) => idx === i ? { ...cap, timeframe: tf } : cap))
+  const updateExisting = (i, tf) => setExistingCaps(c => c.map((cap, idx) => idx === i ? { ...cap, timeframe: tf } : cap))
 
   // ── Tags ─────────────────────────────────────────────
   const handleTagKey = (e) => {
@@ -244,7 +286,15 @@ export default function AfterTrade() {
         }
       }
 
-      const finalImages = [...existingCaps.map(c => ({ url: c.url, timeframe: c.timeframe, label: c.label || '', ...(c.path ? { path: c.path } : {}) })), ...newUploaded]
+      const finalImages = [
+        ...existingCaps.map(c => ({
+          url: c.url,
+          timeframe: c.timeframe,
+          label: c.label || '',
+          ...(c.path ? { path: c.path } : {}),
+        })),
+        ...newUploaded,
+      ]
 
       await upsertHindsight({
         trade_id:   id,
@@ -258,7 +308,7 @@ export default function AfterTrade() {
       })
 
       navigate(-1)
-        } catch (err) {
+    } catch (err) {
       alert('Erreur: ' + err.message)
     } finally {
       setSaving(false)
@@ -276,19 +326,23 @@ export default function AfterTrade() {
 
       {/* Header */}
       <div className="flex items-center gap-3 mb-6">
-        <button onClick={() => navigate(-1)} className="text-forge-muted hover:text-white transition-colors">
+        <button
+          onClick={() => navigate(-1)}
+          className="transition-colors hover-text-primary"
+          style={{ color: 'var(--forge-muted)' }}
+        >
           <ChevronLeft size={20} />
         </button>
-        <h1 className="text-lg font-semibold">After Trade</h1>
+        <h1 className="text-lg font-semibold" style={{ color: 'var(--text-primary)' }}>After Trade</h1>
       </div>
 
       {trade && (
-        <p className="text-xs text-forge-muted mb-4 -mt-4 ml-9">
+        <p className="text-xs mb-4 -mt-4 ml-9" style={{ color: 'var(--forge-muted)' }}>
           {trade.market} · {trade.date}
         </p>
       )}
 
-      <p className="text-xs text-forge-muted mb-4">
+      <p className="text-xs mb-4" style={{ color: 'var(--forge-muted)' }}>
         Les champs marqués <span className="text-forge-red">*</span> sont obligatoires.
       </p>
 
@@ -333,8 +387,10 @@ export default function AfterTrade() {
         {/* ── 2. Notes ── */}
         <div className="card">
           <p className="section-title mb-3">
-            Notes
-            <span className="text-forge-muted normal-case tracking-normal font-normal ml-1">(optionnel)</span>
+            Notes{' '}
+            <span className="normal-case tracking-normal font-normal" style={{ color: 'var(--forge-muted)' }}>
+              (optionnel)
+            </span>
           </p>
           <Field label="Contexte libre">
             <textarea
@@ -350,8 +406,10 @@ export default function AfterTrade() {
         {/* ── 3. Tags ── */}
         <div className="card">
           <p className="section-title mb-3">
-            Tags
-            <span className="text-forge-muted normal-case tracking-normal font-normal ml-1">(optionnel)</span>
+            Tags{' '}
+            <span className="normal-case tracking-normal font-normal" style={{ color: 'var(--forge-muted)' }}>
+              (optionnel)
+            </span>
           </p>
 
           {tags.length > 0 && (
@@ -374,52 +432,66 @@ export default function AfterTrade() {
         {/* ── 4. Captures ── */}
         <div className="card">
           <p className="section-title mb-3">
-            Captures & liens
-            <span className="text-forge-muted normal-case tracking-normal font-normal ml-1">(optionnel)</span>
+            Captures & liens{' '}
+            <span className="normal-case tracking-normal font-normal" style={{ color: 'var(--forge-muted)' }}>
+              (optionnel)
+            </span>
           </p>
 
-          {/* Existantes */}
           {existingCaps.length > 0 && (
             <div className="space-y-2 mb-3">
-              <p className="text-xs text-forge-muted">Enregistrées</p>
+              <p className="text-xs" style={{ color: 'var(--forge-muted)' }}>Enregistrées</p>
               {existingCaps.map((cap, i) => (
-                <CaptureItem key={i} cap={cap}
+                <CaptureItem
+                  key={i}
+                  cap={cap}
                   onRemove={() => removeExisting(cap)}
-                  onTimeframeChange={tf => updateExisting(i, tf)} />
+                  onTimeframeChange={tf => updateExisting(i, tf)}
+                />
               ))}
             </div>
           )}
 
-          {/* Nouvelles */}
           {captures.length > 0 && (
             <div className="space-y-2 mb-3">
-              {existingCaps.length > 0 && <p className="text-xs text-forge-muted">Nouvelles</p>}
+              {existingCaps.length > 0 && (
+                <p className="text-xs" style={{ color: 'var(--forge-muted)' }}>Nouvelles</p>
+              )}
               {captures.map((cap, i) => (
-                <CaptureItem key={i} cap={cap}
+                <CaptureItem
+                  key={i}
+                  cap={cap}
                   onRemove={() => removeNew(i)}
-                  onTimeframeChange={tf => updateNew(i, tf)} />
+                  onTimeframeChange={tf => updateNew(i, tf)}
+                />
               ))}
             </div>
           )}
 
-          {/* Panel ajout */}
           {showAddPanel && <AddCapturePanel onAdd={addCapture} />}
 
-          <button type="button"
+          <button
+            type="button"
             onClick={() => setShowAddPanel(v => !v)}
-            className="w-full flex items-center justify-center gap-2 rounded-xl p-3.5 transition-all text-forge-muted text-sm hover:text-white"
+            className="w-full flex items-center justify-center gap-2 rounded-xl p-3.5 transition-all text-sm hover-text-primary"
             style={{
-              border: `2px dashed ${showAddPanel ? 'rgba(247,183,49,0.3)' : 'rgba(255,255,255,0.12)'}`,
-              background: 'rgba(255,255,255,0.02)',
-            }}>
+              border: `2px dashed ${showAddPanel ? 'rgba(247,183,49,0.3)' : 'var(--border-medium)'}`,
+              background: 'var(--surface-1)',
+              color: 'var(--forge-muted)',
+            }}
+          >
             {showAddPanel ? <X size={15} /> : <Upload size={15} />}
             {showAddPanel ? 'Fermer' : 'Ajouter image ou lien'}
           </button>
         </div>
 
         {/* ── Submit ── */}
-        <button type="submit" disabled={saving} className="btn-primary w-full py-3.5 text-base disabled:opacity-40 disabled:cursor-not-allowed">
-          {saving ? 'Enregistrement...' : 'Sauvegarder l\'After Trade'}
+        <button
+          type="submit"
+          disabled={saving}
+          className="btn-primary w-full py-3.5 text-base disabled:opacity-40 disabled:cursor-not-allowed"
+        >
+          {saving ? 'Enregistrement...' : "Sauvegarder l'After Trade"}
         </button>
 
       </form>
