@@ -1134,10 +1134,18 @@ export default function RulesAndErrors({ defaultTab = 'rules' }) {
 
   return (
     <div className="page">
-      <div className="mb-5">
-        <h1 className="text-lg font-medium" style={{ color: 'var(--text-primary)' }}>Discipline</h1>
-        <p className="text-xs" style={{ color: 'var(--forge-muted)' }}>Règles, erreurs & backtest</p>
+      <div className="flex items-center justify-between mb-5">
+  <div>
+    <div className="flex items-center gap-2 mb-0.5">
+      <div className="w-7 h-7 rounded-xl flex items-center justify-center"
+        style={{ background: 'rgba(247,183,49,0.15)' }}>
+        <Shield size={14} className="text-forge-accent" />
       </div>
+      <h1 className="text-xl font-semibold" style={{ color: 'var(--text-primary)' }}>Discipline</h1>
+    </div>
+    <p className="text-xs" style={{ color: 'var(--forge-muted)' }}>Règles, erreurs & backtest</p>
+  </div>
+</div>
 
       {/* Tabs */}
       <div

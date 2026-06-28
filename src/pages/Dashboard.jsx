@@ -46,12 +46,13 @@ const StatCard = ({ label, value, sub, color, icon: Icon, glow }) => (
       <p className="label mb-0">{label}</p>
       {Icon && <Icon size={13} style={{ color: glow || '#8B949E', opacity: 0.7 }} />}
     </div>
-    <p className={`text-2xl font-mono font-semibold leading-none ${color || ''}`} style={color ? {} : { color: 'var(--text-primary)' }}>{value}</p>
+    <p className={`text-2xl font-mono font-semibold leading-none ${color || ''}`}
+      style={color ? {} : { color: 'var(--text-primary)' }}>{value}</p>
     {sub && <p className="text-[11px] text-forge-muted mt-0.5">{sub}</p>}
   </div>
 )
 
-// ── Calendrier de trades ───────────────────────────────────────
+// ── Calendrier de trades ────────────────────────────────────
 function TradeCalendar({ trades, allTrades, onDayClick }) {
   const [currentMonth, setCurrentMonth] = useState(new Date())
 
@@ -59,7 +60,6 @@ function TradeCalendar({ trades, allTrades, onDayClick }) {
   const monthEnd   = endOfMonth(currentMonth)
   const days       = eachDayOfInterval({ start: monthStart, end: monthEnd })
   const startDow   = getDay(monthStart)
-  const blanks     = Array(startDow).fill(null)
 
   const byDate = useMemo(() => {
     const map = {}
@@ -70,7 +70,6 @@ function TradeCalendar({ trades, allTrades, onDayClick }) {
     return map
   }, [trades])
 
-  // Tous les trades pour les calculs de semaine (inclut trades hors du mois)
   const byDateAll = useMemo(() => {
     const map = {}
     allTrades.forEach(t => {
@@ -87,15 +86,12 @@ function TradeCalendar({ trades, allTrades, onDayClick }) {
 
   const weeks = useMemo(() => {
     const allCellDates = []
-
     for (let i = 0; i < startDow; i++) {
       const d = new Date(monthStart)
       d.setDate(d.getDate() - (startDow - i))
       allCellDates.push(d)
     }
-
     days.forEach(d => allCellDates.push(d))
-
     const remainder = allCellDates.length % 7
     if (remainder !== 0) {
       const lastDay = days[days.length - 1]
@@ -105,7 +101,6 @@ function TradeCalendar({ trades, allTrades, onDayClick }) {
         allCellDates.push(d)
       }
     }
-
     const result = []
     for (let i = 0; i < allCellDates.length; i += 7) {
       const chunk = allCellDates.slice(i, i + 7)
@@ -132,7 +127,7 @@ function TradeCalendar({ trades, allTrades, onDayClick }) {
   }, [trades, currentMonth])
 
   const today    = format(new Date(), 'yyyy-MM-dd')
-  const allCells = [...blanks, ...days]
+  const allCells = [...Array(startDow).fill(null), ...days]
   const weekRows = []
   for (let i = 0; i < allCells.length; i += 7) weekRows.push(allCells.slice(i, i + 7))
 
@@ -143,8 +138,6 @@ function TradeCalendar({ trades, allTrades, onDayClick }) {
         border: '1px solid var(--surface-6)',
         boxShadow: '0 24px 64px rgba(0,0,0,0.5)',
       }}>
-
-      {/* Header navigation */}
       <div className="px-5 pt-5 pb-4" style={{ borderBottom: '1px solid var(--surface-4)' }}>
         <div className="flex items-center justify-between mb-4">
           <button onClick={() => setCurrentMonth(d => subMonths(d, 1))}
@@ -162,8 +155,6 @@ function TradeCalendar({ trades, allTrades, onDayClick }) {
             <ChevronRight size={16} style={{ color: '#8B949E' }} />
           </button>
         </div>
-
-        {/* Stats mois */}
         <div className="grid grid-cols-4 gap-2">
           {[
             { label: 'Trades',   value: monthStats.count || '—', color: 'var(--text-primary)' },
@@ -185,33 +176,24 @@ function TradeCalendar({ trades, allTrades, onDayClick }) {
         </div>
       </div>
 
-      {/* Corps calendrier */}
       <div className="p-3">
         <div className="flex gap-2">
-
-          {/* Grille principale */}
           <div className="flex-1 min-w-0">
-
-            {/* En-têtes */}
             <div className="grid grid-cols-7 gap-1.5 mb-1.5">
               {DAYS_FR.map((d, i) => (
                 <div key={d} className="text-center text-[10px] font-bold uppercase tracking-wider py-2 rounded-lg"
                   style={{
                     color: i === 0 ? 'rgba(247,183,49,0.8)' : 'rgba(139,148,158,0.5)',
                     background: i === 0 ? 'rgba(247,183,49,0.06)' : 'transparent',
-                    letterSpacing: '0.08em',
                   }}>
                   {d}
                 </div>
               ))}
             </div>
-
-            {/* Semaines */}
             {weekRows.map((week, wi) => (
               <div key={wi} className="grid grid-cols-7 gap-1.5 mb-1.5">
                 {week.map((day, di) => {
                   if (!day) return <div key={di} className="rounded-xl" style={{ aspectRatio: '1', background: 'var(--calendar-empty-cell)' }} />
-
                   const iso      = format(day, 'yyyy-MM-dd')
                   const ts       = byDate[iso]
                   const profit   = getDayProfit(ts)
@@ -222,48 +204,24 @@ function TradeCalendar({ trades, allTrades, onDayClick }) {
                   const isBreak  = profit !== null && profit === 0 && hasTrade
                   const isSun    = di === 0
                   const dayWr    = hasTrade ? calcWinRate(ts) : null
-
                   return (
                     <button key={di}
                       onClick={() => hasTrade && onDayClick(ts)}
                       className="relative rounded-xl flex flex-col overflow-hidden transition-all"
                       style={{
-                        aspectRatio: '1',
-                        cursor: hasTrade ? 'pointer' : 'default',
-                        padding: '7px 6px 6px',
-                        background: isPos   ? 'linear-gradient(145deg, rgba(46,160,67,0.22) 0%, rgba(46,160,67,0.08) 100%)'
-                          : isNeg   ? 'linear-gradient(145deg, rgba(248,81,73,0.22) 0%, rgba(248,81,73,0.08) 100%)'
-                          : isBreak ? 'linear-gradient(145deg, rgba(88,166,255,0.15) 0%, rgba(88,166,255,0.05) 100%)'
-                          : isToday ? 'rgba(247,183,49,0.06)'
-                          : isSun   ? 'rgba(247,183,49,0.02)'
-                          : 'var(--surface-1)',
-                        border: `1px solid ${
-                          isToday  ? 'rgba(247,183,49,0.6)'
-                          : isPos  ? 'rgba(46,160,67,0.4)'
-                          : isNeg  ? 'rgba(248,81,73,0.4)'
-                          : isBreak ? 'rgba(88,166,255,0.3)'
-                          : isSun  ? 'rgba(247,183,49,0.1)'
-                          : 'var(--surface-4)'
-                        }`,
-                        boxShadow: isPos ? 'inset 0 1px 0 rgba(46,160,67,0.15)'
-                          : isNeg ? 'inset 0 1px 0 rgba(248,81,73,0.15)'
-                          : isToday ? '0 0 0 1px rgba(247,183,49,0.2)'
-                          : 'none',
+                        aspectRatio: '1', cursor: hasTrade ? 'pointer' : 'default', padding: '7px 6px 6px',
+                        background: isPos ? 'linear-gradient(145deg,rgba(46,160,67,0.22),rgba(46,160,67,0.08))'
+                          : isNeg   ? 'linear-gradient(145deg,rgba(248,81,73,0.22),rgba(248,81,73,0.08))'
+                          : isBreak ? 'linear-gradient(145deg,rgba(88,166,255,0.15),rgba(88,166,255,0.05))'
+                          : isToday ? 'rgba(247,183,49,0.06)' : isSun ? 'rgba(247,183,49,0.02)' : 'var(--surface-1)',
+                        border: `1px solid ${isToday ? 'rgba(247,183,49,0.6)' : isPos ? 'rgba(46,160,67,0.4)' : isNeg ? 'rgba(248,81,73,0.4)' : isBreak ? 'rgba(88,166,255,0.3)' : isSun ? 'rgba(247,183,49,0.1)' : 'var(--surface-4)'}`,
                       }}>
-
-                      {/* Numéro jour — haut droite */}
                       <div className="flex justify-end mb-1">
                         <span className="text-[11px] font-bold leading-none"
-                          style={{
-                            color: isToday  ? '#F7B731'
-                              : hasTrade ? (isPos ? 'rgba(46,160,67,0.9)' : isNeg ? 'rgba(248,81,73,0.9)' : 'rgba(88,166,255,0.9)')
-                              : 'rgba(139,148,158,0.3)',
-                          }}>
+                          style={{ color: isToday ? '#F7B731' : hasTrade ? (isPos ? 'rgba(46,160,67,0.9)' : isNeg ? 'rgba(248,81,73,0.9)' : 'rgba(88,166,255,0.9)') : 'rgba(139,148,158,0.3)' }}>
                           {format(day, 'd')}
                         </span>
                       </div>
-
-                      {/* Contenu trade — caché sur mobile */}
                       {hasTrade && profit !== null && (
                         <div className="hidden sm:flex flex-col items-center justify-center flex-1 gap-0.5">
                           <span className="text-[12px] font-mono font-black leading-none text-center"
@@ -282,19 +240,10 @@ function TradeCalendar({ trades, allTrades, onDayClick }) {
                           )}
                         </div>
                       )}
-
-                      {/* Barre colorée en bas */}
                       {hasTrade && (
                         <div className="absolute bottom-0 left-0 right-0 h-[3px] rounded-b-xl"
-                          style={{
-                            background: isPos ? 'linear-gradient(90deg, #2EA043, #3fb950)'
-                              : isNeg ? 'linear-gradient(90deg, #F85149, #ff6b6b)'
-                              : 'linear-gradient(90deg, #58a6ff, #79c0ff)',
-                            opacity: 0.8,
-                          }} />
+                          style={{ background: isPos ? 'linear-gradient(90deg,#2EA043,#3fb950)' : isNeg ? 'linear-gradient(90deg,#F85149,#ff6b6b)' : 'linear-gradient(90deg,#58a6ff,#79c0ff)', opacity: 0.8 }} />
                       )}
-
-                      {/* Dot aujourd'hui sans trade */}
                       {isToday && !hasTrade && (
                         <div className="absolute bottom-2 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full"
                           style={{ background: '#F7B731', boxShadow: '0 0 4px rgba(247,183,49,0.6)' }} />
@@ -306,24 +255,15 @@ function TradeCalendar({ trades, allTrades, onDayClick }) {
             ))}
           </div>
 
-          {/* Colonne semaines */}
           <div className="hidden sm:flex flex-col w-[54px] flex-shrink-0 gap-1.5">
-            <div className="text-[9px] font-bold uppercase tracking-wider text-center py-2 rounded-lg mb-0"
+            <div className="text-[9px] font-bold uppercase tracking-wider text-center py-2 rounded-lg"
               style={{ color: 'rgba(139,148,158,0.4)' }}>Sem</div>
             {weeks.map((w, i) => (
               <div key={i} className="flex-1 flex flex-col items-center justify-center rounded-xl transition-all"
                 style={{
                   minHeight: '44px',
-                  background: w.count === 0 ? 'var(--surface-1)'
-                    : w.profit > 0 ? 'linear-gradient(145deg, rgba(46,160,67,0.14), rgba(46,160,67,0.05))'
-                    : w.profit < 0 ? 'linear-gradient(145deg, rgba(248,81,73,0.14), rgba(248,81,73,0.05))'
-                    : 'rgba(88,166,255,0.07)',
-                  border: `1px solid ${
-                    w.count === 0 ? 'var(--surface-3)'
-                    : w.profit > 0 ? 'rgba(46,160,67,0.25)'
-                    : w.profit < 0 ? 'rgba(248,81,73,0.25)'
-                    : 'rgba(88,166,255,0.2)'
-                  }`,
+                  background: w.count === 0 ? 'var(--surface-1)' : w.profit > 0 ? 'linear-gradient(145deg,rgba(46,160,67,0.14),rgba(46,160,67,0.05))' : w.profit < 0 ? 'linear-gradient(145deg,rgba(248,81,73,0.14),rgba(248,81,73,0.05))' : 'rgba(88,166,255,0.07)',
+                  border: `1px solid ${w.count === 0 ? 'var(--surface-3)' : w.profit > 0 ? 'rgba(46,160,67,0.25)' : w.profit < 0 ? 'rgba(248,81,73,0.25)' : 'rgba(88,166,255,0.2)'}`,
                 }}>
                 {w.count > 0 ? (
                   <>
@@ -331,8 +271,7 @@ function TradeCalendar({ trades, allTrades, onDayClick }) {
                       style={{ color: w.profit > 0 ? '#3fb950' : w.profit < 0 ? '#ff6b6b' : '#79c0ff' }}>
                       {w.profit > 0 ? '+' : ''}{w.profit}R
                     </span>
-                    <span className="text-[9px] mt-1 font-medium"
-                      style={{ color: 'rgba(139,148,158,0.45)' }}>
+                    <span className="text-[9px] mt-1 font-medium" style={{ color: 'rgba(139,148,158,0.45)' }}>
                       {w.count}t
                     </span>
                   </>
@@ -348,21 +287,13 @@ function TradeCalendar({ trades, allTrades, onDayClick }) {
   )
 }
 
-// ── Modal trades du jour ──────────────────────────────────────
+// ── Modal trades du jour ────────────────────────────────────
 function DayTradesModal({ trades, onClose, navigate }) {
   if (!trades?.length) return null
   const date = trades[0].date
-
-  // Rendu via portal directement dans <body> : la modale échappe ainsi
-  // à tout ancêtre avec transform/filter/will-change (ex: les classes
-  // d'animation de la page), qui sinon redéfinit le repère du
-  // `position: fixed` et fait "suivre" la modale au scroll.
   return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center" onClick={onClose}>
-      {/* Overlay opaque — pas de backdropFilter ici pour éviter l'effet
-          "flou transparent" qui laisse deviner le contenu derrière */}
       <div className="absolute inset-0" style={{ background: 'var(--modal-overlay)' }} />
-
       <div onClick={e => e.stopPropagation()}
         className="relative w-full max-w-sm mx-4 rounded-2xl overflow-hidden"
         style={{ background: 'var(--modal-bg)', border: '1px solid var(--surface-12)', boxShadow: '0 24px 64px rgba(0,0,0,0.7)', maxHeight: '80vh' }}>
@@ -413,60 +344,64 @@ function DayTradesModal({ trades, onClose, navigate }) {
   )
 }
 
-// ── Page principale ───────────────────────────────────────────
+// ── Page principale ─────────────────────────────────────────
 export default function Dashboard() {
   const { trades, loading } = useTrades()
   const navigate = useNavigate()
   const [dayTrades, setDayTrades] = useState(null)
 
+  // ── Fenêtre 30 jours ──────────────────────────────────────
+  const cutoff30 = format(subDays(new Date(), 29), 'yyyy-MM-dd')
+  const trades30 = useMemo(
+    () => trades.filter(t => t.date >= cutoff30),
+    [trades, cutoff30]
+  )
+
   if (loading) return (
-  <div className="page space-y-4">
-    {/* Header */}
-    <div className="flex items-center justify-between mb-5">
-      <div className="space-y-1.5">
-        <div className="h-6 w-32 rounded-lg animate-pulse" style={{ background: 'var(--surface-6)' }} />
-        <div className="h-3 w-24 rounded-lg animate-pulse" style={{ background: 'var(--surface-3)' }} />
+    <div className="page space-y-4">
+      <div className="flex items-center justify-between mb-5">
+        <div className="space-y-1.5">
+          <div className="h-6 w-32 rounded-lg animate-pulse" style={{ background: 'var(--surface-6)' }} />
+          <div className="h-3 w-24 rounded-lg animate-pulse" style={{ background: 'var(--surface-3)' }} />
+        </div>
+        <div className="h-4 w-16 rounded-lg animate-pulse" style={{ background: 'var(--surface-3)' }} />
       </div>
-      <div className="h-4 w-16 rounded-lg animate-pulse" style={{ background: 'var(--surface-3)' }} />
+      <div className="grid grid-cols-2 gap-3">
+        <SkeletonCard /><SkeletonCard /><SkeletonCard /><SkeletonCard />
+      </div>
+      <div className="rounded-2xl animate-pulse" style={{ background: 'var(--surface-3)', height: '200px' }} />
+      <SkeletonCard />
+      <div className="rounded-2xl animate-pulse" style={{ background: 'var(--surface-3)', height: '340px' }} />
     </div>
-    {/* KPIs */}
-    <div className="grid grid-cols-2 gap-3">
-      <SkeletonCard /><SkeletonCard />
-      <SkeletonCard /><SkeletonCard />
-    </div>
-    {/* Graphique */}
-    <div className="rounded-2xl animate-pulse" style={{ background: 'var(--surface-3)', height: '200px' }} />
-    {/* Distribution */}
-    <SkeletonCard />
-    {/* Calendrier */}
-    <div className="rounded-2xl animate-pulse" style={{ background: 'var(--surface-3)', height: '340px' }} />
-  </div>
-)
+  )
 
-  const winRate   = calcWinRate(trades)
-  const avgRR     = calcAvgRR(trades)
-  const profit    = calcTotalProfit(trades)
-  const discScore = calcDisciplineScore(trades)
-  const topErrors = getTopErrors(trades)
-  const patterns  = detectPatterns(trades)
+  // ── KPIs sur 30j ─────────────────────────────────────────
+  const winRate   = calcWinRate(trades30)
+  const avgRR     = calcAvgRR(trades30)
+  const profit    = calcTotalProfit(trades30)
+  const discScore = calcDisciplineScore(trades30)
+  const topErrors = getTopErrors(trades30)
+  const patterns  = detectPatterns(trades30)
 
-  // Equity curve 30j
-  const last30 = [...Array(30)].map((_, i) => {
-    const d = subDays(new Date(), 29 - i)
-    const label = format(d, 'dd/MM')
-    const dayTrades = trades.filter(t => t.date === format(d, 'yyyy-MM-dd'))
-    const pnl = dayTrades.reduce((acc, t) => {
+  const tp         = trades30.filter(t => t.result === 'tp').length
+  const sl         = trades30.filter(t => t.result === 'sl').length
+  const be         = trades30.filter(t => t.result === 'be').length
+  const missed     = trades30.filter(t => t.result === 'missed').length
+  const manualExit = trades30.filter(t => t.result === 'manual_exit').length
+  const total30    = trades30.length
+
+  // ── Equity curve 30j ─────────────────────────────────────
+  let cum = 0
+  const equityData = [...Array(30)].map((_, i) => {
+    const d   = subDays(new Date(), 29 - i)
+    const iso = format(d, 'yyyy-MM-dd')
+    const pnl = trades.filter(t => t.date === iso).reduce((acc, t) => {
       if (t.result === 'tp') return acc + (t.rr_won || 0)
       if (t.result === 'sl') return acc - 1
       return acc
     }, 0)
-    return { label, pnl }
-  })
-
-  let cum = 0
-  const equityData = last30.map(d => {
-    cum += d.pnl
-    return { label: d.label, equity: +cum.toFixed(2) }
+    cum += pnl
+    return { label: format(d, 'dd/MM'), equity: +cum.toFixed(2) }
   })
 
   const minEquity  = Math.min(...equityData.map(d => d.equity))
@@ -474,12 +409,7 @@ export default function Dashboard() {
   const lastEquity = equityData[equityData.length - 1]?.equity || 0
   const isUp       = lastEquity >= 0
 
-  const tp          = trades.filter(t => t.result === 'tp').length
-const sl          = trades.filter(t => t.result === 'sl').length
-const be          = trades.filter(t => t.result === 'be').length
-const missed      = trades.filter(t => t.result === 'missed').length
-const manualExit  = trades.filter(t => t.result === 'manual_exit').length
-const total       = trades.length
+  const totalAll = trades.length
 
   return (
     <div className="page animate-slide-up">
@@ -487,9 +417,15 @@ const total       = trades.length
       {/* Header */}
       <div className="flex items-center justify-between mb-5">
         <div>
-          <h1 className="text-xl font-semibold">Dashboard</h1>
+          <div className="flex items-center gap-2 mb-0.5">
+            <div className="w-7 h-7 rounded-xl flex items-center justify-center"
+              style={{ background: 'rgba(247,183,49,0.15)' }}>
+              <BarChart2 size={14} className="text-forge-accent" />
+            </div>
+            <h1 className="text-xl font-semibold" style={{ color: 'var(--text-primary)' }}>Dashboard</h1>
+          </div>
           <p className="text-xs text-forge-muted">
-            {total} trade{total !== 1 ? 's' : ''} enregistré{total !== 1 ? 's' : ''}
+            {totalAll} trade{totalAll !== 1 ? 's' : ''} au total
           </p>
         </div>
         <div className="flex items-center gap-2 text-xs text-forge-muted">
@@ -498,23 +434,34 @@ const total       = trades.length
         </div>
       </div>
 
-      {/* Stats grid */}
+      {/* Bandeau période */}
+      <div className="flex items-center gap-2 mb-4 px-3 py-2 rounded-xl text-xs"
+        style={{ background: 'rgba(247,183,49,0.07)', border: '1px solid rgba(247,183,49,0.15)' }}>
+        <span style={{ color: '#F7B731', fontWeight: 600 }}>30 derniers jours</span>
+        <span style={{ color: 'var(--text-tertiary)' }}>·</span>
+        <span style={{ color: 'var(--text-tertiary)' }}>
+          {total30} trade{total30 !== 1 ? 's' : ''}
+          {total30 < totalAll && ` sur ${totalAll} au total`}
+        </span>
+      </div>
+
+      {/* Stats grid — 30j */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-5">
         <StatCard
           label="Win Rate"
-          value={`${winRate}%`}
-          sub={`${tp} TP / ${sl} SL`}
-          color={winRate >= 50 ? 'text-forge-green' : 'text-forge-red'}
+          value={total30 ? `${winRate}%` : '—'}
+          sub={total30 ? `${tp} TP / ${sl} SL` : 'Aucun trade'}
+          color={!total30 ? '' : winRate >= 50 ? 'text-forge-green' : 'text-forge-red'}
           icon={Target}
-          glow={winRate >= 50 ? '#2EA043' : '#F85149'}
+          glow={!total30 ? undefined : winRate >= 50 ? '#2EA043' : '#F85149'}
         />
         <StatCard
-          label="Profit total"
-          value={profit >= 0 ? `+${profit.toFixed(1)}R` : `${profit.toFixed(1)}R`}
-          sub="cumul toutes sessions"
-          color={profit >= 0 ? 'text-forge-green' : 'text-forge-red'}
+          label="Profit 30j"
+          value={total30 ? (profit >= 0 ? `+${profit.toFixed(1)}R` : `${profit.toFixed(1)}R`) : '—'}
+          sub="cumul 30 jours"
+          color={!total30 ? '' : profit >= 0 ? 'text-forge-green' : 'text-forge-red'}
           icon={profit >= 0 ? TrendingUp : TrendingDown}
-          glow={profit >= 0 ? '#2EA043' : '#F85149'}
+          glow={!total30 ? undefined : profit >= 0 ? '#2EA043' : '#F85149'}
         />
         <StatCard
           label="RR Moyen"
@@ -524,16 +471,16 @@ const total       = trades.length
         />
         <StatCard
           label="Discipline"
-          value={`${discScore}/10`}
-          sub={discScore >= 7 ? 'Solide 💪' : discScore >= 5 ? 'À améliorer' : 'Attention ⚠️'}
-          color={discScore >= 7 ? 'text-forge-green' : discScore >= 5 ? 'text-forge-accent' : 'text-forge-red'}
+          value={total30 ? `${discScore}/10` : '—'}
+          sub={!total30 ? 'Aucun trade' : discScore >= 7 ? 'Solide 💪' : discScore >= 5 ? 'À améliorer' : 'Attention ⚠️'}
+          color={!total30 ? '' : discScore >= 7 ? 'text-forge-green' : discScore >= 5 ? 'text-forge-accent' : 'text-forge-red'}
           icon={Zap}
-          glow={discScore >= 7 ? '#2EA043' : discScore >= 5 ? '#F7B731' : '#F85149'}
+          glow={!total30 ? undefined : discScore >= 7 ? '#2EA043' : discScore >= 5 ? '#F7B731' : '#F85149'}
         />
       </div>
 
       {/* Equity chart */}
-      {trades.length > 0 && (
+      {totalAll > 0 && (
         <div className="card mb-5" style={{ borderColor: isUp ? 'rgba(46,160,67,0.2)' : 'rgba(248,81,73,0.2)' }}>
           <div className="flex items-center justify-between mb-4">
             <div>
@@ -548,7 +495,6 @@ const total       = trades.length
               <p className="text-[10px] text-forge-muted mt-0.5">cumulé</p>
             </div>
           </div>
-
           <ResponsiveContainer width="100%" height={160}>
             <AreaChart data={equityData} margin={{ top: 4, right: 0, left: -28, bottom: 0 }}>
               <defs>
@@ -562,73 +508,58 @@ const total       = trades.length
                 </linearGradient>
               </defs>
               <CartesianGrid vertical={false} stroke="var(--surface-3)" />
-              <XAxis
-                dataKey="label"
-                tick={{ fill: '#8B949E', fontSize: 10 }}
-                axisLine={false}
-                tickLine={false}
-                interval={6}
-              />
-              <YAxis
-                tick={{ fill: '#8B949E', fontSize: 10 }}
-                axisLine={false}
-                tickLine={false}
+              <XAxis dataKey="label" tick={{ fill: '#8B949E', fontSize: 10 }} axisLine={false} tickLine={false} interval={6} />
+              <YAxis tick={{ fill: '#8B949E', fontSize: 10 }} axisLine={false} tickLine={false}
                 domain={[Math.floor(minEquity) - 1, Math.ceil(maxEquity) + 1]}
-                tickFormatter={v => `${v}R`}
-              />
+                tickFormatter={v => `${v}R`} />
               <ReferenceLine y={0} stroke="var(--surface-12)" strokeDasharray="4 4" />
               <Tooltip content={<CustomTooltip />} />
-              <Area
-                type="monotone"
-                dataKey="equity"
-                stroke={isUp ? '#2EA043' : '#F85149'}
-                strokeWidth={2}
+              <Area type="monotone" dataKey="equity"
+                stroke={isUp ? '#2EA043' : '#F85149'} strokeWidth={2}
                 fill={isUp ? 'url(#eqUp)' : 'url(#eqDown)'}
-                dot={false}
-                activeDot={{ r: 4, strokeWidth: 0, fill: isUp ? '#2EA043' : '#F85149' }}
-              />
+                dot={false} activeDot={{ r: 4, strokeWidth: 0, fill: isUp ? '#2EA043' : '#F85149' }} />
             </AreaChart>
           </ResponsiveContainer>
         </div>
       )}
 
-      {/* Distribution résultats */}
-      {total > 0 && (
+      {/* Distribution résultats — 30j */}
+      {total30 > 0 && (
         <div className="card mb-5">
-          <p className="section-title">Distribution des résultats</p>
+          <p className="section-title">Distribution des résultats · 30j</p>
           <div className="flex gap-1 h-2 rounded-full overflow-hidden mb-3">
-  {tp > 0          && <div style={{ flex: tp,         background: '#2EA043' }} />}
-  {sl > 0          && <div style={{ flex: sl,         background: '#F85149' }} />}
-  {be > 0          && <div style={{ flex: be,         background: '#58a6ff' }} />}
-  {missed > 0      && <div style={{ flex: missed,     background: '#8B949E' }} />}
-  {manualExit > 0  && <div style={{ flex: manualExit, background: '#F79009' }} />}
-</div>
-<div className="grid grid-cols-5 gap-2 text-center">
-  {[
-    { label: 'TP',     count: tp,         color: '#2EA043' },
-    { label: 'SL',     count: sl,         color: '#F85149' },
-    { label: 'BE',     count: be,         color: '#58a6ff' },
-    { label: 'Missed', count: missed,     color: '#8B949E' },
-    { label: 'Manuel', count: manualExit, color: '#F79009' },
-  ].map(({ label, count, color }) => (
-    <div key={label}>
-      <p className="text-xl font-mono font-semibold" style={{ color }}>{count}</p>
-      <p className="text-[10px] text-forge-muted">{label}</p>
-      <p className="text-[10px]" style={{ color: 'var(--text-faint)' }}>
-        {total ? Math.round((count / total) * 100) : 0}%
-      </p>
-    </div>
-  ))}
-</div>
+            {tp > 0         && <div style={{ flex: tp,         background: '#2EA043' }} />}
+            {sl > 0         && <div style={{ flex: sl,         background: '#F85149' }} />}
+            {be > 0         && <div style={{ flex: be,         background: '#58a6ff' }} />}
+            {missed > 0     && <div style={{ flex: missed,     background: '#8B949E' }} />}
+            {manualExit > 0 && <div style={{ flex: manualExit, background: '#F79009' }} />}
+          </div>
+          <div className="grid grid-cols-5 gap-2 text-center">
+            {[
+              { label: 'TP',     count: tp,         color: '#2EA043' },
+              { label: 'SL',     count: sl,         color: '#F85149' },
+              { label: 'BE',     count: be,         color: '#58a6ff' },
+              { label: 'Missed', count: missed,     color: '#8B949E' },
+              { label: 'Manuel', count: manualExit, color: '#F79009' },
+            ].map(({ label, count, color }) => (
+              <div key={label}>
+                <p className="text-xl font-mono font-semibold" style={{ color }}>{count}</p>
+                <p className="text-[10px] text-forge-muted">{label}</p>
+                <p className="text-[10px]" style={{ color: 'var(--text-faint)' }}>
+                  {total30 ? Math.round((count / total30) * 100) : 0}%
+                </p>
+              </div>
+            ))}
+          </div>
         </div>
       )}
 
-      {/* IA Insights + Top erreurs */}
+      {/* IA Insights + Top erreurs — 30j */}
       <div className={`mb-5 ${patterns.length > 0 && topErrors.length > 0 ? 'lg:grid lg:grid-cols-2 lg:gap-4' : ''}`}>
         {patterns.length > 0 && (
           <div className="mb-5">
             <p className="section-title flex items-center gap-1.5">
-              <Brain size={12} /> IA Insights
+              <Brain size={12} /> IA Insights · 30j
             </p>
             <div className="space-y-2">
               {patterns.map((p, i) => (
@@ -643,10 +574,9 @@ const total       = trades.length
             </div>
           </div>
         )}
-
         {topErrors.length > 0 && (
           <div className="mb-5">
-            <p className="section-title">Top erreurs psychologiques</p>
+            <p className="section-title">Top erreurs · 30j</p>
             <div className="card space-y-3">
               {topErrors.map(({ label, count }) => (
                 <div key={label}>
@@ -655,13 +585,11 @@ const total       = trades.length
                     <span className="font-mono text-xs text-forge-muted">{count}×</span>
                   </div>
                   <div className="h-1.5 bg-forge-border rounded-full overflow-hidden">
-                    <div
-                      className="h-full rounded-full transition-all"
+                    <div className="h-full rounded-full transition-all"
                       style={{
-                        width: `${Math.min((count / total) * 100 * 3, 100)}%`,
-                        background: 'linear-gradient(90deg, rgba(247,183,49,0.8), rgba(247,183,49,0.4))',
-                      }}
-                    />
+                        width: `${Math.min((count / total30) * 100 * 3, 100)}%`,
+                        background: 'linear-gradient(90deg,rgba(247,183,49,0.8),rgba(247,183,49,0.4))',
+                      }} />
                   </div>
                 </div>
               ))}
@@ -670,71 +598,72 @@ const total       = trades.length
         )}
       </div>
 
-      {/* Calendrier — desktop uniquement */}
-{total > 0 && (
-  <div className="hidden sm:block">
-    <TradeCalendar trades={trades} allTrades={trades} onDayClick={setDayTrades} />
-  </div>
-)}
+      {/* Calendrier — sur tous les trades, desktop only */}
+      {totalAll > 0 && (
+        <div className="hidden sm:block">
+          <p className="section-title mb-3">Calendrier — tous les trades</p>
+          <TradeCalendar trades={trades} allTrades={trades} onDayClick={setDayTrades} />
+        </div>
+      )}
 
-{/* Trades récents — mobile uniquement */}
-{total > 0 && (
-  <div className="sm:hidden mb-5">
-    <div className="flex items-center justify-between mb-3">
-      <p className="section-title mb-0">Trades récents</p>
-      <button onClick={() => navigate('/app/trades')}
-        className="text-xs font-medium transition-colors"
-        style={{ color: '#F7B731' }}>
-        Voir tous →
-      </button>
-    </div>
-    <div className="space-y-2">
-      {[...trades]
-        .sort((a, b) => b.date.localeCompare(a.date))
-        .slice(0, 5)
-        .map(t => {
-          const colors = { tp: '#2EA043', sl: '#F85149', be: '#58a6ff', missed: '#8B949E', manual_exit: '#F79009' }
-          const labels = { tp: 'TP', sl: 'SL', be: 'BE', missed: 'Missed', manual_exit: 'Manuel' }
-          const color = colors[t.result] || '#8B949E'
-          return (
-            <button key={t.id} onClick={() => navigate(`/app/trades/${t.id}`)}
-              className="w-full flex items-center gap-3 p-3 rounded-2xl text-left transition-all active:scale-[0.99]"
-              style={{ background: 'var(--surface-card)', border: '1px solid var(--surface-6)' }}>
-              <div className="w-1.5 h-10 rounded-full flex-shrink-0" style={{ background: color }} />
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2">
-                  <span className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>{t.market}</span>
-                  <span className="text-xs font-mono" style={{ color: t.type === 'buy' ? '#2EA043' : '#F85149' }}>
-                    {t.type?.toUpperCase()}
-                  </span>
-                </div>
-                <p className="text-[10px] text-forge-muted">{fmtDate(t.date)}</p>
-              </div>
-              <div className="text-right flex-shrink-0">
-                <span className="text-xs font-semibold px-2 py-0.5 rounded-lg"
-                  style={{ background: `${color}20`, color, border: `1px solid ${color}30` }}>
-                  {labels[t.result] || t.result}
-                </span>
-                {t.rr_won != null && (
-                  <p className="text-xs font-mono mt-0.5" style={{ color }}>
-                    {t.rr_won >= 0 ? '+' : ''}{t.rr_won}R
-                  </p>
-                )}
-              </div>
+      {/* Trades récents — mobile only, tous les trades */}
+      {totalAll > 0 && (
+        <div className="sm:hidden mb-5">
+          <div className="flex items-center justify-between mb-3">
+            <p className="section-title mb-0">Trades récents</p>
+            <button onClick={() => navigate('/app/trades')}
+              className="text-xs font-medium transition-colors"
+              style={{ color: '#F7B731' }}>
+              Voir tous →
             </button>
-          )
-        })}
-    </div>
-    <button onClick={() => navigate('/app/trades')}
-      className="w-full mt-3 py-3 rounded-2xl text-sm font-medium transition-all active:scale-[0.99]"
-      style={{ background: 'rgba(247,183,49,0.07)', border: '1px solid rgba(247,183,49,0.2)', color: '#F7B731' }}>
-      Voir tous les trades →
-    </button>
-  </div>
-)}
+          </div>
+          <div className="space-y-2">
+            {[...trades]
+              .sort((a, b) => b.date.localeCompare(a.date))
+              .slice(0, 5)
+              .map(t => {
+                const colors = { tp: '#2EA043', sl: '#F85149', be: '#58a6ff', missed: '#8B949E', manual_exit: '#F79009' }
+                const labels = { tp: 'TP', sl: 'SL', be: 'BE', missed: 'Missed', manual_exit: 'Manuel' }
+                const color = colors[t.result] || '#8B949E'
+                return (
+                  <button key={t.id} onClick={() => navigate(`/app/trades/${t.id}`)}
+                    className="w-full flex items-center gap-3 p-3 rounded-2xl text-left transition-all active:scale-[0.99]"
+                    style={{ background: 'var(--surface-card)', border: '1px solid var(--surface-6)' }}>
+                    <div className="w-1.5 h-10 rounded-full flex-shrink-0" style={{ background: color }} />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>{t.market}</span>
+                        <span className="text-xs font-mono" style={{ color: t.type === 'buy' ? '#2EA043' : '#F85149' }}>
+                          {t.type?.toUpperCase()}
+                        </span>
+                      </div>
+                      <p className="text-[10px] text-forge-muted">{fmtDate(t.date)}</p>
+                    </div>
+                    <div className="text-right flex-shrink-0">
+                      <span className="text-xs font-semibold px-2 py-0.5 rounded-lg"
+                        style={{ background: `${color}20`, color, border: `1px solid ${color}30` }}>
+                        {labels[t.result] || t.result}
+                      </span>
+                      {t.rr_won != null && (
+                        <p className="text-xs font-mono mt-0.5" style={{ color }}>
+                          {t.rr_won >= 0 ? '+' : ''}{t.rr_won}R
+                        </p>
+                      )}
+                    </div>
+                  </button>
+                )
+              })}
+          </div>
+          <button onClick={() => navigate('/app/trades')}
+            className="w-full mt-3 py-3 rounded-2xl text-sm font-medium transition-all active:scale-[0.99]"
+            style={{ background: 'rgba(247,183,49,0.07)', border: '1px solid rgba(247,183,49,0.2)', color: '#F7B731' }}>
+            Voir tous les trades →
+          </button>
+        </div>
+      )}
 
       {/* Empty state */}
-      {total === 0 && (
+      {totalAll === 0 && (
         <div className="text-center py-20">
           <div className="w-16 h-16 rounded-2xl mx-auto mb-4 flex items-center justify-center"
             style={{ background: 'rgba(247,183,49,0.1)', border: '1px solid rgba(247,183,49,0.2)' }}>
@@ -745,13 +674,8 @@ const total       = trades.length
         </div>
       )}
 
-      {/* Modal trades du jour */}
       {dayTrades && (
-        <DayTradesModal
-          trades={dayTrades}
-          onClose={() => setDayTrades(null)}
-          navigate={navigate}
-        />
+        <DayTradesModal trades={dayTrades} onClose={() => setDayTrades(null)} navigate={navigate} />
       )}
     </div>
   )

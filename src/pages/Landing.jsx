@@ -222,14 +222,20 @@ export default function Landing() {
       {/* ══ NAV ══════════════════════════════════════════════ */}
       <nav style={{
         position: 'fixed', top: 0, left: 0, right: 0, zIndex: 50,
-        height: 56,
-        display: 'flex', alignItems: 'center',
-        padding: '0 clamp(1rem,5vw,2.5rem)',
-        background: isDark ? 'rgba(7,10,15,0.88)' : 'rgba(247,245,240,0.9)',
+        background: isDark ? 'rgba(7,10,15,0.92)' : 'rgba(247,245,240,0.94)',
         backdropFilter: 'blur(20px)',
+        WebkitBackdropFilter: 'blur(20px)',
         borderBottom: isDark ? '1px solid rgba(255,255,255,0.06)' : '1px solid rgba(20,16,8,0.08)',
         transition: 'background 0.25s',
+        /* La nav englobe la safe area + la barre de 56px */
+        paddingTop: 'env(safe-area-inset-top)',
       }}>
+        {/* Barre de navigation réelle sous la safe area */}
+        <div style={{
+          height: 56,
+          display: 'flex', alignItems: 'center',
+          padding: '0 clamp(1rem,5vw,2.5rem)',
+        }}>
         {/* Logo */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1 }}>
           <div style={{
@@ -286,13 +292,17 @@ export default function Landing() {
             Commencer
           </button>
         </div>
+        </div>{/* end inner row */}
       </nav>
 
       {/* ══ HERO ═════════════════════════════════════════════ */}
       <section style={{
         minHeight: '100vh',
         display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-        padding: 'clamp(5.5rem,12vw,8rem) clamp(1rem,5vw,2.5rem) clamp(2rem,5vw,4rem)',
+        paddingTop: 'calc(env(safe-area-inset-top) + 56px + clamp(2.5rem,6vw,4rem))',
+        paddingLeft: 'clamp(1rem,5vw,2.5rem)',
+        paddingRight: 'clamp(1rem,5vw,2.5rem)',
+        paddingBottom: 'clamp(2rem,5vw,4rem)',
         textAlign: 'center',
       }}>
         {/* Badge */}

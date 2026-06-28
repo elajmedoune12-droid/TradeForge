@@ -1,4 +1,5 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom'
+import { useEffect } from 'react'
 import { AuthProvider, useAuth } from './hooks/useAuth'
 import { ThemeProvider } from './hooks/useTheme'
 import Layout from './components/Layout'
@@ -17,6 +18,29 @@ import MonthlyAnalysis from './pages/MonthlyAnalysis'
 import Settings from './pages/Settings'
 import Profile from './pages/Profile'
 import WeeklyForecast from './pages/WeeklyForecast'
+
+// ── Mémorise et restaure la dernière route ────────────────────
+function LocationMemory() {
+  const location = useLocation()
+  const navigate = useNavigate()
+
+  // Sauvegarde à chaque changement de page
+  useEffect(() => {
+    if (location.pathname.startsWith('/app')) {
+      localStorage.setItem('lastRoute', location.pathname)
+    }
+  }, [location])
+
+  // Au premier chargement, redirige vers la dernière route
+  useEffect(() => {
+    const last = localStorage.getItem('lastRoute')
+    if (last && location.pathname === '/') {
+      navigate(last, { replace: true })
+    }
+  }, [])
+
+  return null
+}
 
 const PrivateRoute = ({ children }) => {
   const { user, loading } = useAuth()
@@ -61,6 +85,7 @@ export default function App() {
     <ThemeProvider>
       <AuthProvider>
         <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+          <LocationMemory />
           <AppRoutes />
         </BrowserRouter>
       </AuthProvider>

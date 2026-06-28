@@ -1,3 +1,4 @@
+import { useUIStore } from '../store/useUIStore'
 import { useState, useEffect, useMemo, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
@@ -432,7 +433,11 @@ export default function WeeklyForecast() {
   const navigate  = useNavigate()
   const { trades, loading: tradesLoading } = useTrades()
 
-  const [current, setCurrent]             = useState(new Date())
+  const { currentWeek } = useUIStore(s => s.weekly)
+const setWeeklyState  = useUIStore(s => s.setWeeklyState)
+const [current, setCurrent] = useState(
+  currentWeek ? new Date(currentWeek) : new Date()
+)
   const [editMode, setEditMode]           = useState(false)
   const [lightbox, setLightbox]           = useState(null)
   const [showAddAnalysis, setShowAddAnalysis] = useState(false)
@@ -557,7 +562,7 @@ export default function WeeklyForecast() {
       {/* ── Nav semaine ── */}
       <div className="flex items-center justify-between mb-5">
         <button
-          onClick={() => { setCurrent(d => subWeeks(d, 1)); setEditMode(false) }}
+          onClick={() => { setCurrent(d => { const next = subWeeks(d, 1); setWeeklyState({ currentWeek: next.toISOString() }); return next }) ; setEditMode(false) }}
           className="w-9 h-9 rounded-xl flex items-center justify-center transition-all active:scale-95"
           style={{ border: '1px solid var(--border-soft)', color: 'var(--text-primary)' }}
           onMouseEnter={e => e.currentTarget.style.background = 'var(--surface-4)'}
@@ -579,7 +584,7 @@ export default function WeeklyForecast() {
         </div>
 
         <button
-          onClick={() => { setCurrent(d => addWeeks(d, 1)); setEditMode(false) }}
+          onClick={() => { setCurrent(d => { const next = addWeeks(d, 1); setWeeklyState({ currentWeek: next.toISOString() }); return next }); setEditMode(false) }}
           disabled={isCurrentWeek}
           className="w-9 h-9 rounded-xl flex items-center justify-center transition-all active:scale-95 disabled:opacity-30"
           style={{ border: '1px solid var(--border-soft)', color: 'var(--text-primary)' }}
