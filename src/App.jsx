@@ -1,5 +1,5 @@
 import { BrowserRouter, Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom'
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import { AuthProvider, useAuth } from './hooks/useAuth'
 import { ThemeProvider } from './hooks/useTheme'
 import Layout from './components/Layout'
@@ -24,20 +24,63 @@ function LocationMemory() {
   const location = useLocation()
   const navigate = useNavigate()
 
-  // Sauvegarde à chaque changement de page
   useEffect(() => {
     if (location.pathname.startsWith('/app')) {
-      localStorage.setItem('lastRoute', location.pathname)
+      sessionStorage.setItem('lastRoute', location.pathname)
     }
   }, [location])
 
-  // Au premier chargement, redirige vers la dernière route
   useEffect(() => {
-    const last = localStorage.getItem('lastRoute')
+    const last = sessionStorage.getItem('lastRoute')
     if (last && location.pathname === '/') {
       navigate(last, { replace: true })
     }
   }, [])
+
+  return null
+}
+
+// Pages où on revient toujours en haut (pas de restauration)
+const ALWAYS_TOP = [
+  '/app/trades/new',
+  '/app/hindsights/new',
+]
+
+const isAlwaysTop = (path) =>
+  ALWAYS_TOP.some(p => path === p) ||
+  path.endsWith('/edit') ||
+  path.endsWith('/after-trade')
+
+// ── Scroll manager : sauvegarde + restauration par route ──────
+function ScrollManager() {
+  const { pathname } = useLocation()
+  const positions = useRef({})   // { [pathname]: scrollY }
+  const prevPath  = useRef(null)
+
+  useEffect(() => {
+    const prev = prevPath.current
+
+    // 1. Sauvegarder la position de la page qu'on quitte
+    if (prev && prev !== pathname) {
+      positions.current[prev] = window.scrollY
+    }
+
+    // 2. Restaurer ou remettre en haut
+    const saved = positions.current[pathname]
+
+    if (isAlwaysTop(pathname) || saved == null) {
+      // Page jamais visitée ou page "création" → haut
+      window.scrollTo({ top: 0, behavior: 'instant' })
+    } else {
+      // Page déjà visitée → restaurer position
+      // On attend le prochain frame pour que le DOM soit prêt
+      requestAnimationFrame(() => {
+        window.scrollTo({ top: saved, behavior: 'instant' })
+      })
+    }
+
+    prevPath.current = pathname
+  }, [pathname])
 
   return null
 }
@@ -54,12 +97,10 @@ const PrivateRoute = ({ children }) => {
 
 const AppRoutes = () => (
   <Routes>
-    {/* Pages publiques */}
     <Route path="/"               element={<Landing />} />
     <Route path="/login"          element={<Login />} />
     <Route path="/reset-password" element={<ResetPassword />} />
 
-    {/* App privée — toutes les routes internes sous /app */}
     <Route path="/app" element={<PrivateRoute><Layout /></PrivateRoute>}>
       <Route index                                     element={<Navigate to="/app/dashboard" replace />} />
       <Route path="dashboard"                          element={<Dashboard />} />
@@ -86,6 +127,7 @@ export default function App() {
       <AuthProvider>
         <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
           <LocationMemory />
+          <ScrollManager />
           <AppRoutes />
         </BrowserRouter>
       </AuthProvider>

@@ -1,3 +1,4 @@
+import { useUIStore } from '../store/useUIStore'
 import { useState, useMemo } from 'react'
 import { ChevronLeft, ChevronRight, Target, Pencil, Check, X, Trash2, TrendingUp, TrendingDown, Sparkles, BarChart2, Zap, Trophy } from 'lucide-react'
 import {
@@ -155,7 +156,11 @@ const StatCard = ({ label, value, sub, color, icon: Icon, glow }) => (
 // ── Main ─────────────────────────────────────────────────────
 export default function MonthlyAnalysis() {
   const { trades, loading: tradesLoading } = useTrades()
-  const [current, setCurrent] = useState(new Date())
+  const { currentMonth } = useUIStore(s => s.monthly)
+  const setMonthlyState  = useUIStore(s => s.setMonthlyState)
+  const [current, setCurrent] = useState(
+    currentMonth ? new Date(currentMonth) : new Date()
+  )
   const [editing, setEditing] = useState(false)
   const [showAI, setShowAI]   = useState(false)
 
@@ -271,6 +276,18 @@ export default function MonthlyAnalysis() {
     _goal: goal,
   }), [stats, goal, disciplineAvg, year, month])
 
+  const goToPrevMonth = () => {
+  const next = subMonths(current, 1)
+  setCurrent(next)
+  setMonthlyState({ currentMonth: next.toISOString() })
+}
+
+const goToNextMonth = () => {
+  const next = addMonths(current, 1)
+  setCurrent(next)
+  setMonthlyState({ currentMonth: next.toISOString() })
+}
+
   if (tradesLoading || goalLoading) return (
     <div className="page space-y-4">
       <div className="flex items-center justify-between mb-5">
@@ -294,7 +311,7 @@ export default function MonthlyAnalysis() {
       {/* ── Sélecteur de mois ── */}
       <div className="flex items-center justify-between mb-5">
         <button
-          onClick={() => setCurrent(d => subMonths(d, 1))}
+          onClick={goToNextMonth}
           className="w-9 h-9 rounded-xl flex items-center justify-center transition-all active:scale-95 hover-text-primary"
           style={{ border: '1px solid var(--border-soft)', color: 'var(--forge-muted)' }}
         >
@@ -311,7 +328,7 @@ export default function MonthlyAnalysis() {
         </div>
 
         <button
-          onClick={() => setCurrent(d => addMonths(d, 1))}
+          onClick={goToPrevMonth}
           disabled={isCurrentMonth}
           className="w-9 h-9 rounded-xl flex items-center justify-center transition-all active:scale-95 hover-text-primary disabled:opacity-30"
           style={{ border: '1px solid var(--border-soft)', color: 'var(--forge-muted)' }}

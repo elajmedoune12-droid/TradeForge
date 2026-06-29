@@ -554,6 +554,20 @@ const [current, setCurrent] = useState(
     }
   }
 
+  const goToPrevWeek = () => {
+  const next = subWeeks(current, 1)
+  setCurrent(next)
+  setWeeklyState({ currentWeek: next.toISOString() })
+  setEditMode(false)
+}
+
+const goToNextWeek = () => {
+  const next = addWeeks(current, 1)
+  setCurrent(next)
+  setWeeklyState({ currentWeek: next.toISOString() })
+  setEditMode(false)
+}
+
   if (tradesLoading || fcLoading) return <LoadingSkeleton />
 
   return (
@@ -562,7 +576,7 @@ const [current, setCurrent] = useState(
       {/* ── Nav semaine ── */}
       <div className="flex items-center justify-between mb-5">
         <button
-          onClick={() => { setCurrent(d => { const next = subWeeks(d, 1); setWeeklyState({ currentWeek: next.toISOString() }); return next }) ; setEditMode(false) }}
+          onClick={goToPrevWeek}
           className="w-9 h-9 rounded-xl flex items-center justify-center transition-all active:scale-95"
           style={{ border: '1px solid var(--border-soft)', color: 'var(--text-primary)' }}
           onMouseEnter={e => e.currentTarget.style.background = 'var(--surface-4)'}
@@ -584,7 +598,7 @@ const [current, setCurrent] = useState(
         </div>
 
         <button
-          onClick={() => { setCurrent(d => { const next = addWeeks(d, 1); setWeeklyState({ currentWeek: next.toISOString() }); return next }); setEditMode(false) }}
+          onClick={goToNextWeek}
           disabled={isCurrentWeek}
           className="w-9 h-9 rounded-xl flex items-center justify-center transition-all active:scale-95 disabled:opacity-30"
           style={{ border: '1px solid var(--border-soft)', color: 'var(--text-primary)' }}

@@ -1,3 +1,4 @@
+import { useUIStore } from '../store/useUIStore'
 import { useState, useMemo } from 'react'
 import { createPortal } from 'react-dom'
 import { useNavigate } from 'react-router-dom'
@@ -54,7 +55,11 @@ const StatCard = ({ label, value, sub, color, icon: Icon, glow }) => (
 
 // ── Calendrier de trades ────────────────────────────────────
 function TradeCalendar({ trades, allTrades, onDayClick }) {
-  const [currentMonth, setCurrentMonth] = useState(new Date())
+  const { calendarMonth } = useUIStore(s => s.dashboard)
+const setDashboardState = useUIStore(s => s.setDashboardState)
+const [currentMonth, setCurrentMonth] = useState(
+  calendarMonth ? new Date(calendarMonth) : new Date()
+)
 
   const monthStart = startOfMonth(currentMonth)
   const monthEnd   = endOfMonth(currentMonth)
@@ -140,7 +145,11 @@ function TradeCalendar({ trades, allTrades, onDayClick }) {
       }}>
       <div className="px-5 pt-5 pb-4" style={{ borderBottom: '1px solid var(--surface-4)' }}>
         <div className="flex items-center justify-between mb-4">
-          <button onClick={() => setCurrentMonth(d => subMonths(d, 1))}
+          <button onClick={() => setCurrentMonth(d => {
+  const next = subMonths(d, 1)
+  setDashboardState({ calendarMonth: next.toISOString() })
+  return next
+})}
             className="w-9 h-9 rounded-xl flex items-center justify-center transition-all active:scale-95 hover:bg-white/5"
             style={{ border: '1px solid var(--surface-8)' }}>
             <ChevronLeft size={16} style={{ color: '#8B949E' }} />
@@ -148,7 +157,11 @@ function TradeCalendar({ trades, allTrades, onDayClick }) {
           <p className="text-base font-bold capitalize tracking-wide" style={{ color: 'var(--text-primary)' }}>
             {format(currentMonth, 'MMMM yyyy', { locale: fr })}
           </p>
-          <button onClick={() => setCurrentMonth(d => addMonths(d, 1))}
+          <button onClick={() => setCurrentMonth(d => {
+  const next = addMonths(d, 1)
+  setDashboardState({ calendarMonth: next.toISOString() })
+  return next
+})}
             disabled={isSameMonth(currentMonth, new Date())}
             className="w-9 h-9 rounded-xl flex items-center justify-center transition-all active:scale-95 hover:bg-white/5 disabled:opacity-20"
             style={{ border: '1px solid var(--surface-8)' }}>

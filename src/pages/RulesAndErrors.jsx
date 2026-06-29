@@ -1,3 +1,4 @@
+import { useUIStore } from '../store/useUIStore'
 import { useState, useEffect, useMemo } from 'react'
 import {
   Plus, Trash2, Shield, CheckCircle, XCircle, Sparkles,
@@ -192,8 +193,8 @@ function TabBacktest({ user }) {
   const [saving, setSaving]               = useState(false)
   const [showNewCycle, setShowNewCycle]   = useState(false)
   const [newCycleHours, setNewCycleHours] = useState('')
-  const [expandedWeeks, setExpandedWeeks] = useState({})
-  const [expandedCycles, setExpandedCycles] = useState({})
+  const { expandedWeeks, expandedCycles } = useUIStore(s => s.discipline)
+  const setDisciplineState = useUIStore(s => s.setDisciplineState)
 
   useEffect(() => {
     if (!user) return
@@ -279,7 +280,7 @@ function TabBacktest({ user }) {
     if (data) setCurrentCycle({ ...data, sessions: [] })
     setShowNewCycle(false)
     setNewCycleHours('')
-    setExpandedWeeks({})
+    setDisciplineState({ expandedWeeks: {} })
   }
 
   const fmtDate = (iso) => {
@@ -538,7 +539,7 @@ function TabBacktest({ user }) {
               >
                 <button
                   className="w-full flex items-center justify-between px-4 py-3 text-left"
-                  onClick={() => setExpandedWeeks(e => ({ ...e, [week.monday]: !isExp }))}
+                  onClick={() => setDisciplineState({ expandedWeeks: { ...expandedWeeks, [week.monday]: !isExp } })}
                 >
                   <div>
                     <p className="text-xs font-medium" style={{ color: 'var(--text-primary)' }}>
@@ -629,7 +630,7 @@ function TabBacktest({ user }) {
                 >
                   <button
                     className="w-full flex items-center justify-between px-4 py-3 text-left"
-                    onClick={() => setExpandedCycles(e => ({ ...e, [cycle.id]: !isExp }))}
+                    onClick={() => setDisciplineState({ expandedCycles: { ...expandedCycles, [cycle.id]: !isExp } })}
                   >
                     <div className="flex items-center gap-3">
                       <div
@@ -706,7 +707,8 @@ function TabRules({ user, trades }) {
   const [showForm, setShowForm]       = useState(false)
   const [editingRule, setEditingRule] = useState(null)
   const [saving, setSaving]           = useState(false)
-  const [filterCat, setFilterCat]     = useState('all')
+  const { filterCat } = useUIStore(s => s.discipline)
+  const setDisciplineState = useUIStore(s => s.setDisciplineState)
   const [showAI, setShowAI]           = useState(false)
 
   useEffect(() => {
@@ -869,7 +871,7 @@ function TabRules({ user, trades }) {
             return (
               <button
                 key={cat.id}
-                onClick={() => setFilterCat(cat.id)}
+                onClick={() => setDisciplineState({ filterCat: cat.id })}
                 className="flex-shrink-0 px-3 py-1.5 rounded-xl text-xs font-medium border transition-all active:scale-95"
                 style={filterCat === cat.id
                   ? { background: `${cat.color}20`, color: cat.color, borderColor: `${cat.color}50` }
@@ -1128,9 +1130,18 @@ const TABS = [
 ]
 
 export default function RulesAndErrors({ defaultTab = 'rules' }) {
-  const [activeTab, setActiveTab] = useState(defaultTab)
+  const { activeTab } = useUIStore(s => s.discipline)
+  const setDisciplineState = useUIStore(s => s.setDisciplineState)
   const { user } = useAuth()
   const { trades, loading: tradesLoading } = useTrades()
+
+useEffect(() => {
+  // Seulement si on arrive depuis une route forcée (/app/errors ou /app/rules)
+  // et que le defaultTab n'est pas 'rules' (valeur par défaut)
+  if (defaultTab && defaultTab !== 'rules') {
+    setDisciplineState({ activeTab: defaultTab })
+  }
+}, [])
 
   return (
     <div className="page">
@@ -1155,7 +1166,7 @@ export default function RulesAndErrors({ defaultTab = 'rules' }) {
         {TABS.map(({ id, label, icon: Icon }) => (
           <button
             key={id}
-            onClick={() => setActiveTab(id)}
+            onClick={() => setDisciplineState({ activeTab: id })}
             className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-medium transition-all"
             style={activeTab === id
               ? { background: 'rgba(247,183,49,0.12)', color: '#F7B731', border: '1px solid rgba(247,183,49,0.25)', boxShadow: '0 0 12px rgba(247,183,49,0.1)' }

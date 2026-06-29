@@ -41,6 +41,38 @@ export const useUIStore = create(
       setWeeklyState: (patch) =>
         set(s => ({ weekly: { ...s.weekly, ...patch } })),
 
+      // ── MonthlyAnalysis ─────────────────────────────────
+      monthly: {
+        currentMonth: null,
+      },
+      setMonthlyState: (patch) =>
+        set(s => ({ monthly: { ...s.monthly, ...patch } })),
+
+      // ── Dashboard ───────────────────────────────────────
+      dashboard: {
+        calendarMonth: null, // ISO string, null = mois en cours
+      },
+      setDashboardState: (patch) =>
+        set(s => ({ dashboard: { ...s.dashboard, ...patch } })),
+
+      // ── RulesAndErrors ──────────────────────────────────
+      discipline: {
+        activeTab:      'rules',
+        filterCat:      'all',
+        expandedWeeks:  {},
+        expandedCycles: {},
+      },
+      setDisciplineState: (patch) =>
+        set(s => ({ discipline: { ...s.discipline, ...patch } })),
+
+      // ── HindsightsList ──────────────────────────────────
+      hindsights: {
+        filterTF:  '',
+        filterMkt: '',
+      },
+      setHindsightsState: (patch) =>
+        set(s => ({ hindsights: { ...s.hindsights, ...patch } })),
+
       // ── Cache trades détail ─────────────────────────────
       tradeCache: {},
       setTradeCache: (id, trade) =>
@@ -63,6 +95,10 @@ export const useUIStore = create(
       partialize: (s) => ({
         trades:      s.trades,
         weekly:      s.weekly,
+        monthly:     s.monthly,
+        dashboard:   s.dashboard,
+        discipline:  s.discipline,
+        hindsights:  s.hindsights,
         tradeCache:  s.tradeCache,
         lastTradeId: s.lastTradeId,
       }),
