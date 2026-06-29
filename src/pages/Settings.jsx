@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { LogOut, Info, ChevronRight, BarChart2, Bell, BellOff, Sun, Moon } from 'lucide-react'
+import { LogOut, Info, ChevronRight, BarChart2, Bell, BellOff, Sun, Moon, SunMoon } from 'lucide-react'
 import { signOut } from '../services/supabase'
 import { useAuth } from '../hooks/useAuth'
 import { useNotifications } from '../hooks/useNotifications'
@@ -12,7 +12,7 @@ export default function Settings() {
   const [loggingOut, setLoggingOut] = useState(false)
   const [beMode, setBeMode] = useState(() => localStorage.getItem('winrate_be_mode') || 'neutral')
   const { permission, subscribed, loading: notifLoading, subscribe, unsubscribe } = useNotifications()
-  const { theme, toggleTheme, isDark } = useTheme()
+  const { mode, theme, setThemeMode, isDark, isAuto } = useTheme()
 
   useEffect(() => {
     localStorage.setItem('winrate_be_mode', beMode)
@@ -22,7 +22,7 @@ export default function Settings() {
   const handleLogout = async () => {
     setLoggingOut(true)
     await signOut()
-    navigate('/app/login')
+    navigate('/login')
   }
 
   const meta        = user?.user_metadata || {}
@@ -32,6 +32,15 @@ export default function Settings() {
 
   const notifSupported = 'serviceWorker' in navigator && 'PushManager' in window
 
+  // Icône active selon mode courant
+  const ActiveIcon = mode === 'auto' ? SunMoon : isDark ? Moon : Sun
+
+  const THEME_OPTIONS = [
+    { value: 'dark',  label: 'Sombre',     icon: Moon    },
+    { value: 'light', label: 'Clair',      icon: Sun     },
+    { value: 'auto',  label: 'Automatique', icon: SunMoon },
+  ]
+
   return (
     <div className="page">
       <h1 className="text-lg font-medium mb-6" style={{ color: 'var(--text-primary)' }}>Réglages</h1>
@@ -39,8 +48,7 @@ export default function Settings() {
       {/* Profile card */}
       <div
         className="card mb-4 cursor-pointer active:scale-[0.99] transition-all"
-        onClick={() => navigate('/app/profile')}
-        style={{ '--tw-border-opacity': 1 }}
+        onClick={() => navigate('/profile')}
         onMouseEnter={e => e.currentTarget.style.borderColor = 'var(--border-medium)'}
         onMouseLeave={e => e.currentTarget.style.borderColor = ''}
       >
@@ -69,33 +77,33 @@ export default function Settings() {
       {/* Apparence */}
       <div className="card mb-4">
         <div className="flex items-center gap-2 mb-3">
-          {isDark
-            ? <Moon size={14} className="text-forge-accent" />
-            : <Sun size={14} className="text-forge-accent" />
-          }
+          <ActiveIcon size={14} className="text-forge-accent" />
           <p className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>Apparence</p>
         </div>
         <p className="text-xs mb-3" style={{ color: 'var(--forge-muted)' }}>
           Choisis le thème visuel de TradeForge.
+          {isAuto && (
+            <span className="ml-1">
+              (actuellement <span className="text-forge-accent font-medium">{isDark ? 'sombre' : 'clair'}</span> · jour 7h–20h)
+            </span>
+          )}
         </p>
         <div className="flex gap-2">
-          {[
-            { value: 'dark',  label: 'Sombre', icon: Moon },
-            { value: 'light', label: 'Clair',  icon: Sun  },
-          ].map(opt => {
-            const Icon = opt.icon
-            const active = theme === opt.value
+          {THEME_OPTIONS.map(opt => {
+            const Icon   = opt.icon
+            const active = mode === opt.value
             return (
               <button
                 key={opt.value}
-                onClick={() => { if (theme !== opt.value) toggleTheme() }}
-                className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-xs font-medium border transition-all active:scale-95"
+                onClick={() => setThemeMode(opt.value)}
+                className="flex-1 flex flex-col items-center justify-center gap-1 py-2.5 rounded-xl text-xs font-medium border transition-all active:scale-95"
                 style={active
                   ? { background: 'rgba(247,183,49,0.15)', color: '#F7B731', borderColor: 'rgba(247,183,49,0.4)' }
                   : { background: 'var(--surface-4)', color: 'var(--forge-muted)', borderColor: 'var(--border-soft)' }
                 }
               >
-                <Icon size={13} /> {opt.label}
+                <Icon size={14} />
+                {opt.label}
               </button>
             )
           })}
@@ -172,9 +180,11 @@ export default function Settings() {
           ))}
         </div>
         <p className="text-[10px] mt-2" style={{ color: 'var(--forge-muted)' }}>
-          {beMode === 'win'  ? 'Formule : (TP + BE) / (TP + SL + BE)'
-           : beMode === 'loss' ? 'Formule : TP / (TP + SL + BE) — BE = perte'
-           : 'Formule : TP / (TP + SL) — BE exclu'}
+          {beMode === 'win'
+            ? 'Formule : (TP + BE) / (TP + SL + BE)'
+            : beMode === 'loss'
+            ? 'Formule : TP / (TP + SL + BE) — BE = perte'
+            : 'Formule : TP / (TP + SL) — BE exclu'}
           {' '}— Missed toujours exclus.
         </p>
       </div>
@@ -198,9 +208,9 @@ export default function Settings() {
         <p className="section-title">Application</p>
         <div className="space-y-3">
           {[
-            { label: 'Version', value: '2.1.0',           mono: true },
-            { label: 'Stack',   value: 'React + Supabase', mono: true, small: true },
-            { label: 'IA Coach', value: 'Groq / Llama 3.3', mono: true, small: true },
+            { label: 'Version',  value: '2.1.0',            mono: true },
+            { label: 'Stack',    value: 'React + Supabase',  mono: true, small: true },
+            { label: 'IA Coach', value: 'Groq / Llama 3.3',  mono: true, small: true },
           ].map(({ label, value, mono, small }) => (
             <div key={label} className="flex justify-between text-sm">
               <span style={{ color: 'var(--forge-muted)' }}>{label}</span>

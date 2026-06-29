@@ -6,8 +6,6 @@ import { useAuth } from '../hooks/useAuth'
 import { EMOTIONS, MARKETS } from '../utils'
 import { format } from 'date-fns'
 
-const DAYS = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche']
-
 const SESSIONS = [
   'London Session',
   'New York Session',
@@ -19,7 +17,9 @@ const SESSIONS = [
 
 const STYLES = ['Day Trading', 'Scalping', 'Swing Trading']
 const STRUCTURES = ['Consolidation', 'Expansion', 'Retracement', 'Reversal']
-const TIMEFRAMES = ['Monthly', 'Weekly', 'Daily', 'H4', 'H2', 'H1', 'M30', 'M15', 'M5', 'M3', 'M1']
+
+// Suggestions rapides pour le timeframe (non exhaustif)
+const TF_SUGGESTIONS = ['M1', 'M3', 'M5', 'M15', 'M30', 'H1', 'H2', 'H4', 'Daily', 'Weekly', 'Monthly']
 
 const TRENDS = [
   { value: 'bullish', label: '▲ Bullish', color: { active: { background: 'rgba(46,160,67,0.15)', color: '#2EA043', borderColor: 'rgba(46,160,67,0.5)' } } },
@@ -122,41 +122,68 @@ const RESULT_PILLS = [
 
 const REQUIRED_FIELDS = ['date', 'market', 'type', 'rr_planned', 'emotion', 'discipline_score', 'trend', 'session', 'style', 'market_structure']
 
+// ── TimeframeInput — champ libre + suggestions rapides ────────
+function TimeframeInput({ value, onChange }) {
+  return (
+    <div className="space-y-1.5">
+      <input
+        value={value}
+        onChange={e => onChange(e.target.value)}
+        placeholder="ex: M30, H2, 122H, 7D…"
+        className="w-full text-xs"
+      />
+      <div className="flex flex-wrap gap-1">
+        {TF_SUGGESTIONS.map(tf => (
+          <button
+            key={tf}
+            type="button"
+            onClick={() => onChange(tf)}
+            className="px-2 py-0.5 rounded-lg text-[10px] font-medium border transition-all active:scale-95"
+            style={value === tf
+              ? { background: 'rgba(247,183,49,0.15)', color: '#F7B731', borderColor: 'rgba(247,183,49,0.4)' }
+              : { background: 'var(--surface-4)', color: 'var(--forge-muted)', borderColor: 'var(--border-soft)' }
+            }
+          >
+            {tf}
+          </button>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 function ImageItem({ img, onRemove, onTimeframeChange }) {
   const isLink = img.isLink
   return (
     <div
-      className="flex items-center gap-2 rounded-xl p-2"
+      className="rounded-xl p-2.5 space-y-2"
       style={{ background: 'var(--surface-4)', border: '1px solid var(--border-soft)' }}
     >
-      {isLink ? (
-        <div
-          className="w-12 h-12 rounded-lg flex items-center justify-center flex-shrink-0"
-          style={{ background: 'rgba(88,166,255,0.1)', border: '1px solid rgba(88,166,255,0.2)' }}
-        >
-          <ExternalLink size={16} style={{ color: '#58a6ff' }} />
+      <div className="flex items-center gap-2">
+        {isLink ? (
+          <div
+            className="w-12 h-12 rounded-lg flex items-center justify-center flex-shrink-0"
+            style={{ background: 'rgba(88,166,255,0.1)', border: '1px solid rgba(88,166,255,0.2)' }}
+          >
+            <ExternalLink size={16} style={{ color: '#58a6ff' }} />
+          </div>
+        ) : (
+          <img src={img.preview || img.url} alt="" className="w-12 h-12 object-cover rounded-lg flex-shrink-0" />
+        )}
+        <div className="flex-1 min-w-0">
+          {isLink && <p className="text-xs truncate mb-1" style={{ color: 'var(--forge-muted)' }}>{img.url}</p>}
+          <p className="text-[10px] mb-1" style={{ color: 'var(--forge-muted)' }}>Timeframe</p>
+          <TimeframeInput value={img.timeframe} onChange={onTimeframeChange} />
         </div>
-      ) : (
-        <img src={img.preview || img.url} alt="" className="w-12 h-12 object-cover rounded-lg flex-shrink-0" />
-      )}
-      <div className="flex-1 min-w-0">
-        {isLink && <p className="text-xs truncate" style={{ color: 'var(--forge-muted)' }}>{img.url}</p>}
-        <select
-          value={img.timeframe}
-          onChange={e => onTimeframeChange(e.target.value)}
-          className="w-full text-xs py-1.5 mt-1"
+        <button
+          type="button"
+          onClick={onRemove}
+          className="transition-colors flex-shrink-0 self-start hover:text-forge-red"
+          style={{ color: 'var(--forge-muted)' }}
         >
-          {TIMEFRAMES.map(tf => <option key={tf}>{tf}</option>)}
-        </select>
+          <X size={16} />
+        </button>
       </div>
-      <button
-        type="button"
-        onClick={onRemove}
-        className="transition-colors flex-shrink-0 hover:text-forge-red"
-        style={{ color: 'var(--forge-muted)' }}
-      >
-        <X size={16} />
-      </button>
     </div>
   )
 }
@@ -177,6 +204,7 @@ function AddImagePanel({ onAdd }) {
       className="rounded-xl p-3 space-y-2 mb-2"
       style={{ background: 'var(--surface-2)', border: '1px solid var(--border-soft)' }}
     >
+      {/* Mode toggle */}
       <div className="flex gap-1">
         {[['image', 'Image'], ['link', 'Lien TradingView']].map(([v, l]) => (
           <button
@@ -193,12 +221,13 @@ function AddImagePanel({ onAdd }) {
           </button>
         ))}
       </div>
+
+      {/* Timeframe libre */}
       <div>
-        <p className="text-[10px] mb-1" style={{ color: 'var(--forge-muted)' }}>Timeframe</p>
-        <select value={tf} onChange={e => setTf(e.target.value)} className="w-full text-xs py-1.5">
-          {TIMEFRAMES.map(t => <option key={t}>{t}</option>)}
-        </select>
+        <p className="text-[10px] mb-1.5" style={{ color: 'var(--forge-muted)' }}>Timeframe</p>
+        <TimeframeInput value={tf} onChange={setTf} />
       </div>
+
       {mode === 'image' ? (
         <label
           className="flex items-center justify-center gap-2 py-3 rounded-xl cursor-pointer text-xs transition-colors hover-text-primary"
@@ -216,7 +245,7 @@ function AddImagePanel({ onAdd }) {
             className="hidden"
             onChange={e => {
               Array.from(e.target.files).forEach(file => {
-                onAdd({ isLink: false, file, preview: URL.createObjectURL(file), timeframe: tf })
+                onAdd({ isLink: false, file, preview: URL.createObjectURL(file), timeframe: tf || 'Daily' })
               })
               e.target.value = ''
             }}
@@ -400,12 +429,12 @@ export default function AddTrade() {
       for (let i = 0; i < images.length; i++) {
         const img = images[i]
         if (img.isLink) {
-          newUploaded.push({ url: img.url, timeframe: img.timeframe, isLink: true })
+          newUploaded.push({ url: img.url, timeframe: img.timeframe || 'Daily', isLink: true })
         } else {
           setUploadProgress(`Upload ${i + 1}/${images.length}...`)
-          const path = `${user.id}/${tradeId}/${img.timeframe}_${Date.now()}_${img.file.name}`
+          const path = `${user.id}/${tradeId}/${(img.timeframe || 'Daily')}_${Date.now()}_${img.file.name}`
           const url  = await uploadImage(img.file, path)
-          newUploaded.push({ url, timeframe: img.timeframe, path, isLink: false })
+          newUploaded.push({ url, timeframe: img.timeframe || 'Daily', path, isLink: false })
         }
       }
 
@@ -543,7 +572,6 @@ export default function AddTrade() {
             </Field>
           </div>
 
-          {/* Hints résultat */}
           {form.result === 'sl' && (
             <p className="text-xs rounded-lg px-3 py-2"
               style={{ background: 'rgba(248,81,73,0.08)', color: '#F85149', border: '1px solid rgba(248,81,73,0.2)' }}>

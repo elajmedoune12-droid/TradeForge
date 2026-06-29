@@ -36,17 +36,35 @@ export const useUIStore = create(
 
       // ── WeeklyForecast ──────────────────────────────────
       weekly: {
-        currentWeek: null, // ISO string de la date (wStart), null = semaine en cours
+        currentWeek: null,
       },
       setWeeklyState: (patch) =>
         set(s => ({ weekly: { ...s.weekly, ...patch } })),
+
+      // ── Cache trades détail ─────────────────────────────
+      tradeCache: {},
+      setTradeCache: (id, trade) =>
+        set(s => ({ tradeCache: { ...s.tradeCache, [id]: trade } })),
+      clearTradeCache: (id) =>
+        set(s => {
+          const next = { ...s.tradeCache }
+          delete next[id]
+          return { tradeCache: next }
+        }),
+
+      // ── Dernier trade consulté ──────────────────────────
+      lastTradeId: null,
+      setLastTradeId: (id) => set({ lastTradeId: id }),
+      clearLastTradeId: () => set({ lastTradeId: null }),
 
     }),
     {
       name: 'tradeforge-ui',
       partialize: (s) => ({
-        trades: s.trades,
-        weekly: s.weekly,
+        trades:      s.trades,
+        weekly:      s.weekly,
+        tradeCache:  s.tradeCache,
+        lastTradeId: s.lastTradeId,
       }),
     }
   )
