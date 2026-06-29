@@ -311,7 +311,7 @@ const goToNextMonth = () => {
       {/* ── Sélecteur de mois ── */}
       <div className="flex items-center justify-between mb-5">
         <button
-          onClick={goToNextMonth}
+          onClick={goToPrevMonth}
           className="w-9 h-9 rounded-xl flex items-center justify-center transition-all active:scale-95 hover-text-primary"
           style={{ border: '1px solid var(--border-soft)', color: 'var(--forge-muted)' }}
         >
@@ -328,7 +328,7 @@ const goToNextMonth = () => {
         </div>
 
         <button
-          onClick={goToPrevMonth}
+          onClick={goToNextMonth}
           disabled={isCurrentMonth}
           className="w-9 h-9 rounded-xl flex items-center justify-center transition-all active:scale-95 hover-text-primary disabled:opacity-30"
           style={{ border: '1px solid var(--border-soft)', color: 'var(--forge-muted)' }}
