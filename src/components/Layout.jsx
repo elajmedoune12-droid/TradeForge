@@ -768,7 +768,7 @@ export default function Layout() {
   const [backtestDone,      setBacktestDone]      = useState(false)
   const [backtestHours,     setBacktestHours]     = useState(null)
   const [lastBacktestDate,  setLastBacktestDate]  = useState(null)
-  const [hasWeeklyForecast, setHasWeeklyForecast] = useState(true)
+  const [hasWeeklyForecast, setHasWeeklyForecast] = useState(false)
 
   const [readIds, setReadIds] = useState(() => {
     try { return JSON.parse(localStorage.getItem('tf_read_notifs') || '[]') } catch { return [] }
@@ -840,8 +840,9 @@ export default function Layout() {
     const sent    = JSON.parse(localStorage.getItem(sentKey) || '[]')
 
     const sendPush = async (id, title, body, url = '/') => {
-      if (sent.includes(id)) return
-      try {
+  if (sent.includes(id)) return
+  if (!user?.id) return
+  try {
         await fetch('/api/send-notification', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },

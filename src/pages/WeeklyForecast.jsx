@@ -228,7 +228,7 @@ function AddAnalysisForm({ onAdd, onCancel, userId, weekKey }) {
     }
     setBusy(true)
     try {
-      const path = `${user.id}/weekly/${weekKey}/news_${Date.now()}_${sanitizeFilename(file.name)}`
+      const path = `${userId}/weekly/${weekKey}/news_${Date.now()}_${sanitizeFilename(file.name)}`
       const imgUrl = await uploadImage(file, path)
       onAdd({ pair, timeframe: tf, type, url: imgUrl, path, isLink: false })
     } catch (e) {
