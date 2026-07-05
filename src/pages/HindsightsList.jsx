@@ -472,22 +472,58 @@ function HindsightCard({ item, onClick }) {
 }
 
 // ── HindsightGoals ────────────────────────────────────────────
-function HindsightGoals({ items }) {
-  const [cycles, setCycles] = useState(() => { try { return JSON.parse(localStorage.getItem('hs_cycles') || '[]') } catch { return [] } })
-  const [currentCycle, setCurrentCycle] = useState(() => { try { return JSON.parse(localStorage.getItem('hs_current_cycle') || 'null') } catch { return null } })
+function HindsightGoals({ items, user }) {
+  const [cycles, setCycles]           = useState([])
+  const [currentCycle, setCurrentCycle] = useState(null)
+  const [loading, setLoading]         = useState(true)
   const [showHistory, setShowHistory] = useState(false)
   const [showNewCycle, setShowNewCycle] = useState(false)
-  const [editing, setEditing] = useState(!currentCycle)
-  const [form, setForm] = useState({ weekly: currentCycle?.weekly || '', monthly: currentCycle?.monthly || '', streak: currentCycle?.streak || '' })
+  const [editing, setEditing]         = useState(false)
+  const [saving, setSaving]           = useState(false)
+  const [form, setForm] = useState({ weekly: '', monthly: '', streak: '' })
 
-  const saveCycles = (cycs, current) => { localStorage.setItem('hs_cycles', JSON.stringify(cycs)); localStorage.setItem('hs_current_cycle', JSON.stringify(current)) }
+  // ── Charger depuis Supabase ───────────────────────────────
+  useEffect(() => {
+    if (!user?.id) return
+    const load = async () => {
+      const { data } = await supabase
+        .from('hindsight_goals')
+        .select('*')
+        .eq('user_id', user.id)
+        .maybeSingle()
 
+      if (data) {
+        setCycles(data.cycles || [])
+        setCurrentCycle(data.current_cycle || null)
+        if (!data.current_cycle) setEditing(true)
+      } else {
+        setEditing(true)
+      }
+      setLoading(false)
+    }
+    load()
+  }, [user?.id])
+
+  // ── Sauvegarder dans Supabase ─────────────────────────────
+  const persist = async (newCurrentCycle, newCycles) => {
+    await supabase
+      .from('hindsight_goals')
+      .upsert({
+        user_id:       user.id,
+        current_cycle: newCurrentCycle,
+        cycles:        newCycles,
+        updated_at:    new Date().toISOString(),
+      }, { onConflict: 'user_id' })
+  }
+
+  // ── Stats calculées depuis les hindsights ─────────────────
   const streak = useMemo(() => {
     if (!items.length) return 0
     const dates = [...new Set(items.map(i => i.created_at.slice(0, 10)))].sort().reverse()
-    let count = 0; let current = new Date(); current.setHours(0, 0, 0, 0)
+    let count = 0
+    let current = new Date(); current.setHours(0, 0, 0, 0)
     for (const date of dates) {
-      const d = new Date(date + 'T00:00:00')
+      const d    = new Date(date + 'T00:00:00')
       const diff = Math.round((current - d) / (1000 * 60 * 60 * 24))
       if (diff === 0 || diff === 1) { count++; current = d } else break
     }
@@ -497,25 +533,58 @@ function HindsightGoals({ items }) {
   const thisWeek = useMemo(() => {
     const now = new Date(), start = new Date(now)
     const day = now.getDay()
-    start.setDate(now.getDate() + (day === 0 ? -6 : 1 - day)); start.setHours(0, 0, 0, 0)
+    start.setDate(now.getDate() + (day === 0 ? -6 : 1 - day))
+    start.setHours(0, 0, 0, 0)
     return items.filter(i => new Date(i.created_at) >= start).length
   }, [items])
 
   const thisMonth = useMemo(() => {
     const now = new Date()
-    return items.filter(i => { const d = new Date(i.created_at); return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear() }).length
+    return items.filter(i => {
+      const d = new Date(i.created_at)
+      return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear()
+    }).length
   }, [items])
 
-  const startCycle = () => {
-    const newCycle = { id: Date.now(), startedAt: new Date().toISOString().slice(0, 10), weekly: form.weekly ? +form.weekly : null, monthly: form.monthly ? +form.monthly : null, streak: form.streak ? +form.streak : null }
-    setCurrentCycle(newCycle); saveCycles(cycles, newCycle); setEditing(false)
+  // ── Actions ───────────────────────────────────────────────
+  const startCycle = async () => {
+    setSaving(true)
+    const newCycle = {
+      id:        Date.now(),
+      startedAt: new Date().toISOString().slice(0, 10),
+      weekly:    form.weekly  ? +form.weekly  : null,
+      monthly:   form.monthly ? +form.monthly : null,
+      streak:    form.streak  ? +form.streak  : null,
+    }
+    setCurrentCycle(newCycle)
+    setEditing(false)
+    await persist(newCycle, cycles)
+    setSaving(false)
   }
 
-  const completeCycle = () => {
-    const completed = { ...currentCycle, endedAt: new Date().toISOString().slice(0, 10), achievedWeekly: thisWeek, achievedMonthly: thisMonth, achievedStreak: streak }
+  const completeCycle = async () => {
+    setSaving(true)
+    const completed = {
+      ...currentCycle,
+      endedAt:         new Date().toISOString().slice(0, 10),
+      achievedWeekly:  thisWeek,
+      achievedMonthly: thisMonth,
+      achievedStreak:  streak,
+    }
     const newCycles = [...cycles, completed]
-    setCycles(newCycles); setCurrentCycle(null); setForm({ weekly: '', monthly: '', streak: '' })
-    saveCycles(newCycles, null); setShowNewCycle(false); setEditing(true)
+    setCycles(newCycles)
+    setCurrentCycle(null)
+    setForm({ weekly: '', monthly: '', streak: '' })
+    setShowNewCycle(false)
+    setEditing(true)
+    await persist(null, newCycles)
+    setSaving(false)
+  }
+
+  const deleteCycleFromHistory = async (id) => {
+    const newCycles = cycles.filter(c => c.id !== id)
+    setCycles(newCycles)
+    await persist(currentCycle, newCycles)
   }
 
   const allDone = currentCycle && [
@@ -530,11 +599,19 @@ function HindsightGoals({ items }) {
     currentCycle.streak  && { label: 'Streak',  current: streak,    goal: currentCycle.streak,  color: '#2EA043', unit: '🔥' },
   ].filter(Boolean) : []
 
+  if (loading) return (
+    <div className="rounded-2xl p-4 mb-5 animate-pulse"
+      style={{ background: 'var(--surface-card)', border: '1px solid rgba(46,160,67,0.2)', height: 120 }} />
+  )
+
   return (
     <>
+      {/* ── Modal historique ── */}
       {showHistory && (
         <>
-          <div className="fixed inset-0 z-40" style={{ background: 'var(--modal-overlay)', backdropFilter: 'blur(6px)' }} onClick={() => setShowHistory(false)} />
+          <div className="fixed inset-0 z-40"
+            style={{ background: 'var(--modal-overlay)', backdropFilter: 'blur(6px)' }}
+            onClick={() => setShowHistory(false)} />
           <div className="fixed z-50 left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-sm rounded-2xl overflow-hidden"
             style={{ background: 'var(--modal-bg)', border: '1px solid var(--border-medium)', boxShadow: '0 24px 64px rgba(0,0,0,0.5)', maxHeight: '80vh' }}>
             <div className="flex items-center justify-between px-4 pt-4 pb-3 border-b" style={{ borderColor: 'var(--border-soft)' }}>
@@ -543,7 +620,9 @@ function HindsightGoals({ items }) {
             </div>
             <div className="overflow-y-auto p-3 space-y-3" style={{ maxHeight: 'calc(80vh - 60px)' }}>
               {cycles.length === 0 ? (
-                <p className="text-xs text-center py-8" style={{ color: 'var(--forge-muted)' }}>Aucun objectif complété pour l'instant.</p>
+                <p className="text-xs text-center py-8" style={{ color: 'var(--forge-muted)' }}>
+                  Aucun objectif complété pour l'instant.
+                </p>
               ) : (
                 [...cycles].reverse().map((c, i) => {
                   const cGoals = [
@@ -559,8 +638,12 @@ function HindsightGoals({ items }) {
                         <div className="flex items-center gap-2">
                           <span className="text-lg">{allAchieved ? '🏆' : '📋'}</span>
                           <div>
-                            <p className="text-xs font-semibold" style={{ color: 'var(--text-primary)' }}>Cycle #{cycles.length - i}</p>
-                            <p className="text-[10px]" style={{ color: 'var(--forge-muted)' }}>{c.startedAt} → {c.endedAt}</p>
+                            <p className="text-xs font-semibold" style={{ color: 'var(--text-primary)' }}>
+                              Cycle #{cycles.length - i}
+                            </p>
+                            <p className="text-[10px]" style={{ color: 'var(--forge-muted)' }}>
+                              {c.startedAt} → {c.endedAt}
+                            </p>
                           </div>
                         </div>
                         <div className="flex items-center gap-2">
@@ -568,7 +651,8 @@ function HindsightGoals({ items }) {
                             style={{ background: allAchieved ? 'rgba(46,160,67,0.15)' : 'var(--surface-5)', color: allAchieved ? '#2EA043' : 'var(--forge-muted)' }}>
                             {allAchieved ? '✓ Atteint' : 'Incomplet'}
                           </span>
-                          <button onClick={() => { const n = cycles.filter(x => x.id !== c.id); setCycles(n); saveCycles(n, currentCycle) }}
+                          <button
+                            onClick={() => deleteCycleFromHistory(c.id)}
                             className="w-6 h-6 rounded-lg flex items-center justify-center transition-all"
                             style={{ color: 'var(--forge-muted)' }}
                             onMouseEnter={e => { e.currentTarget.style.color = '#F85149'; e.currentTarget.style.background = 'rgba(248,81,73,0.1)' }}
@@ -582,10 +666,13 @@ function HindsightGoals({ items }) {
                           <div key={g.label}>
                             <div className="flex justify-between text-[10px] mb-0.5">
                               <span style={{ color: 'var(--forge-muted)' }}>{g.label}</span>
-                              <span style={{ color: g.achieved >= g.target ? '#2EA043' : g.color }}>{g.achieved}/{g.target} {g.achieved >= g.target ? '✓' : ''}</span>
+                              <span style={{ color: g.achieved >= g.target ? '#2EA043' : g.color }}>
+                                {g.achieved}/{g.target} {g.achieved >= g.target ? '✓' : ''}
+                              </span>
                             </div>
                             <div className="h-1 rounded-full overflow-hidden" style={{ background: 'var(--surface-8)' }}>
-                              <div className="h-full rounded-full" style={{ width: `${Math.min(100, Math.round(g.achieved / g.target * 100))}%`, background: g.achieved >= g.target ? '#2EA043' : g.color }} />
+                              <div className="h-full rounded-full"
+                                style={{ width: `${Math.min(100, Math.round(g.achieved / g.target * 100))}%`, background: g.achieved >= g.target ? '#2EA043' : g.color }} />
                             </div>
                           </div>
                         ))}
@@ -599,6 +686,7 @@ function HindsightGoals({ items }) {
         </>
       )}
 
+      {/* ── Card objectifs ── */}
       <div className="rounded-2xl p-4 mb-5"
         style={{ background: 'var(--surface-card)', border: '1px solid rgba(46,160,67,0.2)', boxShadow: '0 0 24px rgba(46,160,67,0.04)' }}>
         <div className="flex items-center justify-between mb-4">
@@ -610,14 +698,19 @@ function HindsightGoals({ items }) {
           </div>
           <div className="flex items-center gap-2">
             {cycles.length > 0 && (
-              <button onClick={() => setShowHistory(true)} className="text-xs flex items-center gap-1 transition-colors" style={{ color: 'var(--forge-muted)' }}
+              <button onClick={() => setShowHistory(true)}
+                className="text-xs flex items-center gap-1 transition-colors"
+                style={{ color: 'var(--forge-muted)' }}
                 onMouseEnter={e => e.currentTarget.style.color = 'var(--text-primary)'}
                 onMouseLeave={e => e.currentTarget.style.color = 'var(--forge-muted)'}>
                 <Clock size={11} /> Historique ({cycles.length})
               </button>
             )}
             {currentCycle && !editing && (
-              <button onClick={() => setEditing(true)} className="text-xs flex items-center gap-1 transition-colors" style={{ color: 'var(--forge-muted)' }}
+              <button
+                onClick={() => { setForm({ weekly: currentCycle.weekly || '', monthly: currentCycle.monthly || '', streak: currentCycle.streak || '' }); setEditing(true) }}
+                className="text-xs flex items-center gap-1 transition-colors"
+                style={{ color: 'var(--forge-muted)' }}
                 onMouseEnter={e => e.currentTarget.style.color = 'var(--text-primary)'}
                 onMouseLeave={e => e.currentTarget.style.color = 'var(--forge-muted)'}>
                 <Pencil size={11} />
@@ -626,84 +719,125 @@ function HindsightGoals({ items }) {
           </div>
         </div>
 
+        {/* Formulaire */}
         {editing && (
           <div className="space-y-3 mb-4">
-            <p className="text-xs" style={{ color: 'var(--forge-muted)' }}>{currentCycle ? 'Modifier les objectifs' : 'Définir vos objectifs'}</p>
+            <p className="text-xs" style={{ color: 'var(--forge-muted)' }}>
+              {currentCycle ? 'Modifier les objectifs' : 'Définir vos objectifs'}
+            </p>
             <div className="grid grid-cols-3 gap-2">
-              {[{ key: 'weekly', label: 'Semaine', placeholder: 'ex: 3' }, { key: 'monthly', label: 'Ce mois', placeholder: 'ex: 12' }, { key: 'streak', label: 'Streak', placeholder: 'ex: 7' }].map(f => (
+              {[
+                { key: 'weekly',  label: 'Semaine', placeholder: 'ex: 3'  },
+                { key: 'monthly', label: 'Ce mois', placeholder: 'ex: 12' },
+                { key: 'streak',  label: 'Streak',  placeholder: 'ex: 7'  },
+              ].map(f => (
                 <div key={f.key}>
                   <p className="text-[10px] mb-1" style={{ color: 'var(--forge-muted)' }}>{f.label}</p>
-                  <input type="number" min="1" value={form[f.key]} onChange={e => setForm(v => ({ ...v, [f.key]: e.target.value }))} placeholder={f.placeholder} className="w-full text-sm" />
+                  <input type="number" min="1" value={form[f.key]}
+                    onChange={e => setForm(v => ({ ...v, [f.key]: e.target.value }))}
+                    placeholder={f.placeholder} className="w-full text-sm" />
                 </div>
               ))}
             </div>
-            <p className="text-[10px]" style={{ color: 'var(--forge-muted)' }}>Laissez vide les objectifs à ignorer.</p>
+            <p className="text-[10px]" style={{ color: 'var(--forge-muted)' }}>
+              Laissez vide les objectifs à ignorer.
+            </p>
             <div className="flex gap-2">
-              <button onClick={startCycle} disabled={!form.weekly && !form.monthly && !form.streak} className="btn-primary flex-1 text-xs py-2 disabled:opacity-40">{currentCycle ? 'Mettre à jour' : 'Démarrer'}</button>
-              {currentCycle && <button onClick={() => setEditing(false)} className="btn-ghost text-xs py-2 px-3">Annuler</button>}
+              <button
+                onClick={startCycle}
+                disabled={saving || (!form.weekly && !form.monthly && !form.streak)}
+                className="btn-primary flex-1 text-xs py-2 disabled:opacity-40">
+                {saving ? 'Sauvegarde…' : currentCycle ? 'Mettre à jour' : 'Démarrer'}
+              </button>
+              {currentCycle && (
+                <button onClick={() => setEditing(false)} className="btn-ghost text-xs py-2 px-3">
+                  Annuler
+                </button>
+              )}
             </div>
           </div>
         )}
 
+        {/* Progression */}
         {!editing && currentCycle && goals.length > 0 && (
           <>
             <div className="grid gap-3 mb-4" style={{ gridTemplateColumns: `repeat(${goals.length}, 1fr)` }}>
               {goals.map((g, i) => {
-                const p = Math.min(100, Math.round((g.current / g.goal) * 100))
+                const p    = Math.min(100, Math.round((g.current / g.goal) * 100))
                 const done = g.current >= g.goal
                 return (
                   <div key={i} className="flex flex-col items-center gap-1.5">
                     <div className="relative" style={{ width: 70, height: 70 }}>
                       <svg width={70} height={70} style={{ transform: 'rotate(-90deg)' }}>
                         <circle cx={35} cy={35} r={29} fill="none" stroke="var(--surface-8)" strokeWidth={7} />
-                        <circle cx={35} cy={35} r={29} fill="none" stroke={done ? '#2EA043' : g.color} strokeWidth={7}
-                          strokeDasharray={`${(p / 100) * 2 * Math.PI * 29} ${2 * Math.PI * 29}`} strokeLinecap="round"
+                        <circle cx={35} cy={35} r={29} fill="none"
+                          stroke={done ? '#2EA043' : g.color} strokeWidth={7}
+                          strokeDasharray={`${(p / 100) * 2 * Math.PI * 29} ${2 * Math.PI * 29}`}
+                          strokeLinecap="round"
                           style={{ transition: 'stroke-dasharray 0.8s ease', filter: done ? 'drop-shadow(0 0 4px #2EA043)' : `drop-shadow(0 0 3px ${g.color}88)` }} />
                       </svg>
                       <div className="absolute inset-0 flex items-center justify-center">
-                        <span className="text-xs font-mono font-bold" style={{ color: done ? '#2EA043' : g.color }}>{done ? '✓' : `${p}%`}</span>
+                        <span className="text-xs font-mono font-bold" style={{ color: done ? '#2EA043' : g.color }}>
+                          {done ? '✓' : `${p}%`}
+                        </span>
                       </div>
                     </div>
                     <p className="text-[10px] font-medium" style={{ color: 'var(--forge-muted)' }}>{g.label}</p>
-                    <p className="text-[10px]" style={{ color: done ? '#2EA043' : 'var(--forge-muted)' }}>{g.current}{g.unit} / {g.goal}{g.unit}</p>
+                    <p className="text-[10px]" style={{ color: done ? '#2EA043' : 'var(--forge-muted)' }}>
+                      {g.current}{g.unit} / {g.goal}{g.unit}
+                    </p>
                   </div>
                 )
               })}
             </div>
+
             <div className="space-y-2 pt-3 border-t mb-3" style={{ borderColor: 'var(--border-soft)' }}>
               {goals.map((g, i) => {
-                const p = Math.min(100, Math.round((g.current / g.goal) * 100))
+                const p    = Math.min(100, Math.round((g.current / g.goal) * 100))
                 const done = g.current >= g.goal
                 return (
                   <div key={i}>
                     <div className="flex justify-between text-[10px] mb-1">
                       <span style={{ color: 'var(--forge-muted)' }}>{g.label}</span>
-                      <span style={{ color: done ? '#2EA043' : g.color }}>{g.current}{g.unit} / {g.goal}{g.unit} {done ? '✓' : ''}</span>
+                      <span style={{ color: done ? '#2EA043' : g.color }}>
+                        {g.current}{g.unit} / {g.goal}{g.unit} {done ? '✓' : ''}
+                      </span>
                     </div>
                     <div className="h-1.5 rounded-full overflow-hidden" style={{ background: 'var(--surface-8)' }}>
-                      <div className="h-full rounded-full transition-all duration-700" style={{ width: `${p}%`, background: done ? '#2EA043' : g.color, boxShadow: done ? '0 0 6px rgba(46,160,67,0.5)' : `0 0 4px ${g.color}55` }} />
+                      <div className="h-full rounded-full transition-all duration-700"
+                        style={{ width: `${p}%`, background: done ? '#2EA043' : g.color, boxShadow: done ? '0 0 6px rgba(46,160,67,0.5)' : `0 0 4px ${g.color}55` }} />
                     </div>
                   </div>
                 )
               })}
             </div>
+
             {allDone && !showNewCycle && (
-              <div className="rounded-xl p-3 flex items-center gap-3" style={{ background: 'rgba(46,160,67,0.08)', border: '1px solid rgba(46,160,67,0.25)' }}>
+              <div className="rounded-xl p-3 flex items-center gap-3"
+                style={{ background: 'rgba(46,160,67,0.08)', border: '1px solid rgba(46,160,67,0.25)' }}>
                 <span className="text-xl">🎉</span>
                 <div className="flex-1">
                   <p className="text-xs font-semibold" style={{ color: '#2EA043' }}>Tous les objectifs atteints !</p>
                   <p className="text-[10px] mt-0.5" style={{ color: 'var(--forge-muted)' }}>Prêt pour un nouveau cycle ?</p>
                 </div>
-                <button onClick={() => setShowNewCycle(true)} className="text-xs font-medium px-3 py-1.5 rounded-xl transition-all active:scale-95 flex-shrink-0"
-                  style={{ background: 'rgba(46,160,67,0.15)', color: '#2EA043', border: '1px solid rgba(46,160,67,0.3)' }}>Nouveau cycle</button>
+                <button onClick={() => setShowNewCycle(true)}
+                  className="text-xs font-medium px-3 py-1.5 rounded-xl transition-all active:scale-95 flex-shrink-0"
+                  style={{ background: 'rgba(46,160,67,0.15)', color: '#2EA043', border: '1px solid rgba(46,160,67,0.3)' }}>
+                  Nouveau cycle
+                </button>
               </div>
             )}
+
             {showNewCycle && (
               <div className="rounded-xl p-3" style={{ background: 'var(--surface-3)', border: '1px solid rgba(247,183,49,0.25)' }}>
                 <p className="text-xs font-medium mb-1" style={{ color: 'var(--text-primary)' }}>Terminer ce cycle ?</p>
-                <p className="text-[10px] mb-3" style={{ color: 'var(--forge-muted)' }}>Il sera archivé dans l'historique.</p>
+                <p className="text-[10px] mb-3" style={{ color: 'var(--forge-muted)' }}>
+                  Il sera archivé dans l'historique.
+                </p>
                 <div className="flex gap-2">
-                  <button onClick={completeCycle} className="btn-primary flex-1 text-xs py-2">Confirmer</button>
+                  <button onClick={completeCycle} disabled={saving} className="btn-primary flex-1 text-xs py-2 disabled:opacity-50">
+                    {saving ? 'Sauvegarde…' : 'Confirmer'}
+                  </button>
                   <button onClick={() => setShowNewCycle(false)} className="btn-ghost text-xs py-2 px-3">Annuler</button>
                 </div>
               </div>
@@ -714,7 +848,8 @@ function HindsightGoals({ items }) {
         {!editing && !currentCycle && (
           <div className="text-center py-4">
             <p className="text-sm mb-3" style={{ color: 'var(--forge-muted)' }}>Aucun objectif défini</p>
-            <button onClick={() => setEditing(true)} className="text-xs px-4 py-2 rounded-xl transition-all active:scale-95"
+            <button onClick={() => setEditing(true)}
+              className="text-xs px-4 py-2 rounded-xl transition-all active:scale-95"
               style={{ background: 'rgba(46,160,67,0.1)', color: '#2EA043', border: '1px solid rgba(46,160,67,0.2)' }}>
               Définir des objectifs →
             </button>
@@ -819,7 +954,7 @@ export default function HindsightsList() {
         </button>
       </div>
 
-      <HindsightGoals items={items} />
+      <HindsightGoals items={items} user={user} />
 
       {/* Filtres */}
       {(allTF.length > 0 || allMkt.length > 0) && (
