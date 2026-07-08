@@ -5,7 +5,7 @@ export const useUIStore = create(
   persist(
     (set) => ({
 
-      // ── TradesList ──────────────────────────────────────
+      // ── TradesList — filtres persistés (pas l'état UI) ──────────
       trades: {
         search:         '',
         filterResults:  [],
@@ -15,8 +15,7 @@ export const useUIStore = create(
         filterDateTo:   '',
         filterMonth:    '',
         sortBy:         'date_desc',
-        panelOpen:      false,
-        chartMode:      'equity',
+        // ❌ panelOpen et chartMode ne sont PAS ici → state local dans le composant
       },
       setTradesState: (patch) =>
         set(s => ({ trades: { ...s.trades, ...patch } })),
@@ -34,46 +33,14 @@ export const useUIStore = create(
           }
         })),
 
-      // ── WeeklyForecast ──────────────────────────────────
+      // ── WeeklyForecast — juste la semaine sélectionnée ──────────
       weekly: {
         currentWeek: null,
       },
       setWeeklyState: (patch) =>
         set(s => ({ weekly: { ...s.weekly, ...patch } })),
 
-      // ── MonthlyAnalysis ─────────────────────────────────
-      monthly: {
-        currentMonth: null,
-      },
-      setMonthlyState: (patch) =>
-        set(s => ({ monthly: { ...s.monthly, ...patch } })),
-
-      // ── Dashboard ───────────────────────────────────────
-      dashboard: {
-        calendarMonth: null, // ISO string, null = mois en cours
-      },
-      setDashboardState: (patch) =>
-        set(s => ({ dashboard: { ...s.dashboard, ...patch } })),
-
-      // ── RulesAndErrors ──────────────────────────────────
-      discipline: {
-        activeTab:      'rules',
-        filterCat:      'all',
-        expandedWeeks:  {},
-        expandedCycles: {},
-      },
-      setDisciplineState: (patch) =>
-        set(s => ({ discipline: { ...s.discipline, ...patch } })),
-
-      // ── HindsightsList ──────────────────────────────────
-      hindsights: {
-        filterTF:  '',
-        filterMkt: '',
-      },
-      setHindsightsState: (patch) =>
-        set(s => ({ hindsights: { ...s.hindsights, ...patch } })),
-
-      // ── Cache trades détail ─────────────────────────────
+      // ── Cache trades détail ──────────────────────────────────────
       tradeCache: {},
       setTradeCache: (id, trade) =>
         set(s => ({ tradeCache: { ...s.tradeCache, [id]: trade } })),
@@ -84,7 +51,7 @@ export const useUIStore = create(
           return { tradeCache: next }
         }),
 
-      // ── Dernier trade consulté ──────────────────────────
+      // ── Dernier trade consulté ───────────────────────────────────
       lastTradeId: null,
       setLastTradeId: (id) => set({ lastTradeId: id }),
       clearLastTradeId: () => set({ lastTradeId: null }),
@@ -92,13 +59,22 @@ export const useUIStore = create(
     }),
     {
       name: 'tradeforge-ui',
+      // ✅ On persiste UNIQUEMENT les filtres et le cache
+      // Tout ce qui est "état visuel" (panel ouvert, onglet actif,
+      // mode graphique) reste en state local dans chaque composant
       partialize: (s) => ({
-        trades:      s.trades,
+        trades: {
+          // filtres seulement — pas panelOpen ni chartMode
+          search:         s.trades.search,
+          filterResults:  s.trades.filterResults,
+          filterMarkets:  s.trades.filterMarkets,
+          filterTypes:    s.trades.filterTypes,
+          filterDateFrom: s.trades.filterDateFrom,
+          filterDateTo:   s.trades.filterDateTo,
+          filterMonth:    s.trades.filterMonth,
+          sortBy:         s.trades.sortBy,
+        },
         weekly:      s.weekly,
-        monthly:     s.monthly,
-        dashboard:   s.dashboard,
-        discipline:  s.discipline,
-        hindsights:  s.hindsights,
         tradeCache:  s.tradeCache,
         lastTradeId: s.lastTradeId,
       }),
