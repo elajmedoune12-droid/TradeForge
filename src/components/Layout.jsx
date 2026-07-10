@@ -1,3 +1,4 @@
+import { useUIStore } from '../store/useUIStore'
 import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom'
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react'
 import {
@@ -27,6 +28,10 @@ const mobileRight = navItems.slice(3, 6)
 // ─────────────────────────────────────────────────────────────────────────────
 // Notifications builder
 // ─────────────────────────────────────────────────────────────────────────────
+const PERSISTENT_IDS = [
+  'backtest_gap','no_forecast','inactive','no_hindsight',
+  'low_disc','no_plan','low_rr','missed_streak','fomo_detected','overtrading','hors_session',
+]
 function buildNotifications(trades, backtestDone, backtestHours, lastBacktestDate, hasWeeklyForecast) {
   const notifs    = []
   const today     = new Date().toISOString().slice(0, 10)
@@ -374,8 +379,11 @@ function NotifPanel({ onClose, notifications, onRead, onDismiss, onDismissAll, o
   const read   = notifications.filter(n =>  n.read)
 
   const handleAction = (n) => {
-    if (n.action) { onReadOne(n.id); navigate(n.action); onClose() }
-  }
+  if (!n.action) return
+  onReadOne(n.id)
+  onClose()
+  setTimeout(() => navigate(n.action), 0)
+}
 
   return (
     <>
@@ -773,16 +781,20 @@ export default function Layout() {
   const [readIds, setReadIds] = useState(() => {
     try { return JSON.parse(localStorage.getItem('tf_read_notifs') || '[]') } catch { return [] }
   })
-  const [dismissedIds, setDismissedIds] = useState(() => {
-    try {
-      const today = new Date().toISOString().slice(0, 10)
-      const saved = JSON.parse(localStorage.getItem('tf_dismissed_notifs') || '{}')
-      return saved.date !== today ? [] : (saved.ids || [])
-    } catch { return [] }
-  })
+
+const [dismissedIds, setDismissedIds] = useState(() => {
+  try {
+    const today = new Date().toISOString().slice(0, 10)
+    const saved = JSON.parse(localStorage.getItem('tf_dismissed_notifs') || '{}')
+    const persistent = saved.persistentIds || []
+    const daily      = saved.date === today ? (saved.dailyIds || []) : []
+    return [...persistent, ...daily]
+  } catch { return [] }
+})
 
   const [profile, setProfile] = useState(null)
   const { user, signOut }     = useAuth()
+  const resetAll = useUIStore(s => s.resetAll)
   const { trades }            = useTrades()
   const contentRef            = useRef(null)
 
@@ -923,18 +935,23 @@ export default function Layout() {
   }, [readIds])
 
   const dismissNotif = useCallback((id) => {
-    const next  = [...dismissedIds, id]
-    const today = new Date().toISOString().slice(0, 10)
-    setDismissedIds(next)
-    localStorage.setItem('tf_dismissed_notifs', JSON.stringify({ date: today, ids: next }))
-  }, [dismissedIds])
+  const next  = [...dismissedIds, id]
+  const today = new Date().toISOString().slice(0, 10)
+  setDismissedIds(next)
+  const saved       = (() => { try { return JSON.parse(localStorage.getItem('tf_dismissed_notifs') || '{}') } catch { return {} } })()
+  const persistentIds = PERSISTENT_IDS.includes(id) ? [...new Set([...(saved.persistentIds||[]), id])] : (saved.persistentIds||[])
+  const dailyIds      = !PERSISTENT_IDS.includes(id) ? [...new Set([...(saved.date===today?(saved.dailyIds||[]):[]), id])] : (saved.date===today?(saved.dailyIds||[]):[])
+  localStorage.setItem('tf_dismissed_notifs', JSON.stringify({ date: today, persistentIds, dailyIds }))
+}, [dismissedIds])
 
   const dismissAll = useCallback(() => {
-    const ids   = allNotifs.map(n => n.id)
-    const today = new Date().toISOString().slice(0, 10)
-    setDismissedIds(ids)
-    localStorage.setItem('tf_dismissed_notifs', JSON.stringify({ date: today, ids }))
-  }, [allNotifs])
+  const ids   = allNotifs.map(n => n.id)
+  const today = new Date().toISOString().slice(0, 10)
+  setDismissedIds(ids)
+  const persistentIds = ids.filter(id => PERSISTENT_IDS.includes(id))
+  const dailyIds      = ids.filter(id => !PERSISTENT_IDS.includes(id))
+  localStorage.setItem('tf_dismissed_notifs', JSON.stringify({ date: today, persistentIds, dailyIds }))
+}, [allNotifs])
 
   const handleBell = (anchor) => {
     setNotifAnchor(anchor)
@@ -949,9 +966,10 @@ export default function Layout() {
   }
 
   const handleLogoutConfirmed = () => {
-    setShowLogoutConfirm(false)
-    signOut?.()
-  }
+  setShowLogoutConfirm(false)
+  resetAll()
+  signOut?.()
+}
 
   const displayName = profile?.username || profile?.full_name || 'Trader'
 

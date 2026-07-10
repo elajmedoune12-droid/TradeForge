@@ -15,8 +15,7 @@ export const useUIStore = create(
         filterDateTo:   '',
         filterMonth:    '',
         sortBy:         'date_desc',
-        panelOpen:      false,
-        chartMode:      'equity',
+        // panelOpen et chartMode intentionnellement EXCLUS de la persistence
       },
       setTradesState: (patch) =>
         set(s => ({ trades: { ...s.trades, ...patch } })),
@@ -41,38 +40,6 @@ export const useUIStore = create(
       setWeeklyState: (patch) =>
         set(s => ({ weekly: { ...s.weekly, ...patch } })),
 
-      // ── MonthlyAnalysis ─────────────────────────────────
-      monthly: {
-        currentMonth: null,
-      },
-      setMonthlyState: (patch) =>
-        set(s => ({ monthly: { ...s.monthly, ...patch } })),
-
-      // ── Dashboard ───────────────────────────────────────
-      dashboard: {
-        calendarMonth: null, // ISO string, null = mois en cours
-      },
-      setDashboardState: (patch) =>
-        set(s => ({ dashboard: { ...s.dashboard, ...patch } })),
-
-      // ── RulesAndErrors ──────────────────────────────────
-      discipline: {
-        activeTab:      'rules',
-        filterCat:      'all',
-        expandedWeeks:  {},
-        expandedCycles: {},
-      },
-      setDisciplineState: (patch) =>
-        set(s => ({ discipline: { ...s.discipline, ...patch } })),
-
-      // ── HindsightsList ──────────────────────────────────
-      hindsights: {
-        filterTF:  '',
-        filterMkt: '',
-      },
-      setHindsightsState: (patch) =>
-        set(s => ({ hindsights: { ...s.hindsights, ...patch } })),
-
       // ── Cache trades détail ─────────────────────────────
       tradeCache: {},
       setTradeCache: (id, trade) =>
@@ -89,17 +56,43 @@ export const useUIStore = create(
       setLastTradeId: (id) => set({ lastTradeId: id }),
       clearLastTradeId: () => set({ lastTradeId: null }),
 
+      // ── Reset complet (appelé au logout) ───────────────
+      resetAll: () => set({
+        trades: {
+          search:         '',
+          filterResults:  [],
+          filterMarkets:  [],
+          filterTypes:    [],
+          filterDateFrom: '',
+          filterDateTo:   '',
+          filterMonth:    '',
+          sortBy:         'date_desc',
+        },
+        weekly:      { currentWeek: null },
+        tradeCache:  {},
+        lastTradeId: null,
+      }),
+
     }),
     {
       name: 'tradeforge-ui',
+      // Ne persister QUE les filtres utiles — jamais les états UI transitoires
       partialize: (s) => ({
-        trades:      s.trades,
+        trades: {
+          // Filtres : oui, ils ont une intention utilisateur
+          search:         s.trades.search,
+          filterResults:  s.trades.filterResults,
+          filterMarkets:  s.trades.filterMarkets,
+          filterTypes:    s.trades.filterTypes,
+          filterDateFrom: s.trades.filterDateFrom,
+          filterDateTo:   s.trades.filterDateTo,
+          filterMonth:    s.trades.filterMonth,
+          sortBy:         s.trades.sortBy,
+          // panelOpen: NON — le panneau doit être fermé à chaque ouverture
+          // chartMode: NON — revient au défaut 'equity' à chaque ouverture
+        },
         weekly:      s.weekly,
-        monthly:     s.monthly,
-        dashboard:   s.dashboard,
-        discipline:  s.discipline,
-        hindsights:  s.hindsights,
-        tradeCache:  s.tradeCache,
+        // tradeCache: NON — peut devenir stale, on ne le persiste plus
         lastTradeId: s.lastTradeId,
       }),
     }

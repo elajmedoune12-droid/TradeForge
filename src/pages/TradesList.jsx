@@ -1,5 +1,5 @@
-import { useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useMemo, useState } from 'react'
 import {
   Plus, Search, SlidersHorizontal, X, ChevronDown,
   BarChart2, Target, TrendingUp, TrendingDown, Clock, List,
@@ -15,11 +15,11 @@ import { SkeletonCard, SkeletonList } from '../components/Skeleton'
 import { useUIStore } from '../store/useUIStore'
 
 const RESULTS_OPTIONS = [
-  { value: 'tp',          label: 'TP',      color: '#2EA043' },
-  { value: 'sl',          label: 'SL',      color: '#F85149' },
-  { value: 'be',          label: 'BE',      color: '#58a6ff' },
-  { value: 'missed',      label: 'Missed',  color: '#8B949E' },
-  { value: 'manual_exit', label: 'Manuel',  color: '#F79009' },
+  { value: 'tp',          label: 'TP',     color: '#2EA043' },
+  { value: 'sl',          label: 'SL',     color: '#F85149' },
+  { value: 'be',          label: 'BE',     color: '#58a6ff' },
+  { value: 'missed',      label: 'Missed', color: '#8B949E' },
+  { value: 'manual_exit', label: 'Manuel', color: '#F79009' },
 ]
 const TYPE_OPTIONS = [
   { value: 'buy',  label: '↑ BUY',  color: '#2EA043' },
@@ -94,14 +94,30 @@ export default function TradesList() {
   const navigate = useNavigate()
   const { trades, loading } = useTrades()
 
+  // ── état persisté via zustand ─────────────────────────────
   const {
     search, filterResults, filterMarkets, filterTypes,
     filterDateFrom, filterDateTo, filterMonth,
-    sortBy, panelOpen, chartMode,
+    sortBy,
   } = useUIStore(s => s.trades)
-  const setS         = useUIStore(s => s.setTradesState)
+  const set          = useUIStore(s => s.setTradesState)
   const resetFilters = useUIStore(s => s.resetTradesFilters)
 
+  // UI transitoire — local seulement, pas persisté
+  const [panelOpen, setPanelOpen] = useState(false)
+  const [chartMode, setChartMode] = useState('equity')
+
+  // shorthand setters pour le store
+  const setSearch         = v => set({ search: v })
+  const setFilterResults  = fn => set({ filterResults:  fn(filterResults)  })
+  const setFilterMarkets  = fn => set({ filterMarkets:  fn(filterMarkets)  })
+  const setFilterTypes    = fn => set({ filterTypes:    fn(filterTypes)    })
+  const setFilterDateFrom = v => set({ filterDateFrom: v })
+  const setFilterDateTo   = v => set({ filterDateTo:   v })
+  const setFilterMonth    = v => set({ filterMonth:    v })
+  const setSortBy         = v => set({ sortBy:         v })
+
+  // marchés dynamiques
   const availableMarkets = useMemo(
     () => [...new Set(trades.map(t => t.market).filter(Boolean))].sort(),
     [trades]
@@ -109,9 +125,9 @@ export default function TradesList() {
 
   const filtered = useMemo(() => {
     let list = trades.filter(t => {
-      if (filterResults.length  && !filterResults.includes(t.result))  return false
-      if (filterMarkets.length  && !filterMarkets.includes(t.market))  return false
-      if (filterTypes.length    && !filterTypes.includes(t.type))      return false
+      if (filterResults.length && !filterResults.includes(t.result))  return false
+      if (filterMarkets.length && !filterMarkets.includes(t.market))  return false
+      if (filterTypes.length   && !filterTypes.includes(t.type))      return false
       if (filterMonth    && !t.date.startsWith(filterMonth))           return false
       if (filterDateFrom && t.date < filterDateFrom)                   return false
       if (filterDateTo   && t.date > filterDateTo)                     return false
@@ -188,13 +204,12 @@ export default function TradesList() {
 
   const hasFilters = filterResults.length||filterMarkets.length||filterTypes.length||
     filterMonth||filterDateFrom||filterDateTo||search
-
   const activeCount = filterResults.length+filterMarkets.length+filterTypes.length+
     (filterMonth?1:0)+(filterDateFrom?1:0)+(filterDateTo?1:0)
 
   return (
     <div className="page">
-
+      {/* Header */}
       <div className="flex items-center justify-between mb-4">
         <div>
           <div className="flex items-center gap-2 mb-0.5">
@@ -204,9 +219,7 @@ export default function TradesList() {
             </div>
             <h1 className="text-xl font-semibold" style={{ color: 'var(--text-primary)' }}>Trades</h1>
           </div>
-          <p className="text-xs text-forge-muted">
-            {trades.length} trade{trades.length!==1?'s':''} au total
-          </p>
+          <p className="text-xs text-forge-muted">{trades.length} trade{trades.length!==1?'s':''} au total</p>
         </div>
         <button onClick={() => navigate('/app/trades/new')} className="btn-primary flex items-center gap-1.5">
           <Plus size={15} /> Nouveau
@@ -222,13 +235,14 @@ export default function TradesList() {
         </>
       ) : (
         <>
+          {/* Search + filtres */}
           <div className="flex gap-2 mb-3">
             <div className="relative flex-1">
               <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-forge-muted pointer-events-none" />
-              <input value={search} onChange={e => setS({ search: e.target.value })}
+              <input value={search} onChange={e=>setSearch(e.target.value)}
                 placeholder="Rechercher un marché..." className="w-full pl-8" />
             </div>
-            <button onClick={() => setS({ panelOpen: !panelOpen })}
+            <button onClick={() => setPanelOpen(o=>!o)}
               className="flex items-center gap-1.5 px-3 py-2.5 rounded-xl text-sm font-medium border transition-all active:scale-95"
               style={panelOpen||activeCount>0
                 ? { background:'rgba(247,183,49,0.12)', color:'#F7B731', borderColor:'rgba(247,183,49,0.4)' }
@@ -245,13 +259,14 @@ export default function TradesList() {
             </button>
           </div>
 
+          {/* Chips actifs */}
           {(filterMarkets.length>0||filterResults.length>0||filterTypes.length>0||filterMonth||filterDateFrom||filterDateTo) && (
             <div className="flex flex-wrap gap-1.5 mb-3">
               {filterMarkets.map(m => (
                 <span key={m} className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-medium border"
                   style={{ background:'rgba(247,183,49,0.12)', color:'#F7B731', borderColor:'rgba(247,183,49,0.35)' }}>
                   {m}
-                  <button onClick={() => setS({ filterMarkets: filterMarkets.filter(x=>x!==m) })}><X size={10}/></button>
+                  <button onClick={() => setFilterMarkets(v=>v.filter(x=>x!==m))}><X size={10}/></button>
                 </span>
               ))}
               {filterResults.map(r => {
@@ -260,7 +275,7 @@ export default function TradesList() {
                   <span key={r} className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-medium border"
                     style={{ background:`${opt.color}18`, color:opt.color, borderColor:`${opt.color}40` }}>
                     {opt.label}
-                    <button onClick={() => setS({ filterResults: filterResults.filter(x=>x!==r) })}><X size={10}/></button>
+                    <button onClick={() => setFilterResults(v=>v.filter(x=>x!==r))}><X size={10}/></button>
                   </span>
                 )
               })}
@@ -268,21 +283,21 @@ export default function TradesList() {
                 <span key={t} className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-medium border"
                   style={{ background:t==='buy'?'rgba(46,160,67,0.12)':'rgba(248,81,73,0.12)', color:t==='buy'?'#2EA043':'#F85149', borderColor:t==='buy'?'rgba(46,160,67,0.35)':'rgba(248,81,73,0.35)' }}>
                   {t.toUpperCase()}
-                  <button onClick={() => setS({ filterTypes: filterTypes.filter(x=>x!==t) })}><X size={10}/></button>
+                  <button onClick={() => setFilterTypes(v=>v.filter(x=>x!==t))}><X size={10}/></button>
                 </span>
               ))}
               {filterMonth && (
                 <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-medium border"
                   style={{ background:'rgba(247,183,49,0.12)', color:'#F7B731', borderColor:'rgba(247,183,49,0.35)' }}>
                   {filterMonth}
-                  <button onClick={() => setS({ filterMonth: '' })}><X size={10}/></button>
+                  <button onClick={()=>setFilterMonth('')}><X size={10}/></button>
                 </span>
               )}
               {(filterDateFrom||filterDateTo) && (
                 <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-medium border"
                   style={{ background:'rgba(247,183,49,0.12)', color:'#F7B731', borderColor:'rgba(247,183,49,0.35)' }}>
                   {filterDateFrom||'…'} → {filterDateTo||'…'}
-                  <button onClick={() => setS({ filterDateFrom: '', filterDateTo: '' })}><X size={10}/></button>
+                  <button onClick={()=>{setFilterDateFrom('');setFilterDateTo('')}}><X size={10}/></button>
                 </span>
               )}
               <button onClick={resetFilters} className="text-xs text-forge-muted hover-text-primary transition-colors px-1">
@@ -291,66 +306,62 @@ export default function TradesList() {
             </div>
           )}
 
+          {/* Summary stats */}
           {stats.total > 0 && (
-            <>
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
-                <StatCard label="Win Rate" value={`${stats.winRate}%`} sub={`${stats.tp} TP / ${stats.sl} SL`}
-                  color={stats.winRate >= 50 ? 'text-forge-green' : 'text-forge-red'}
-                  icon={Target} glow={stats.winRate >= 50 ? '#2EA043' : '#F85149'} />
-                <StatCard label="Profit total"
-                  value={stats.profit >= 0 ? `+${stats.profit}R` : `${stats.profit}R`}
-                  sub={`${stats.total} trade${stats.total !== 1 ? 's' : ''}${hasFilters ? ` / ${trades.length}` : ''}`}
-                  color={stats.profit >= 0 ? 'text-forge-green' : 'text-forge-red'}
-                  icon={stats.profit >= 0 ? TrendingUp : TrendingDown}
-                  glow={stats.profit >= 0 ? '#2EA043' : '#F85149'} />
-                <StatCard label="RR Moyen" value={stats.avgRR > 0 ? `${stats.avgRR}R` : '—'}
-                  sub="sur trades gagnants" icon={BarChart2} />
-                <StatCard label="Meilleure session"
-                  value={stats.bestSession ? stats.bestSession.split(' ')[0] : '—'}
-                  sub={stats.bestSession || 'Aucune donnée'} color="text-forge-accent"
-                  icon={Clock} glow="#F7B731" />
+            <div className="rounded-2xl p-4 mb-4"
+              style={{ background:'var(--surface-card)', border:'1px solid var(--border-soft)' }}>
+              <div className="flex gap-0.5 h-2 rounded-full overflow-hidden mb-3">
+                {stats.tp>0         && <div style={{ flex:stats.tp,         background:'#2EA043' }}/>}
+                {stats.sl>0         && <div style={{ flex:stats.sl,         background:'#F85149' }}/>}
+                {stats.be>0         && <div style={{ flex:stats.be,         background:'#58a6ff' }}/>}
+                {stats.missed>0     && <div style={{ flex:stats.missed,     background:'#8B949E' }}/>}
+                {stats.manualExit>0 && <div style={{ flex:stats.manualExit, background:'#F79009' }}/>}
               </div>
-
-              <div className="rounded-2xl p-4 mb-4"
-                style={{ background: 'var(--surface-card)', border: '1px solid var(--border-soft)' }}>
-                <div className="flex gap-0.5 h-2 rounded-full overflow-hidden mb-3">
-                  {stats.tp > 0         && <div style={{ flex: stats.tp,         background: '#2EA043' }} />}
-                  {stats.sl > 0         && <div style={{ flex: stats.sl,         background: '#F85149' }} />}
-                  {stats.be > 0         && <div style={{ flex: stats.be,         background: '#58a6ff' }} />}
-                  {stats.missed > 0     && <div style={{ flex: stats.missed,     background: '#8B949E' }} />}
-                  {stats.manualExit > 0 && <div style={{ flex: stats.manualExit, background: '#F79009' }} />}
-                </div>
-                <div className="grid grid-cols-5 gap-1">
-                  {[
-                    { label: 'TP',     count: stats.tp,         color: '#2EA043' },
-                    { label: 'SL',     count: stats.sl,         color: '#F85149' },
-                    { label: 'BE',     count: stats.be,         color: '#58a6ff' },
-                    { label: 'Missed', count: stats.missed,     color: '#8B949E' },
-                    { label: 'Manuel', count: stats.manualExit, color: '#F79009' },
-                  ].map(({ label, count, color }) => (
-                    <div key={label} className="text-center rounded-xl py-2"
-                      style={{ background: `${color}0A`, border: `1px solid ${color}20` }}>
-                      <p className="text-base font-mono font-bold" style={{ color }}>{count}</p>
-                      <p className="text-[9px] font-medium uppercase tracking-wide mt-0.5"
-                        style={{ color: 'var(--forge-muted)' }}>{label}</p>
-                      <p className="text-[9px]" style={{ color: 'var(--text-faint)' }}>
-                        {stats.total ? Math.round((count / stats.total) * 100) : 0}%
-                      </p>
-                    </div>
-                  ))}
-                </div>
-                {hasFilters && (
-                  <p className="text-[10px] text-center mt-3" style={{ color: 'var(--forge-muted)' }}>
-                    {stats.total} trade{stats.total !== 1 ? 's' : ''} filtrés sur {trades.length} au total
-                  </p>
-                )}
+              <div className="grid grid-cols-5 gap-1 mb-4">
+                {[
+                  { label:'TP',     count:stats.tp,         color:'#2EA043' },
+                  { label:'SL',     count:stats.sl,         color:'#F85149' },
+                  { label:'BE',     count:stats.be,         color:'#58a6ff' },
+                  { label:'Missed', count:stats.missed,     color:'#8B949E' },
+                  { label:'Manuel', count:stats.manualExit, color:'#F79009' },
+                ].map(({label,count,color}) => (
+                  <div key={label} className="text-center rounded-xl py-2"
+                    style={{ background:`${color}0A`, border:`1px solid ${color}20` }}>
+                    <p className="text-base font-mono font-bold" style={{ color }}>{count}</p>
+                    <p className="text-[9px] font-medium uppercase tracking-wide mt-0.5"
+                      style={{ color:'var(--forge-muted)' }}>{label}</p>
+                    <p className="text-[9px]" style={{ color:'var(--text-faint)' }}>
+                      {stats.total ? Math.round((count/stats.total)*100) : 0}%
+                    </p>
+                  </div>
+                ))}
               </div>
-            </>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                {[
+                  { label:'Trades',    value:stats.total,                                    color:'var(--text-primary)' },
+                  { label:'Win Rate',  value:`${stats.winRate}%`,                            color:stats.winRate>=50?'#2EA043':'#F85149' },
+                  { label:'P&L total', value:`${stats.profit>=0?'+':''}${stats.profit}R`,    color:stats.profit>=0?'#2EA043':'#F85149' },
+                  { label:'RR moyen',  value:stats.avgRR>0?`${stats.avgRR}R`:'—',           color:'var(--text-primary)' },
+                ].map(s => (
+                  <div key={s.label} className="rounded-xl py-2 px-3 text-center"
+                    style={{ background:'var(--surface-3)', border:'1px solid var(--border-soft)' }}>
+                    <p className="text-[9px] uppercase tracking-widest mb-1" style={{ color:'var(--forge-muted)' }}>{s.label}</p>
+                    <p className="text-sm font-mono font-bold" style={{ color:s.color }}>{s.value}</p>
+                  </div>
+                ))}
+              </div>
+              {hasFilters && (
+                <p className="text-[10px] text-center mt-3" style={{ color:'var(--forge-muted)' }}>
+                  {stats.total} trade{stats.total!==1?'s':''} filtrés sur {trades.length} au total
+                </p>
+              )}
+            </div>
           )}
 
+          {/* Graphique */}
           {filtered.length > 1 && (
             <div className="card mb-4"
-              style={{ borderColor: chartMode==='equity'?(isUp?'rgba(46,160,67,0.2)':'rgba(248,81,73,0.2)'):'var(--surface-6)' }}>
+              style={{ borderColor:chartMode==='equity'?(isUp?'rgba(46,160,67,0.2)':'rgba(248,81,73,0.2)'):'var(--surface-6)' }}>
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2">
                   <BarChart2 size={13} className="text-forge-accent" />
@@ -358,7 +369,7 @@ export default function TradesList() {
                 </div>
                 <div className="flex gap-1">
                   {CHART_MODES.map(m => (
-                    <button key={m.value} onClick={() => setS({ chartMode: m.value })}
+                    <button key={m.value} onClick={() => setChartMode(m.value)}
                       className="px-2.5 py-1 rounded-lg text-[10px] font-medium border transition-all"
                       style={chartMode===m.value
                         ? { background:'rgba(247,183,49,0.15)', color:'#F7B731', borderColor:'rgba(247,183,49,0.4)' }
@@ -369,7 +380,6 @@ export default function TradesList() {
                   ))}
                 </div>
               </div>
-
               {chartMode==='equity' && (
                 <>
                   <div className="flex items-baseline gap-2 mb-3">
@@ -379,7 +389,7 @@ export default function TradesList() {
                     <span className="text-xs text-forge-muted">cumulé sur {filtered.length} trades</span>
                   </div>
                   <ResponsiveContainer width="100%" height={140}>
-                    <AreaChart data={chartData} margin={{ top:4,right:0,left:-28,bottom:0 }}>
+                    <AreaChart data={chartData} margin={{top:4,right:0,left:-28,bottom:0}}>
                       <defs>
                         <linearGradient id="eqUp2" x1="0" y1="0" x2="0" y2="1">
                           <stop offset="0%" stopColor="#2EA043" stopOpacity={0.3}/>
@@ -402,7 +412,6 @@ export default function TradesList() {
                   </ResponsiveContainer>
                 </>
               )}
-
               {chartMode==='rr' && (
                 <>
                   <p className="text-xs text-forge-muted mb-3">RR réalisé par trade</p>
@@ -422,7 +431,6 @@ export default function TradesList() {
                   </ResponsiveContainer>
                 </>
               )}
-
               {chartMode==='results' && (
                 <>
                   <p className="text-xs text-forge-muted mb-3">Distribution par mois</p>
@@ -452,6 +460,7 @@ export default function TradesList() {
             </div>
           )}
 
+          {/* Panneau filtres */}
           {panelOpen && (
             <div className="card mb-4 space-y-5"
               style={{ border:'1px solid rgba(247,183,49,0.15)', background:'var(--surface-card)' }}>
@@ -462,7 +471,7 @@ export default function TradesList() {
                     const active = filterResults.includes(opt.value)
                     return (
                       <button key={opt.value} type="button"
-                        onClick={() => setS({ filterResults: toggle(filterResults, opt.value) })}
+                        onClick={() => setFilterResults(v=>toggle(v,opt.value))}
                         className="px-3 py-1.5 rounded-xl text-xs font-medium border transition-all active:scale-95"
                         style={active
                           ? { background:`${opt.color}22`, color:opt.color, borderColor:`${opt.color}66`, boxShadow:`0 0 8px ${opt.color}33` }
@@ -481,7 +490,7 @@ export default function TradesList() {
                     const active = filterTypes.includes(opt.value)
                     return (
                       <button key={opt.value} type="button"
-                        onClick={() => setS({ filterTypes: toggle(filterTypes, opt.value) })}
+                        onClick={() => setFilterTypes(v=>toggle(v,opt.value))}
                         className="px-3 py-1.5 rounded-xl text-xs font-medium border transition-all active:scale-95"
                         style={active
                           ? { background:`${opt.color}22`, color:opt.color, borderColor:`${opt.color}66` }
@@ -494,7 +503,9 @@ export default function TradesList() {
                 </div>
               </div>
               <div>
-                <p className="section-title mb-2">Marché <span className="normal-case font-normal text-forge-muted">({availableMarkets.length} disponibles)</span></p>
+                <p className="section-title mb-2">
+                  Marché <span className="normal-case font-normal text-forge-muted">(multi · {availableMarkets.length} disponibles)</span>
+                </p>
                 {availableMarkets.length === 0 ? (
                   <p className="text-xs" style={{ color:'var(--forge-muted)' }}>Aucun trade enregistré.</p>
                 ) : (
@@ -504,7 +515,7 @@ export default function TradesList() {
                       const count  = trades.filter(t=>t.market===m).length
                       return (
                         <button key={m} type="button"
-                          onClick={() => setS({ filterMarkets: toggle(filterMarkets, m) })}
+                          onClick={() => setFilterMarkets(v=>toggle(v,m))}
                           className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium border transition-all active:scale-95"
                           style={active
                             ? { background:'rgba(247,183,49,0.15)', color:'#F7B731', borderColor:'rgba(247,183,49,0.5)' }
@@ -524,27 +535,27 @@ export default function TradesList() {
                   <div>
                     <label className="label">Du</label>
                     <input type="date" value={filterDateFrom}
-                      onChange={e => setS({ filterDateFrom: e.target.value, filterMonth: '' })}
+                      onChange={e=>{setFilterDateFrom(e.target.value);setFilterMonth('')}}
                       className="w-full text-xs"/>
                   </div>
                   <div>
                     <label className="label">Au</label>
                     <input type="date" value={filterDateTo}
-                      onChange={e => setS({ filterDateTo: e.target.value, filterMonth: '' })}
+                      onChange={e=>{setFilterDateTo(e.target.value);setFilterMonth('')}}
                       className="w-full text-xs"/>
                   </div>
                 </div>
                 <div>
                   <label className="label">Ou par mois</label>
                   <input type="month" value={filterMonth}
-                    onChange={e => setS({ filterMonth: e.target.value, filterDateFrom: '', filterDateTo: '' })}
+                    onChange={e=>{setFilterMonth(e.target.value);setFilterDateFrom('');setFilterDateTo('')}}
                     className="w-full text-xs"/>
                 </div>
               </div>
               <div>
                 <p className="section-title mb-2">Trier par</p>
                 <div className="relative">
-                  <select value={sortBy} onChange={e => setS({ sortBy: e.target.value })} className="w-full pr-8 appearance-none">
+                  <select value={sortBy} onChange={e=>setSortBy(e.target.value)} className="w-full pr-8 appearance-none">
                     {SORT_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                   </select>
                   <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-forge-muted pointer-events-none"/>
@@ -554,7 +565,7 @@ export default function TradesList() {
                 <button onClick={resetFilters} className="text-xs text-forge-muted hover-text-primary transition-colors">
                   Réinitialiser
                 </button>
-                <button onClick={() => setS({ panelOpen: false })}
+                <button onClick={() => setPanelOpen(false)}
                   className="text-xs font-medium px-3 py-1.5 rounded-lg transition-all active:scale-95"
                   style={{ background:'rgba(247,183,49,0.15)', color:'#F7B731' }}>
                   Voir {filtered.length} résultat{filtered.length!==1?'s':''}
@@ -563,6 +574,7 @@ export default function TradesList() {
             </div>
           )}
 
+          {/* Liste */}
           <div className="space-y-2">
             {filtered.length === 0 && (
               <div className="text-center py-16">
@@ -606,7 +618,9 @@ export default function TradesList() {
                     <p className="text-xs" style={{ color:'var(--forge-muted)' }}>{fmtDate(t.date)}</p>
                     <div className="flex items-center gap-2">
                       {t.rr_planned!=null && (
-                        <span className="text-[10px] font-mono" style={{ color:'var(--forge-muted)' }}>Plan {t.rr_planned}R</span>
+                        <span className="text-[10px] font-mono" style={{ color:'var(--forge-muted)' }}>
+                          Plan {t.rr_planned}R
+                        </span>
                       )}
                       {t.rr_won!=null && (
                         <span className="text-xs font-mono font-semibold" style={{ color:resultColor }}>
