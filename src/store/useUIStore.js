@@ -1,22 +1,35 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 
+const STORE_VERSION = 2
+
+const defaultState = {
+  trades: {
+    search:         '',
+    filterResults:  [],
+    filterMarkets:  [],
+    filterTypes:    [],
+    filterDateFrom: '',
+    filterDateTo:   '',
+    filterMonth:    '',
+    sortBy:         'date_desc',
+    // panelOpen et chartMode intentionnellement absents → local useState dans TradesList
+  },
+  weekly:     { currentWeek:   null },
+  monthly:    { currentMonth:  null },
+  dashboard:  { calendarMonth: null },
+  discipline: { activeTab: 'rules', filterCat: 'all', expandedWeeks: {}, expandedCycles: {} },
+  hindsights: { filterTF: '', filterMkt: '' },
+  lastTradeId: null,
+  // tradeCache absent → jamais persisté (peut devenir stale)
+}
+
 export const useUIStore = create(
   persist(
     (set) => ({
+      ...defaultState,
 
       // ── TradesList ──────────────────────────────────────
-      trades: {
-        search:         '',
-        filterResults:  [],
-        filterMarkets:  [],
-        filterTypes:    [],
-        filterDateFrom: '',
-        filterDateTo:   '',
-        filterMonth:    '',
-        sortBy:         'date_desc',
-        // panelOpen et chartMode intentionnellement EXCLUS de la persistence
-      },
       setTradesState: (patch) =>
         set(s => ({ trades: { ...s.trades, ...patch } })),
       resetTradesFilters: () =>
@@ -34,52 +47,42 @@ export const useUIStore = create(
         })),
 
       // ── WeeklyForecast ──────────────────────────────────
-      weekly: {
-        currentWeek: null,
-      },
       setWeeklyState: (patch) =>
         set(s => ({ weekly: { ...s.weekly, ...patch } })),
 
-      // ── Cache trades détail ─────────────────────────────
-      tradeCache: {},
-      setTradeCache: (id, trade) =>
-        set(s => ({ tradeCache: { ...s.tradeCache, [id]: trade } })),
-      clearTradeCache: (id) =>
-        set(s => {
-          const next = { ...s.tradeCache }
-          delete next[id]
-          return { tradeCache: next }
-        }),
+      // ── MonthlyAnalysis ─────────────────────────────────
+      setMonthlyState: (patch) =>
+        set(s => ({ monthly: { ...s.monthly, ...patch } })),
+
+      // ── Dashboard ───────────────────────────────────────
+      setDashboardState: (patch) =>
+        set(s => ({ dashboard: { ...s.dashboard, ...patch } })),
+
+      // ── RulesAndErrors ──────────────────────────────────
+      setDisciplineState: (patch) =>
+        set(s => ({ discipline: { ...s.discipline, ...patch } })),
+
+      // ── HindsightsList ──────────────────────────────────
+      setHindsightsState: (patch) =>
+        set(s => ({ hindsights: { ...s.hindsights, ...patch } })),
 
       // ── Dernier trade consulté ──────────────────────────
-      lastTradeId: null,
-      setLastTradeId: (id) => set({ lastTradeId: id }),
-      clearLastTradeId: () => set({ lastTradeId: null }),
+      setLastTradeId:   (id) => set({ lastTradeId: id }),
+      clearLastTradeId: ()   => set({ lastTradeId: null }),
 
-      // ── Reset complet (appelé au logout) ───────────────
-      resetAll: () => set({
-        trades: {
-          search:         '',
-          filterResults:  [],
-          filterMarkets:  [],
-          filterTypes:    [],
-          filterDateFrom: '',
-          filterDateTo:   '',
-          filterMonth:    '',
-          sortBy:         'date_desc',
-        },
-        weekly:      { currentWeek: null },
-        tradeCache:  {},
-        lastTradeId: null,
-      }),
-
+      // ── Reset complet au logout ─────────────────────────
+      resetAll: () => set(defaultState),
     }),
     {
-      name: 'tradeforge-ui',
-      // Ne persister QUE les filtres utiles — jamais les états UI transitoires
+      name:    'tradeforge-ui',
+      version: STORE_VERSION,
+      migrate: (_persistedState, _version) => {
+        // Toute version différente de STORE_VERSION → on repart de zéro proprement
+        return defaultState
+      },
       partialize: (s) => ({
-        trades: {
-          // Filtres : oui, ils ont une intention utilisateur
+        trades:      {
+          // On persiste les filtres mais PAS panelOpen ni chartMode
           search:         s.trades.search,
           filterResults:  s.trades.filterResults,
           filterMarkets:  s.trades.filterMarkets,
@@ -88,12 +91,19 @@ export const useUIStore = create(
           filterDateTo:   s.trades.filterDateTo,
           filterMonth:    s.trades.filterMonth,
           sortBy:         s.trades.sortBy,
-          // panelOpen: NON — le panneau doit être fermé à chaque ouverture
-          // chartMode: NON — revient au défaut 'equity' à chaque ouverture
         },
         weekly:      s.weekly,
-        // tradeCache: NON — peut devenir stale, on ne le persiste plus
+        monthly:     s.monthly,
+        dashboard:   s.dashboard,
+        discipline:  {
+          // On persiste l'onglet actif et le filtre catégorie
+          // mais PAS expandedWeeks/expandedCycles (états UI transitoires)
+          activeTab: s.discipline.activeTab,
+          filterCat: s.discipline.filterCat,
+        },
+        hindsights:  s.hindsights,
         lastTradeId: s.lastTradeId,
+        // tradeCache : intentionnellement exclu (peut devenir stale)
       }),
     }
   )
