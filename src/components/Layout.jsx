@@ -968,9 +968,10 @@ const [dismissedIds, setDismissedIds] = useState(() => {
   const handleLogoutConfirmed = async () => {
   setShowLogoutConfirm(false)
   resetAll()
-  localStorage.removeItem('tradeforge-ui')
-  localStorage.removeItem('tf_read_notifs')
-  localStorage.removeItem('tf_dismissed_notifs')
+  const theme = localStorage.getItem('tradeforge_theme')
+  localStorage.clear()
+  sessionStorage.clear()          // ← vide lastRoute
+  if (theme) localStorage.setItem('tradeforge_theme', theme)
   await signOut?.()
   window.location.href = '/'
 }
