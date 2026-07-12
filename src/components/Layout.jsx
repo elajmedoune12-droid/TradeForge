@@ -968,6 +968,9 @@ const [dismissedIds, setDismissedIds] = useState(() => {
   const handleLogoutConfirmed = () => {
   setShowLogoutConfirm(false)
   resetAll()
+  localStorage.removeItem('tradeforge-ui')
+  localStorage.removeItem('tf_read_notifs')
+  localStorage.removeItem('tf_dismissed_notifs')
   signOut?.()
 }
 
