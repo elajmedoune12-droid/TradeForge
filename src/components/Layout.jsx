@@ -965,13 +965,14 @@ const [dismissedIds, setDismissedIds] = useState(() => {
     setShowNotif(false)
   }
 
-  const handleLogoutConfirmed = () => {
+  const handleLogoutConfirmed = async () => {
   setShowLogoutConfirm(false)
   resetAll()
   localStorage.removeItem('tradeforge-ui')
   localStorage.removeItem('tf_read_notifs')
   localStorage.removeItem('tf_dismissed_notifs')
-  signOut?.()
+  await signOut?.()
+  window.location.href = '/'
 }
 
   const displayName = profile?.username || profile?.full_name || 'Trader'
