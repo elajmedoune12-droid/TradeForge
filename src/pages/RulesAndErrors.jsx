@@ -193,7 +193,7 @@ function TabBacktest({ user }) {
   const [saving, setSaving]               = useState(false)
   const [showNewCycle, setShowNewCycle]   = useState(false)
   const [newCycleHours, setNewCycleHours] = useState('')
-  const { expandedWeeks = {}, expandedCycles = {} } = useUIStore(s => s.discipline) ?? {}
+  const { expandedWeeks, expandedCycles } = useUIStore(s => s.discipline)
   const setDisciplineState = useUIStore(s => s.setDisciplineState)
 
   useEffect(() => {

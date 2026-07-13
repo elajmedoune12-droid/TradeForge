@@ -32,9 +32,7 @@ function LocationMemory() {
 
   useEffect(() => {
     const last = sessionStorage.getItem('lastRoute')
-    // ← Ne restaure QUE si on arrive directement sur '/' sans avoir été redirigé
-    // et seulement si ce n'est pas une reconnexion depuis /login
-    if (last && location.pathname === '/app' ) {
+    if (last && location.pathname === '/') {
       navigate(last, { replace: true })
     }
   }, [])
