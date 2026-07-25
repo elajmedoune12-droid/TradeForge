@@ -33,7 +33,7 @@ const getEmptyForm = () => {
   return {
     date: format(today, 'yyyy-MM-dd'),
     market: '',
-    type: 'buy',
+    type: '',
     rr_planned: '',
     rr_won: '',
     result: '',
@@ -520,11 +520,11 @@ export default function AddTrade() {
                     onClick={() => set('type', t)}
                     className="flex-1 py-2.5 rounded-xl text-sm font-medium transition-all border"
                     style={form.type === t
-                      ? t === 'buy'
-                        ? { background: 'rgba(46,160,67,0.15)', color: '#2EA043', borderColor: 'rgba(46,160,67,0.5)', boxShadow: '0 0 10px rgba(46,160,67,0.2)' }
-                        : { background: 'rgba(248,81,73,0.15)', color: '#F85149', borderColor: 'rgba(248,81,73,0.5)', boxShadow: '0 0 10px rgba(248,81,73,0.2)' }
-                      : { background: 'var(--surface-4)', color: 'var(--forge-muted)', borderColor: 'var(--border-soft)' }
-                    }
+  ? t === 'buy'
+    ? { background: 'rgba(46,160,67,0.15)', color: '#2EA043', borderColor: 'rgba(46,160,67,0.5)', boxShadow: '0 0 10px rgba(46,160,67,0.2)' }
+    : { background: 'rgba(248,81,73,0.15)', color: '#F85149', borderColor: 'rgba(248,81,73,0.5)', boxShadow: '0 0 10px rgba(248,81,73,0.2)' }
+  : { background: 'var(--surface-4)', color: 'var(--forge-muted)', borderColor: errors.type ? 'rgba(248,81,73,0.6)' : 'var(--border-soft)' }
+}
                   >
                     {t === 'buy' ? '↑ BUY' : '↓ SELL'}
                   </button>

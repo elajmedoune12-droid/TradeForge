@@ -15,6 +15,7 @@ import {
   format, startOfWeek, endOfWeek, addWeeks, subWeeks,
   isWithinInterval, parseISO,
 } from 'date-fns'
+import { calcWinRate } from '../utils'
 import { fr } from 'date-fns/locale'
 import { SkeletonCard } from '../components/Skeleton'
 
@@ -39,7 +40,7 @@ const calcStats = (trades) => {
   const be     = trades.filter(t => t.result === 'be').length
   const missed = trades.filter(t => t.result === 'missed').length
   const activeTrades = trades.filter(t => ['tp','sl','be'].includes(t.result))
-  const winRate = activeTrades.length ? Math.round((tp / activeTrades.length) * 100) : 0
+  const winRate = calcWinRate(activeTrades)
   const rr = +trades.reduce((acc, t) => {
     if (t.result === 'tp')          return acc + (t.rr_won || 0)
     if (t.result === 'sl')          return acc + (t.rr_won ?? -1)
