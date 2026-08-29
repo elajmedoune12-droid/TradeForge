@@ -14,7 +14,6 @@ import { useAuth } from '../hooks/useAuth'
 import AIAssistant from '../components/AIAssistant'
 import ExportModal from '../components/ExportModal'
 import { useUIStore } from '../store/useUIStore'
-import { PageHeader } from '../components/PageHeader'
 
 const RESULT_CONFIG = {
   tp:          { label: 'Take Profit',     bg: 'rgba(46,160,67,0.12)',   color: '#2EA043', border: 'rgba(46,160,67,0.3)',   glow: 'rgba(46,160,67,0.15)'  },
@@ -410,22 +409,23 @@ export default function TradeDetail() {
       {lightbox && <Lightbox images={lightbox.images} startIndex={lightbox.startIndex} onClose={() => setLightbox(null)} />}
 
       {/* ── Header ── */}
-      <PageHeader
-        title="Détail du trade"
-        icon={TrendingUp}
-        right={
-          <>
-            <button onClick={() => navigate('/app/trades')}
-              className="w-9 h-9 rounded-xl flex items-center justify-center transition-all flex-shrink-0 active:scale-95"
-              style={{ border: '1px solid var(--border-soft)', background: 'var(--surface-2)', color: 'var(--forge-muted)' }}>
-              <ChevronLeft size={18} />
-            </button>
-            <div className="flex gap-1.5">
-              <button onClick={() => setShowExport(true)} title="Exporter"
-                className="w-9 h-9 rounded-xl flex items-center justify-center transition-all active:scale-95"
-                style={{ background: 'rgba(46,160,67,0.1)', border: '1px solid rgba(46,160,67,0.25)', color: '#2EA043' }}>
-                <Upload size={14} />
-              </button>
+      <div className="flex items-center justify-between mb-4" style={{ gap: 12 }}>
+        <div className="flex items-center min-w-0" style={{ gap: 12 }}>
+          <button onClick={() => navigate('/app/trades')}
+            className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 transition-all active:scale-95 hover-text-primary"
+            style={{ background: 'var(--surface-4)', border: '1px solid var(--border-soft)', color: 'var(--text-primary)', boxShadow: '0 2px 8px -4px rgba(0,0,0,0.2)' }}>
+            <ChevronLeft size={20} />
+          </button>
+          <h1 className="text-xl font-semibold min-w-0 truncate" style={{ color: 'var(--text-primary)' }}>
+            Détail du trade
+          </h1>
+        </div>
+        <div className="flex items-center gap-1.5 flex-shrink-0">
+          <button onClick={() => setShowExport(true)} title="Exporter"
+            className="w-9 h-9 rounded-xl flex items-center justify-center transition-all active:scale-95"
+            style={{ background: 'rgba(46,160,67,0.1)', border: '1px solid rgba(46,160,67,0.25)', color: '#2EA043' }}>
+            <Upload size={14} />
+          </button>
               <button onClick={() => setShowAI(true)}
                 className="flex items-center gap-1.5 px-3 h-9 rounded-xl text-xs font-semibold transition-all active:scale-95"
                 style={{ background: 'rgba(247,183,49,0.1)', border: '1px solid rgba(247,183,49,0.25)', color: '#F7B731' }}>
@@ -444,9 +444,7 @@ export default function TradeDetail() {
                 <Trash2 size={14} />
               </button>
             </div>
-          </>
-        }
-      />
+        </div>
 
       {/* Erreur de suppression */}
       {deleteError && (

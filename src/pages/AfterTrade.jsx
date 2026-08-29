@@ -346,19 +346,24 @@ export default function AfterTrade() {
     <div className="page">
 
       {/* Header */}
-      <div className="flex items-center gap-3 mb-6">
+      <div className="flex items-center mb-4" style={{ gap: 12 }}>
         <button
           onClick={() => navigate(-1)}
-          className="transition-colors hover-text-primary"
-          style={{ color: 'var(--forge-muted)' }}
+          className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 transition-all active:scale-95 hover-text-primary"
+          style={{
+            background: 'var(--surface-4)',
+            border: '1px solid var(--border-soft)',
+            color: 'var(--text-primary)',
+            boxShadow: '0 2px 8px -4px rgba(0,0,0,0.2)',
+          }}
         >
           <ChevronLeft size={20} />
         </button>
-        <h1 className="text-lg font-semibold" style={{ color: 'var(--text-primary)' }}>After Trade</h1>
+        <h1 className="text-xl font-semibold min-w-0 truncate" style={{ color: 'var(--text-primary)' }}>After Trade</h1>
       </div>
 
       {trade && (
-        <p className="text-xs mb-4 -mt-4 ml-9" style={{ color: 'var(--forge-muted)' }}>
+        <p className="text-xs mb-4 -mt-4 ml-12" style={{ color: 'var(--forge-muted)' }}>
           {trade.market} · {trade.date}
         </p>
       )}
