@@ -1,23 +1,29 @@
 import { BrowserRouter, Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom'
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, lazy, Suspense } from 'react'
+import { AnimatePresence, MotionConfig } from 'framer-motion'
 import { AuthProvider, useAuth } from './hooks/useAuth'
 import { ThemeProvider } from './hooks/useTheme'
 import Layout from './components/Layout'
 import Landing from './pages/Landing'
 import Login from './pages/Login'
 import ResetPassword from './pages/ResetPassword'
-import Dashboard from './pages/Dashboard'
-import AddTrade from './pages/AddTrade'
-import TradesList from './pages/TradesList'
-import TradeDetail from './pages/TradeDetail'
-import AfterTrade from './pages/AfterTrade'
-import HindsightNew from './pages/HindsightNew'
-import HindsightsList from './pages/HindsightsList'
-import RulesAndErrors from './pages/RulesAndErrors'
-import MonthlyAnalysis from './pages/MonthlyAnalysis'
-import Settings from './pages/Settings'
-import Profile from './pages/Profile'
-import WeeklyForecast from './pages/WeeklyForecast'
+import NotFound from './pages/NotFound'
+import ErrorBoundary from './components/ErrorBoundary'
+import PageTransition from './components/PageTransition'
+
+// Pages de l'app chargées à la demande (code-splitting)
+const Dashboard       = lazy(() => import('./pages/Dashboard'))
+const AddTrade        = lazy(() => import('./pages/AddTrade'))
+const TradesList      = lazy(() => import('./pages/TradesList'))
+const TradeDetail     = lazy(() => import('./pages/TradeDetail'))
+const AfterTrade      = lazy(() => import('./pages/AfterTrade'))
+const HindsightNew    = lazy(() => import('./pages/HindsightNew'))
+const HindsightsList  = lazy(() => import('./pages/HindsightsList'))
+const RulesAndErrors  = lazy(() => import('./pages/RulesAndErrors'))
+const MonthlyAnalysis = lazy(() => import('./pages/MonthlyAnalysis'))
+const Settings        = lazy(() => import('./pages/Settings'))
+const Profile         = lazy(() => import('./pages/Profile'))
+const WeeklyForecast  = lazy(() => import('./pages/WeeklyForecast'))
 
 // ── Mémorise et restaure la dernière route ────────────────────
 function LocationMemory() {
@@ -95,41 +101,68 @@ const PrivateRoute = ({ children }) => {
   return user ? children : <Navigate to="/login" replace />
 }
 
-const AppRoutes = () => (
-  <Routes>
-    <Route path="/"               element={<Landing />} />
-    <Route path="/login"          element={<Login />} />
-    <Route path="/reset-password" element={<ResetPassword />} />
+// Chargement moderne pour les pages chargées à la demande (code-splitting)
+function RouteLoader() {
+  return (
+    <div className="flex flex-col items-center justify-center gap-3 py-24 text-forge-muted">
+      <div className="w-8 h-8 border-2 border-forge-accent border-t-transparent rounded-full animate-spin" />
+      <p className="text-xs">Chargement…</p>
+    </div>
+  )
+}
 
-    <Route path="/app" element={<PrivateRoute><Layout /></PrivateRoute>}>
-      <Route index                                     element={<Navigate to="/app/dashboard" replace />} />
-      <Route path="dashboard"                          element={<Dashboard />} />
-      <Route path="trades"                             element={<TradesList />} />
-      <Route path="trades/new"                         element={<AddTrade />} />
-      <Route path="trades/:id"                         element={<TradeDetail />} />
-      <Route path="trades/:id/edit"                    element={<AddTrade />} />
-      <Route path="trades/:id/after-trade"             element={<AfterTrade />} />
-      <Route path="hindsights"                         element={<HindsightsList />} />
-      <Route path="hindsights/new"                     element={<HindsightNew />} />
-      <Route path="errors"                             element={<RulesAndErrors defaultTab="errors" />} />
-      <Route path="rules"                              element={<RulesAndErrors />} />
-      <Route path="monthly"                            element={<MonthlyAnalysis />} />
-      <Route path="settings"                           element={<Settings />} />
-      <Route path="profile"                            element={<Profile />} />
-      <Route path="weekly-forecast"                    element={<WeeklyForecast />} />
-    </Route>
-  </Routes>
-)
+// Applique une transition de page + garde-fou d'erreur + suspense sur chaque écran
+function withTransition(node) {
+  return <Suspense fallback={<RouteLoader />}><PageTransition>{node}</PageTransition></Suspense>
+}
+
+const AppRoutes = () => {
+  const location = useLocation()
+
+  return (
+    <AnimatePresence mode="wait">
+      <Routes location={location} key={location.pathname}>
+        <Route path="/"               element={withTransition(<Landing />)} />
+        <Route path="/login"          element={withTransition(<Login />)} />
+        <Route path="/reset-password" element={withTransition(<ResetPassword />)} />
+
+        <Route path="/app" element={<ErrorBoundary><PrivateRoute><Layout /></PrivateRoute></ErrorBoundary>}>
+          <Route index                                     element={<Navigate to="/app/dashboard" replace />} />
+          <Route path="dashboard"                          element={<ErrorBoundary>{withTransition(<Dashboard />)}</ErrorBoundary>} />
+          <Route path="trades"                             element={<ErrorBoundary>{withTransition(<TradesList />)}</ErrorBoundary>} />
+          <Route path="trades/new"                         element={<ErrorBoundary>{withTransition(<AddTrade />)}</ErrorBoundary>} />
+          <Route path="trades/:id"                         element={<ErrorBoundary>{withTransition(<TradeDetail />)}</ErrorBoundary>} />
+          <Route path="trades/:id/edit"                    element={<ErrorBoundary>{withTransition(<AddTrade />)}</ErrorBoundary>} />
+          <Route path="trades/:id/after-trade"             element={<ErrorBoundary>{withTransition(<AfterTrade />)}</ErrorBoundary>} />
+          <Route path="hindsights"                         element={<ErrorBoundary>{withTransition(<HindsightsList />)}</ErrorBoundary>} />
+          <Route path="hindsights/new"                     element={<ErrorBoundary>{withTransition(<HindsightNew />)}</ErrorBoundary>} />
+          <Route path="errors"                             element={<ErrorBoundary>{withTransition(<RulesAndErrors defaultTab="errors" />)}</ErrorBoundary>} />
+          <Route path="rules"                              element={<ErrorBoundary>{withTransition(<RulesAndErrors />)}</ErrorBoundary>} />
+          <Route path="monthly"                            element={<ErrorBoundary>{withTransition(<MonthlyAnalysis />)}</ErrorBoundary>} />
+          <Route path="settings"                           element={<ErrorBoundary>{withTransition(<Settings />)}</ErrorBoundary>} />
+          <Route path="profile"                            element={<ErrorBoundary>{withTransition(<Profile />)}</ErrorBoundary>} />
+          <Route path="weekly-forecast"                    element={<ErrorBoundary>{withTransition(<WeeklyForecast />)}</ErrorBoundary>} />
+          <Route path="*"                                  element={<ErrorBoundary>{withTransition(<NotFound />)}</ErrorBoundary>} />
+        </Route>
+        <Route path="*" element={<ErrorBoundary>{withTransition(<NotFound />)}</ErrorBoundary>} />
+      </Routes>
+    </AnimatePresence>
+  )
+}
 
 export default function App() {
   return (
     <ThemeProvider>
       <AuthProvider>
-        <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
-          <LocationMemory />
-          <ScrollManager />
-          <AppRoutes />
-        </BrowserRouter>
+        <ErrorBoundary>
+          <MotionConfig reducedMotion="user">
+            <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+              <LocationMemory />
+              <ScrollManager />
+              <AppRoutes />
+            </BrowserRouter>
+          </MotionConfig>
+        </ErrorBoundary>
       </AuthProvider>
     </ThemeProvider>
   )

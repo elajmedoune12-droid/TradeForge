@@ -156,11 +156,10 @@ const StatCard = ({ label, value, sub, color, icon: Icon, glow }) => (
 // ── Main ─────────────────────────────────────────────────────
 export default function MonthlyAnalysis() {
   const { trades, loading: tradesLoading } = useTrades()
-  const { currentMonth } = useUIStore(s => s.monthly)
   const setMonthlyState  = useUIStore(s => s.setMonthlyState)
-  const [current, setCurrent] = useState(
-    currentMonth ? new Date(currentMonth) : new Date()
-  )
+  // On part toujours du mois courant à l'arrivée sur la page
+  // (le store garde le mois de navigation, mais ne réinjecte pas l'ancien au montage)
+  const [current, setCurrent] = useState(new Date())
   const [editing, setEditing] = useState(false)
   const [showAI, setShowAI]   = useState(false)
 
@@ -187,8 +186,13 @@ export default function MonthlyAnalysis() {
     if (form.goal_winrate    !== '') payload.goal_winrate    = +form.goal_winrate
     if (form.goal_profit     !== '') payload.goal_profit     = +form.goal_profit
     if (form.goal_discipline !== '') payload.goal_discipline = +form.goal_discipline
-    await save(payload)
-    setEditing(false)
+    try {
+      await save(payload)
+      setEditing(false)
+    } catch (e) {
+      console.error('Erreur sauvegarde objectif', e)
+      alert('Erreur: ' + (e.message || "Impossible d'enregistrer l'objectif"))
+    }
   }
 
   // ── Stats ────────────────────────────────────────────────
@@ -277,16 +281,18 @@ export default function MonthlyAnalysis() {
   }), [stats, goal, disciplineAvg, year, month])
 
   const goToPrevMonth = () => {
-  const next = subMonths(current, 1)
-  setCurrent(next)
-  setMonthlyState({ currentMonth: next.toISOString() })
-}
+    const next = subMonths(current, 1)
+    setCurrent(next)
+    setMonthlyState({ currentMonth: next.toISOString() })
+    setEditing(false)
+  }
 
-const goToNextMonth = () => {
-  const next = addMonths(current, 1)
-  setCurrent(next)
-  setMonthlyState({ currentMonth: next.toISOString() })
-}
+  const goToNextMonth = () => {
+    const next = addMonths(current, 1)
+    setCurrent(next)
+    setMonthlyState({ currentMonth: next.toISOString() })
+    setEditing(false)
+  }
 
   if (tradesLoading || goalLoading) return (
     <div className="page space-y-4">

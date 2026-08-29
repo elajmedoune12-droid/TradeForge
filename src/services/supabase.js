@@ -20,10 +20,19 @@ export const getSession = () => supabase.auth.getSession()
 export const getTrades = async (userId) => {
   const { data, error } = await supabase
     .from('trades')
-    .select('*')
+    .select('*, hindsight(*)')
     .eq('user_id', userId)
     .order('date', { ascending: false })
   if (error) throw error
+
+  // ── Normalise hindsight : toujours un tableau ──
+  // Évite les faux positifs ("N trades sans After Trade") quand la
+  // relation est un objet ou null
+  for (const t of data || []) {
+    if (t.hindsight && !Array.isArray(t.hindsight)) t.hindsight = [t.hindsight]
+    else if (!t.hindsight) t.hindsight = []
+  }
+
   return data
 }
 

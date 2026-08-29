@@ -1,11 +1,14 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { motion, useScroll, useTransform } from 'framer-motion'
 import {
   Sun, Moon, BarChart2, TrendingUp, TrendingDown,
   Shield, Brain, Calendar, BookMarked, ChevronRight,
-  Target, Zap, CheckCircle2, ArrowRight,
+  Target, Zap, CheckCircle2, ArrowRight, Sparkles,
 } from 'lucide-react'
 import { useTheme } from '../hooks/useTheme'
+import AnimatedBackground from '../components/AnimatedBackground'
+import CustomCursor from '../components/CustomCursor'
 
 /* ─── Mock data : copie fidèle des structures Dashboard ─── */
 const MOCK_EQUITY = [
@@ -55,6 +58,35 @@ const FEATURES = [
   { icon: Calendar,    label: 'Forecast',   desc: 'Prépare ta semaine et pose tes biais directionnels.' },
 ]
 
+/* ─── Variants framer-motion ─────────────────────────────── */
+const ease = [0.22, 1, 0.36, 1]
+
+const fadeUp = {
+  hidden: { opacity: 0, y: 28 },
+  show:   { opacity: 1, y: 0, transition: { duration: 0.7, ease } },
+}
+
+const stagger = {
+  hidden: {},
+  show:   { transition: { staggerChildren: 0.08, delayChildren: 0.1 } },
+}
+
+/* ─── Reveal helper : apparition au scroll ───────────────── */
+function Reveal({ children, delay = 0, y = 24, className, style }) {
+  return (
+    <motion.div
+      className={className}
+      style={style}
+      initial={{ opacity: 0, y }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true, margin: '-80px' }}
+      transition={{ duration: 0.7, ease, delay }}
+    >
+      {children}
+    </motion.div>
+  )
+}
+
 /* ─── Mini sparkline SVG (pas de recharts pour éviter l'import) ─ */
 function Sparkline({ data, color, height = 64, width = 280 }) {
   const min = Math.min(...data.map(d => d.equity))
@@ -81,13 +113,22 @@ function Sparkline({ data, color, height = 64, width = 280 }) {
         </linearGradient>
       </defs>
       <path d={areaPath} fill="url(#sparkGrad)" />
-      <polyline points={pts} fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-      {/* last dot */}
+      <motion.polyline
+        points={pts} fill="none" stroke={color} strokeWidth="2"
+        strokeLinecap="round" strokeLinejoin="round"
+        initial={{ pathLength: 0 }} whileInView={{ pathLength: 1 }}
+        viewport={{ once: true }}
+        transition={{ duration: 1.8, ease }}
+      />
       {(() => {
         const last = data[data.length - 1]
         const x = width
         const y = height - ((last.equity - min) / range) * (height - 8) - 4
-        return <circle cx={x} cy={y} r="4" fill={color} />
+        return (
+          <circle cx={x} cy={y} r="4" fill={color}>
+            <animate attributeName="opacity" values="1;0.3;1" dur="1.6s" repeatCount="indefinite" />
+          </circle>
+        )
       })()}
     </svg>
   )
@@ -103,6 +144,7 @@ function CalendarPreview({ isDark }) {
       borderRadius: 16, overflow: 'hidden',
       background: surface, border: `1px solid ${border}`,
       padding: '14px 14px 10px',
+      boxShadow: isDark ? '0 20px 60px rgba(0,0,0,0.4)' : '0 20px 45px rgba(0,0,0,0.08)',
     }}>
       {/* mini header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
@@ -147,13 +189,17 @@ function CalendarPreview({ isDark }) {
           const textColor = isPos ? '#3fb950' : isNeg ? '#ff6b6b' : isBe ? '#79c0ff' : 'rgba(139,148,158,0.3)'
 
           return (
-            <div key={day} style={{
+            <motion.div key={day} style={{
               borderRadius: 6, aspectRatio: '1',
               background: bg, border: `1px solid ${borderColor}`,
               display: 'flex', flexDirection: 'column',
               alignItems: 'center', justifyContent: 'center',
               position: 'relative', overflow: 'hidden',
-            }}>
+            }}
+              initial={{ opacity: 0, scale: 0.6 }}
+              whileInView={{ opacity: 1, scale: 1 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.3, delay: day * 0.01, ease }}>
               <span style={{ fontSize: 7, fontWeight: 700, color: textColor, lineHeight: 1 }}>{day}</span>
               {!isEmpty && profit !== null && (
                 <span style={{ fontSize: 6, fontWeight: 800, color: textColor, lineHeight: 1, marginTop: 1 }}>
@@ -167,7 +213,7 @@ function CalendarPreview({ isDark }) {
                   opacity: 0.7,
                 }} />
               )}
-            </div>
+            </motion.div>
           )
         })}
       </div>
@@ -199,7 +245,7 @@ function Counter({ target, suffix = '', duration = 1800 }) {
     return () => observer.disconnect()
   }, [target, duration])
 
-  return <span ref={ref}>{val}{suffix}</span>
+  return <span ref={ref} style={{ display: 'inline-block' }}>{val}{suffix}</span>
 }
 
 /* ─── Main component ───────────────────────────────────────── */
@@ -216,20 +262,29 @@ export default function Landing() {
     backdropFilter: 'blur(12px)',
   }
 
+  // Parallaxe douce sur le hero
+  const heroRef = useRef(null)
+  const { scrollYProgress } = useScroll({ target: heroRef, offset: ['start start', 'end start'] })
+  const yBg = useTransform(scrollYProgress, [0, 1], [0, 140])
+
   return (
     <div style={{ minHeight: '100vh', overflowX: 'hidden' }}>
 
       {/* ══ NAV ══════════════════════════════════════════════ */}
-      <nav style={{
-        position: 'fixed', top: 0, left: 0, right: 0, zIndex: 50,
-        background: isDark ? 'rgba(7,10,15,0.92)' : 'rgba(247,245,240,0.94)',
-        backdropFilter: 'blur(20px)',
-        WebkitBackdropFilter: 'blur(20px)',
-        borderBottom: isDark ? '1px solid rgba(255,255,255,0.06)' : '1px solid rgba(20,16,8,0.08)',
-        transition: 'background 0.25s',
-        /* La nav englobe la safe area + la barre de 56px */
-        paddingTop: 'env(safe-area-inset-top)',
-      }}>
+      <motion.nav
+        initial={{ y: -70, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        transition={{ duration: 0.6, ease }}
+        style={{
+          position: 'fixed', top: 0, left: 0, right: 0, zIndex: 50,
+          background: isDark ? 'rgba(7,10,15,0.92)' : 'rgba(247,245,240,0.94)',
+          backdropFilter: 'blur(20px)',
+          WebkitBackdropFilter: 'blur(20px)',
+          borderBottom: isDark ? '1px solid rgba(255,255,255,0.06)' : '1px solid rgba(20,16,8,0.08)',
+          transition: 'background 0.25s',
+          /* La nav englobe la safe area + la barre de 56px */
+          paddingTop: 'env(safe-area-inset-top)',
+        }}>
         {/* Barre de navigation réelle sous la safe area */}
         <div style={{
           height: 56,
@@ -238,13 +293,15 @@ export default function Landing() {
         }}>
         {/* Logo */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1 }}>
-          <div style={{
+          <motion.div style={{
             width: 28, height: 28, borderRadius: 8, flexShrink: 0,
             background: 'linear-gradient(135deg,#F7B731,#e0a020)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-          }}>
+            boxShadow: '0 0 18px rgba(247,183,49,0.4)',
+          }}
+            whileHover={{ rotate: -8, scale: 1.08 }}>
             <BarChart2 size={14} color="#070A0F" strokeWidth={2.5} />
-          </div>
+          </motion.div>
           <span style={{ fontFamily: 'JetBrains Mono, monospace', fontWeight: 700, fontSize: 15, letterSpacing: '-0.3px' }}>
             <span style={{ color: '#F7B731' }}>TRADE</span>
             <span style={{ color: 'var(--text-primary)' }}>FORGE</span>
@@ -254,7 +311,7 @@ export default function Landing() {
         {/* Actions */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           {/* Toggle thème */}
-          <button onClick={toggleTheme} aria-label="Thème"
+          <motion.button whileHover={{ scale: 1.06 }} whileTap={{ scale: 0.92 }} onClick={toggleTheme} aria-label="Thème"
             style={{
               width: 34, height: 34, borderRadius: 9, cursor: 'pointer',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -263,7 +320,7 @@ export default function Landing() {
               color: 'var(--forge-muted)', transition: 'all 0.2s',
             }}>
             {isDark ? <Sun size={14} /> : <Moon size={14} />}
-          </button>
+          </motion.button>
 
           {/* Connexion — desktop seulement */}
           <button onClick={goLogin}
@@ -278,7 +335,7 @@ export default function Landing() {
             Connexion
           </button>
 
-          <button onClick={goSignup}
+          <motion.button whileHover={{ scale: 1.04 }} whileTap={{ scale: 0.95 }} onClick={goSignup}
             style={{
               height: 34, padding: '0 16px', borderRadius: 9, cursor: 'pointer',
               fontSize: 13, fontWeight: 700,
@@ -290,13 +347,14 @@ export default function Landing() {
             onMouseOver={e => e.currentTarget.style.opacity = '0.88'}
             onMouseOut={e => e.currentTarget.style.opacity = '1'}>
             Commencer
-          </button>
+          </motion.button>
         </div>
         </div>{/* end inner row */}
-      </nav>
+      </motion.nav>
 
       {/* ══ HERO ═════════════════════════════════════════════ */}
-      <section style={{
+      <section ref={heroRef} style={{
+        position: 'relative',
         minHeight: '100vh',
         display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
         paddingTop: 'calc(env(safe-area-inset-top) + 56px + clamp(2.5rem,6vw,4rem))',
@@ -304,54 +362,88 @@ export default function Landing() {
         paddingRight: 'clamp(1rem,5vw,2.5rem)',
         paddingBottom: 'clamp(2rem,5vw,4rem)',
         textAlign: 'center',
+        overflow: 'hidden',
       }}>
+        {/* Animations de fond : grille + aurores + particules */}
+        <motion.div style={{ y: yBg, position: 'absolute', inset: 0, pointerEvents: 'none' }}>
+          <AnimatedBackground isDark={isDark} />
+        </motion.div>
+
         {/* Badge */}
-        <div style={{
-          display: 'inline-flex', alignItems: 'center', gap: 6,
-          padding: '5px 14px', borderRadius: 999, marginBottom: 28,
-          background: 'rgba(247,183,49,0.1)', border: '1px solid rgba(247,183,49,0.25)',
-          fontSize: 11, fontWeight: 700, color: '#F7B731', letterSpacing: '0.04em',
-        }}>
+        <motion.div
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, ease, delay: 0.1 }}
+          style={{
+            display: 'inline-flex', alignItems: 'center', gap: 6,
+            padding: '5px 14px', borderRadius: 999, marginBottom: 28,
+            background: 'rgba(247,183,49,0.1)', border: '1px solid rgba(247,183,49,0.25)',
+            fontSize: 11, fontWeight: 700, color: '#F7B731', letterSpacing: '0.04em',
+            position: 'relative', zIndex: 1,
+          }}>
           <span style={{ width: 5, height: 5, borderRadius: '50%', background: '#F7B731', display: 'inline-block' }} />
           Journal de trading avancé
-        </div>
+        </motion.div>
 
         {/* Headline */}
-        <h1 style={{
-          fontSize: 'clamp(2.2rem,6.5vw,4.8rem)',
-          fontWeight: 800, lineHeight: 1.08, letterSpacing: '-0.035em',
-          color: 'var(--text-primary)',
-          maxWidth: 860, marginBottom: 20,
-        }}>
-          Comprends{' '}
-          <span style={{ color: '#F7B731', textShadow: isDark ? '0 0 48px rgba(247,183,49,0.25)' : 'none' }}>
-            pourquoi
-          </span>{' '}
-          tu gagnes — ou tu perds.
-        </h1>
+        <motion.h1
+          variants={stagger} initial="hidden" animate="show"
+          style={{
+            fontSize: 'clamp(2.2rem,6.5vw,4.8rem)',
+            fontWeight: 800, lineHeight: 1.08, letterSpacing: '-0.035em',
+            color: 'var(--text-primary)',
+            maxWidth: 860, marginBottom: 20,
+            position: 'relative', zIndex: 1,
+          }}>
+          {['Comprends', 'pourquoi', 'tu gagnes — ou tu perds.'].map((word, wi) => (
+            <motion.span
+              key={wi}
+              variants={{
+                hidden: { opacity: 0, y: 30, filter: 'blur(6px)' },
+                show: { opacity: 1, y: 0, filter: 'blur(0px)', transition: { duration: 0.7, ease } },
+              }}
+              style={{
+                display: 'inline-block',
+                marginRight: '0.28em',
+                color: word === 'pourquoi' ? '#F7B731' : undefined,
+                textShadow: word === 'pourquoi' && isDark ? '0 0 48px rgba(247,183,49,0.4)' : 'none',
+              }}>
+              {word}
+            </motion.span>
+          ))}
+        </motion.h1>
 
-        <p style={{
-          fontSize: 'clamp(1rem,2vw,1.15rem)', lineHeight: 1.7,
-          color: 'var(--text-tertiary)', maxWidth: 500, marginBottom: 40,
-        }}>
+        <motion.p
+          initial={{ opacity: 0, y: 18 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.7, ease, delay: 0.3 }}
+          style={{
+            fontSize: 'clamp(1rem,2vw,1.15rem)', lineHeight: 1.7,
+            color: 'var(--text-tertiary)', maxWidth: 500, marginBottom: 40,
+            position: 'relative', zIndex: 1,
+          }}>
           TradeForge journalise chaque trade, détecte tes patterns avec l'IA et te donne les chiffres qui comptent vraiment.
-        </p>
+        </motion.p>
 
         {/* CTAs */}
-        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', justifyContent: 'center', marginBottom: 64 }}>
-          <button onClick={goSignup}
+        <motion.div
+          initial={{ opacity: 0, y: 18 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.7, ease, delay: 0.4 }}
+          style={{ display: 'flex', gap: 10, flexWrap: 'wrap', justifyContent: 'center', marginBottom: 64, position: 'relative', zIndex: 1 }}>
+          <motion.button whileHover={{ scale: 1.04, y: -2 }} whileTap={{ scale: 0.96 }} onClick={goSignup}
             style={{
               height: 48, padding: '0 28px', borderRadius: 13,
               fontSize: 14, fontWeight: 700, cursor: 'pointer',
-              background: '#F7B731', color: '#070A0F', border: 'none',
+              background: 'linear-gradient(135deg,#F7B731,#e0a020)', color: '#070A0F', border: 'none',
               display: 'flex', alignItems: 'center', gap: 8,
-              boxShadow: '0 0 32px rgba(247,183,49,0.4)', transition: 'all 0.2s',
+              boxShadow: '0 8px 32px rgba(247,183,49,0.35)', transition: 'box-shadow 0.2s',
             }}
-            onMouseOver={e => e.currentTarget.style.boxShadow = '0 0 48px rgba(247,183,49,0.6)'}
-            onMouseOut={e => e.currentTarget.style.boxShadow = '0 0 32px rgba(247,183,49,0.4)'}>
+            onMouseOver={e => e.currentTarget.style.boxShadow = '0 8px 48px rgba(247,183,49,0.55)'}
+            onMouseOut={e => e.currentTarget.style.boxShadow = '0 8px 32px rgba(247,183,49,0.35)'}>
             Créer mon compte gratuitement <ArrowRight size={15} />
-          </button>
-          <button onClick={goLogin}
+          </motion.button>
+          <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.97 }} onClick={goLogin}
             style={{
               height: 48, padding: '0 22px', borderRadius: 13,
               fontSize: 14, fontWeight: 600, cursor: 'pointer',
@@ -359,17 +451,30 @@ export default function Landing() {
               border: isDark ? '1px solid rgba(255,255,255,0.12)' : '1px solid rgba(20,16,8,0.14)',
             }}>
             J'ai déjà un compte
-          </button>
-        </div>
+          </motion.button>
+        </motion.div>
 
         {/* ─── App preview : Dashboard card ─── */}
-        <div style={{
-          width: 'min(720px, 92vw)',
-          borderRadius: 20,
-          ...card,
-          boxShadow: isDark ? '0 32px 96px rgba(0,0,0,0.6)' : '0 32px 72px rgba(0,0,0,0.12)',
-          overflow: 'hidden',
-        }}>
+        <motion.div
+          initial={{ opacity: 0, y: 90, scale: 0.95 }}
+          whileInView={{ opacity: 1 }}
+          viewport={{ once: true }}
+          animate={{ y: [0, -12, 0], scale: [1, 1.01, 1] }}
+          transition={{
+            y: { duration: 6, repeat: Infinity, ease: 'easeInOut', delay: 0.8 },
+            scale: { duration: 6, repeat: Infinity, ease: 'easeInOut', delay: 0.8 },
+            opacity: { duration: 0.8, ease },
+          }}
+          style={{
+            width: 'min(720px, 92vw)',
+            borderRadius: 20,
+            ...card,
+            boxShadow: isDark
+              ? '0 40px 110px rgba(0,0,0,0.65), 0 0 0 1px rgba(247,183,49,0.12), 0 0 60px rgba(247,183,49,0.10)'
+              : '0 40px 90px rgba(0,0,0,0.16), 0 0 0 1px rgba(247,183,49,0.15), 0 0 50px rgba(247,183,49,0.10)',
+            overflow: 'hidden',
+            position: 'relative', zIndex: 1,
+          }}>
           {/* Fake window bar */}
           <div style={{
             padding: '10px 16px', display: 'flex', alignItems: 'center', gap: 6,
@@ -428,12 +533,17 @@ export default function Landing() {
             {/* Trade list preview (3 rows) */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
               {MOCK_TRADES.slice(0, 3).map((t, i) => (
-                <div key={i} style={{
-                  display: 'flex', alignItems: 'center', gap: 10,
-                  padding: '8px 10px', borderRadius: 10,
-                  background: isDark ? `${t.color}0A` : `${t.color}08`,
-                  border: `1px solid ${t.color}22`,
-                }}>
+                <motion.div
+                  key={i}
+                  initial={{ opacity: 0, x: -12 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ duration: 0.5, ease, delay: 0.7 + i * 0.1 }}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 10,
+                    padding: '8px 10px', borderRadius: 10,
+                    background: isDark ? `${t.color}0A` : `${t.color}08`,
+                    border: `1px solid ${t.color}22`,
+                  }}>
                   <div style={{ width: 3, height: 28, borderRadius: 2, background: t.color, flexShrink: 0 }} />
                   <div style={{ flex: 1 }}>
                     <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-primary)' }}>{t.market}</span>
@@ -447,11 +557,11 @@ export default function Landing() {
                     background: `${t.color}20`, color: t.color, border: `1px solid ${t.color}30` }}>
                     {t.result.toUpperCase()}
                   </span>
-                </div>
+                </motion.div>
               ))}
             </div>
           </div>
-        </div>
+        </motion.div>
       </section>
 
       {/* ══ STATS BAND ═══════════════════════════════════════ */}
@@ -460,44 +570,63 @@ export default function Landing() {
         borderTop: isDark ? '1px solid rgba(255,255,255,0.05)' : '1px solid rgba(20,16,8,0.07)',
         borderBottom: isDark ? '1px solid rgba(255,255,255,0.05)' : '1px solid rgba(20,16,8,0.07)',
       }}>
-        <div style={{
-          maxWidth: 800, margin: '0 auto',
-          display: 'flex', justifyContent: 'center', alignItems: 'center',
-          gap: 'clamp(2rem,8vw,6rem)', flexWrap: 'wrap',
-        }}>
+        <motion.div
+          variants={stagger} initial="hidden" whileInView="show"
+          viewport={{ once: true, margin: '-60px' }}
+          style={{
+            maxWidth: 980, margin: '0 auto',
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%,180px),1fr))',
+            gap: 16,
+          }}>
           {[
             { target: 68, suffix: '%',    label: 'win rate moyen constaté' },
             { target: 2,  suffix: ' min', label: 'pour logger un trade'    },
+            { target: 1780, suffix: '+',  label: 'trades journalisés'      },
             { target: 6,  suffix: '+',    label: 'modules intégrés'        },
           ].map(s => (
-            <div key={s.label} style={{ textAlign: 'center' }}>
+            <motion.div key={s.label} variants={fadeUp}
+              whileHover={{ y: -6, scale: 1.03 }}
+              style={{
+                textAlign: 'center', padding: '24px 16px', borderRadius: 16,
+                ...card,
+                boxShadow: '0 4px 20px rgba(0,0,0,0.06)',
+              }}>
               <div style={{
-                fontSize: 'clamp(2rem,5vw,3rem)', fontWeight: 900,
+                fontSize: 'clamp(1.8rem,4vw,2.6rem)', fontWeight: 900,
                 fontFamily: 'JetBrains Mono, monospace',
                 color: '#F7B731', lineHeight: 1,
-                textShadow: isDark ? '0 0 32px rgba(247,183,49,0.3)' : 'none',
+                textShadow: isDark ? '0 0 32px rgba(247,183,49,0.4)' : 'none',
               }}>
                 <Counter target={s.target} suffix={s.suffix} />
               </div>
-              <div style={{ fontSize: 12, color: 'var(--text-tertiary)', marginTop: 6 }}>{s.label}</div>
-            </div>
+              <div style={{ fontSize: 12, color: 'var(--text-tertiary)', marginTop: 8, lineHeight: 1.4 }}>{s.label}</div>
+            </motion.div>
           ))}
-        </div>
+        </motion.div>
       </section>
 
       {/* ══ FEATURES + CALENDAR PREVIEW ══════════════════════ */}
       <section style={{ padding: 'clamp(3rem,8vw,6rem) clamp(1rem,5vw,2.5rem)', maxWidth: 1080, margin: '0 auto' }}>
         {/* Section title */}
-        <div style={{ textAlign: 'center', marginBottom: 48 }}>
-          <p style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.12em',
-            color: '#F7B731', fontWeight: 700, marginBottom: 10 }}>Modules</p>
-          <h2 style={{
-            fontSize: 'clamp(1.8rem,4vw,2.8rem)', fontWeight: 800,
-            color: 'var(--text-primary)', letterSpacing: '-0.025em', lineHeight: 1.15,
-          }}>
-            Tout est dans le même outil.
-          </h2>
-        </div>
+        <Reveal>
+          <div style={{ textAlign: 'center', marginBottom: 48 }}>
+            <motion.p
+              initial={{ opacity: 0, y: 10 }} whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }} transition={{ duration: 0.5, ease }}
+              style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.12em',
+                color: '#F7B731', fontWeight: 700, marginBottom: 10,
+                display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+              <Sparkles size={12} /> Modules
+            </motion.p>
+            <h2 style={{
+              fontSize: 'clamp(1.8rem,4vw,2.8rem)', fontWeight: 800,
+              color: 'var(--text-primary)', letterSpacing: '-0.025em', lineHeight: 1.15,
+            }}>
+              Tout est dans le même outil.
+            </h2>
+          </div>
+        </Reveal>
 
         {/* 2-col layout: features left, calendar right */}
         <div style={{
@@ -506,59 +635,83 @@ export default function Landing() {
           gap: 32, alignItems: 'start',
         }}>
           {/* Feature list */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <motion.div
+            variants={stagger} initial="hidden" whileInView="show"
+            viewport={{ once: true, margin: '-60px' }}
+            style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             {FEATURES.map(f => {
               const Icon = f.icon
               return (
-                <div key={f.label} style={{
-                  display: 'flex', alignItems: 'center', gap: 14,
-                  padding: '14px 16px', borderRadius: 14,
-                  ...card,
-                  transition: 'transform 0.18s',
-                }}
-                  onMouseOver={e => e.currentTarget.style.transform = 'translateX(4px)'}
-                  onMouseOut={e => e.currentTarget.style.transform = 'translateX(0)'}>
-                  <div style={{
-                    width: 36, height: 36, borderRadius: 10, flexShrink: 0,
-                    background: 'rgba(247,183,49,0.1)',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  }}>
+                <motion.div key={f.label} variants={fadeUp}
+                  whileHover={{ x: 6, y: -2 }}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 14,
+                    padding: '14px 16px', borderRadius: 14,
+                    ...card,
+                    transition: 'box-shadow 0.25s',
+                    boxShadow: '0 2px 12px rgba(0,0,0,0.06)',
+                  }}
+                  onMouseOver={e => e.currentTarget.style.boxShadow = '0 8px 30px rgba(247,183,49,0.15)'}
+                  onMouseOut={e => e.currentTarget.style.boxShadow = '0 2px 12px rgba(0,0,0,0.06)'}>
+                  <motion.div
+                    whileHover={{ rotate: 8, scale: 1.08 }}
+                    style={{
+                      width: 36, height: 36, borderRadius: 10, flexShrink: 0,
+                      background: 'rgba(247,183,49,0.1)',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    }}>
                     <Icon size={16} color="#F7B731" />
-                  </div>
+                  </motion.div>
                   <div>
                     <p style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 2 }}>{f.label}</p>
                     <p style={{ fontSize: 12, color: 'var(--text-tertiary)', lineHeight: 1.5 }}>{f.desc}</p>
                   </div>
-                  <ChevronRight size={14} style={{ color: 'var(--forge-muted)', marginLeft: 'auto', flexShrink: 0 }} />
-                </div>
+                  <motion.div style={{ marginLeft: 'auto', flexShrink: 0 }}
+                    animate={{ x: [0, 4, 0] }}
+                    transition={{ duration: 1.6, repeat: Infinity, ease: 'easeInOut' }}>
+                    <ChevronRight size={14} style={{ color: 'var(--forge-muted)' }} />
+                  </motion.div>
+                </motion.div>
               )
             })}
-          </div>
+          </motion.div>
 
           {/* Calendar preview + insights */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            <CalendarPreview isDark={isDark} />
+            <Reveal delay={0.1}>
+              <CalendarPreview isDark={isDark} />
+            </Reveal>
 
             {/* IA Insights preview */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              <p style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.1em',
-                color: 'var(--forge-muted)', fontWeight: 700, display: 'flex', alignItems: 'center', gap: 6 }}>
-                <Brain size={11} color="#F7B731" /> IA Insights
-              </p>
+              <motion.p
+                initial={{ opacity: 0 }} whileInView={{ opacity: 1 }}
+                viewport={{ once: true }} transition={{ duration: 0.5 }}
+                style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.1em',
+                  color: 'var(--forge-muted)', fontWeight: 700, display: 'flex', alignItems: 'center', gap: 6 }}>
+                <motion.span animate={{ scale: [1, 1.2, 1] }} transition={{ duration: 2, repeat: Infinity }}>
+                  <Brain size={11} color="#F7B731" />
+                </motion.span> IA Insights
+              </motion.p>
               {INSIGHTS.map((ins, i) => (
-                <div key={i} style={{
-                  padding: '10px 14px', borderRadius: 12,
-                  background: card.background,
-                  backdropFilter: card.backdropFilter,
-                  borderTop:    isDark ? '1px solid rgba(255,255,255,0.07)' : '1px solid rgba(20,16,8,0.09)',
-                  borderRight:  isDark ? '1px solid rgba(255,255,255,0.07)' : '1px solid rgba(20,16,8,0.09)',
-                  borderBottom: isDark ? '1px solid rgba(255,255,255,0.07)' : '1px solid rgba(20,16,8,0.09)',
-                  borderLeft:   `3px solid ${ins.type === 'success' ? '#2EA043' : '#F7B731'}`,
-                }}>
-                  <p style={{ fontSize: 11, fontWeight: 700, marginBottom: 2,
-                    color: ins.type === 'success' ? '#2EA043' : '#F7B731' }}>{ins.title}</p>
-                  <p style={{ fontSize: 11, color: 'var(--text-tertiary)', lineHeight: 1.5 }}>{ins.desc}</p>
-                </div>
+                <Reveal key={i} delay={0.05 * i}>
+                  <motion.div
+                    whileHover={{ x: 4, y: -2 }}
+                    style={{
+                      padding: '10px 14px', borderRadius: 12,
+                      background: card.background,
+                      backdropFilter: card.backdropFilter,
+                      borderTop:    isDark ? '1px solid rgba(255,255,255,0.07)' : '1px solid rgba(20,16,8,0.09)',
+                      borderRight:  isDark ? '1px solid rgba(255,255,255,0.07)' : '1px solid rgba(20,16,8,0.09)',
+                      borderBottom: isDark ? '1px solid rgba(255,255,255,0.07)' : '1px solid rgba(20,16,8,0.09)',
+                      borderLeft:   `3px solid ${ins.type === 'success' ? '#2EA043' : '#F7B731'}`,
+                      boxShadow: '0 2px 10px rgba(0,0,0,0.05)',
+                    }}>
+                    <p style={{ fontSize: 11, fontWeight: 700, marginBottom: 2,
+                      color: ins.type === 'success' ? '#2EA043' : '#F7B731' }}>{ins.title}</p>
+                    <p style={{ fontSize: 11, color: 'var(--text-tertiary)', lineHeight: 1.5 }}>{ins.desc}</p>
+                  </motion.div>
+                </Reveal>
               ))}
             </div>
           </div>
@@ -576,70 +729,162 @@ export default function Landing() {
           display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(min(100%,380px),1fr))',
           gap: 32, alignItems: 'center' }}>
           {/* Text */}
-          <div>
-            <p style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.1em',
-              color: '#F7B731', fontWeight: 700, marginBottom: 12 }}>Discipline</p>
-            <h2 style={{ fontSize: 'clamp(1.5rem,3.5vw,2.2rem)', fontWeight: 800,
-              color: 'var(--text-primary)', letterSpacing: '-0.025em', lineHeight: 1.2, marginBottom: 16 }}>
-              Tes règles.<br />Ton score. Ta progression.
-            </h2>
-            <p style={{ fontSize: 13, color: 'var(--text-tertiary)', lineHeight: 1.7, marginBottom: 20 }}>
-              Définis tes règles de trading personnalisées. TradeForge calcule ton score de discipline à chaque trade et te montre exactement où tu dérapes.
-            </p>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              {[
-                'Score de discipline calculé automatiquement',
-                'Détection des trades hors règles',
-                'Suivi du respect du plan semaine par semaine',
-              ].map(item => (
-                <div key={item} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <CheckCircle2 size={14} color="#2EA043" style={{ flexShrink: 0 }} />
-                  <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>{item}</span>
-                </div>
-              ))}
+          <Reveal>
+            <div>
+              <motion.p
+                initial={{ opacity: 0, y: 10 }} whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }} transition={{ duration: 0.5, ease }}
+                  style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.1em',
+                    color: '#F7B731', fontWeight: 700, marginBottom: 12 }}>Discipline</motion.p>
+              <h2 style={{ fontSize: 'clamp(1.5rem,3.5vw,2.2rem)', fontWeight: 800,
+                color: 'var(--text-primary)', letterSpacing: '-0.025em', lineHeight: 1.2, marginBottom: 16 }}>
+                Tes règles.<br />Ton score. Ta progression.
+              </h2>
+              <p style={{ fontSize: 13, color: 'var(--text-tertiary)', lineHeight: 1.7, marginBottom: 20 }}>
+                Définis tes règles de trading personnalisées. TradeForge calcule ton score de discipline à chaque trade et te montre exactement où tu dérapes.
+              </p>
+              <motion.div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}
+                variants={stagger} initial="hidden" whileInView="show" viewport={{ once: true }}>
+                {[
+                  'Score de discipline calculé automatiquement',
+                  'Détection des trades hors règles',
+                  'Suivi du respect du plan semaine par semaine',
+                ].map(item => (
+                  <motion.div key={item} variants={fadeUp} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <motion.span whileHover={{ scale: 1.15 }}
+                      style={{ display: 'inline-flex', flexShrink: 0 }}>
+                      <CheckCircle2 size={14} color="#2EA043" />
+                    </motion.span>
+                    <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>{item}</span>
+                  </motion.div>
+                ))}
+              </motion.div>
             </div>
-          </div>
+          </Reveal>
 
           {/* Discipline card mock */}
-          <div style={{ borderRadius: 16, padding: '20px', ...card,
-            boxShadow: isDark ? '0 16px 48px rgba(0,0,0,0.4)' : '0 16px 36px rgba(0,0,0,0.08)' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
-              <div style={{ width: 32, height: 32, borderRadius: 9,
-                background: 'rgba(247,183,49,0.12)',
-                display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <Shield size={15} color="#F7B731" />
+          <Reveal delay={0.1}>
+            <motion.div
+              whileHover={{ y: -6 }}
+              style={{ borderRadius: 16, padding: '20px', ...card,
+                boxShadow: isDark ? '0 16px 48px rgba(0,0,0,0.4)' : '0 16px 40px rgba(0,0,0,0.1)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
+                <motion.div
+                  whileHover={{ rotate: 8 }}
+                  style={{ width: 32, height: 32, borderRadius: 9,
+                    background: 'rgba(247,183,49,0.12)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <Shield size={15} color="#F7B731" />
+                </motion.div>
+                <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)' }}>Mes règles</span>
+                <span style={{ marginLeft: 'auto', fontSize: 10, fontWeight: 700, padding: '2px 8px',
+                  borderRadius: 6, background: 'rgba(46,160,67,0.15)', color: '#2EA043',
+                  border: '1px solid rgba(46,160,67,0.25)' }}>8.2 / 10</span>
               </div>
-              <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)' }}>Mes règles</span>
-              <span style={{ marginLeft: 'auto', fontSize: 10, fontWeight: 700, padding: '2px 8px',
-                borderRadius: 6, background: 'rgba(46,160,67,0.15)', color: '#2EA043',
-                border: '1px solid rgba(46,160,67,0.25)' }}>8.2 / 10</span>
-            </div>
-            {[
-              { rule: 'Ne trader qu\'en session London / NY', ok: true  },
-              { rule: 'Attendre 3 confirmations minimum',     ok: true  },
-              { rule: 'Stop loss obligatoire avant entrée',   ok: true  },
-              { rule: 'Max 3 trades par jour',                ok: false },
-              { rule: 'Respecter le plan de trading',         ok: true  },
-            ].map((r, i) => (
-              <div key={i} style={{
-                display: 'flex', alignItems: 'center', gap: 10, padding: '8px 0',
-                borderBottom: i < 4 ? `1px solid ${isDark ? 'rgba(255,255,255,0.04)' : 'rgba(20,16,8,0.06)'}` : 'none',
-              }}>
-                <div style={{ width: 5, height: 5, borderRadius: '50%', flexShrink: 0,
-                  background: r.ok ? '#2EA043' : '#F85149',
-                  boxShadow: r.ok ? '0 0 5px rgba(46,160,67,0.6)' : '0 0 5px rgba(248,81,73,0.6)' }} />
-                <span style={{ fontSize: 11, color: r.ok ? 'var(--text-secondary)' : 'var(--forge-muted)',
-                  flex: 1, lineHeight: 1.4 }}>{r.rule}</span>
-                <span style={{ fontSize: 9, fontWeight: 700, padding: '2px 6px', borderRadius: 5,
-                  background: r.ok ? 'rgba(46,160,67,0.1)' : 'rgba(248,81,73,0.1)',
-                  color: r.ok ? '#2EA043' : '#F85149',
-                  border: `1px solid ${r.ok ? 'rgba(46,160,67,0.2)' : 'rgba(248,81,73,0.2)'}` }}>
-                  {r.ok ? 'OK' : 'RATÉ'}
-                </span>
-              </div>
-            ))}
-          </div>
+              {[
+                { rule: 'Ne trader qu\'en session London / NY', ok: true  },
+                { rule: 'Attendre 3 confirmations minimum',     ok: true  },
+                { rule: 'Stop loss obligatoire avant entrée',   ok: true  },
+                { rule: 'Max 3 trades par jour',                ok: false },
+                { rule: 'Respecter le plan de trading',         ok: true  },
+              ].map((r, i) => (
+                <motion.div key={i}
+                  initial={{ opacity: 0, x: -10 }} whileInView={{ opacity: 1, x: 0 }}
+                  viewport={{ once: true }} transition={{ duration: 0.4, delay: i * 0.07, ease }}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 10, padding: '8px 0',
+                    borderBottom: i < 4 ? `1px solid ${isDark ? 'rgba(255,255,255,0.04)' : 'rgba(20,16,8,0.06)'}` : 'none',
+                  }}>
+                  <div style={{ width: 5, height: 5, borderRadius: '50%', flexShrink: 0,
+                    background: r.ok ? '#2EA043' : '#F85149',
+                    boxShadow: r.ok ? '0 0 5px rgba(46,160,67,0.6)' : '0 0 5px rgba(248,81,73,0.6)' }} />
+                  <span style={{ fontSize: 11, color: r.ok ? 'var(--text-secondary)' : 'var(--forge-muted)',
+                    flex: 1, lineHeight: 1.4 }}>{r.rule}</span>
+                  <span style={{ fontSize: 9, fontWeight: 700, padding: '2px 6px', borderRadius: 5,
+                    background: r.ok ? 'rgba(46,160,67,0.1)' : 'rgba(248,81,73,0.1)',
+                    color: r.ok ? '#2EA043' : '#F85149',
+                    border: `1px solid ${r.ok ? 'rgba(46,160,67,0.2)' : 'rgba(248,81,73,0.2)'}` }}>
+                    {r.ok ? 'OK' : 'RATÉ'}
+                  </span>
+                </motion.div>
+              ))}
+            </motion.div>
+          </Reveal>
         </div>
+      </section>
+
+      {/* ══ COMMENT ÇA MARCHE ═════════════════════════════════ */}
+      <section style={{
+        padding: 'clamp(3rem,8vw,6rem) clamp(1rem,5vw,2.5rem)',
+        maxWidth: 1080, margin: '0 auto',
+      }}>
+        <Reveal>
+          <div style={{ textAlign: 'center', marginBottom: 56 }}>
+            <p style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.12em',
+              color: '#F7B731', fontWeight: 700, marginBottom: 10 }}>Comment ça marche</p>
+            <h2 style={{ fontSize: 'clamp(1.8rem,4vw,2.6rem)', fontWeight: 800,
+              color: 'var(--text-primary)', letterSpacing: '-0.025em', lineHeight: 1.15 }}>
+              Trois étapes vers une vraie cohérence.
+            </h2>
+          </div>
+        </Reveal>
+
+        <motion.div
+          variants={stagger} initial="hidden" whileInView="show"
+          viewport={{ once: true, margin: '-60px' }}
+          style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%,260px),1fr))', gap: 20 }}>
+          {[
+            {
+              icon: BookMarked, step: '01', title: 'Journalise',
+              desc: 'Logge chaque trade en 2 minutes : entrée, sortie, émotions, discipline.',
+              accent: '#F7B731',
+            },
+            {
+              icon: Brain, step: '02', title: 'Analyse',
+              desc: "L'IA détecte tes patterns gagnants, tes erreurs et ton état psychologique.",
+              accent: '#a78bfa',
+            },
+            {
+              icon: TrendingUp, step: '03', title: 'Progresse',
+              desc: 'Reçois des insights concrets pour répéter ce qui marche et arrêter ce qui perd.',
+              accent: '#2EA043',
+            },
+          ].map(({ icon: Icon, step, title, desc, accent }) => (
+            <motion.div key={step} variants={fadeUp}
+              whileHover={{ y: -8 }}
+              style={{
+                position: 'relative', padding: '26px 22px', borderRadius: 18,
+                ...card,
+                borderTop: `1px solid ${accent}33`,
+                boxShadow: '0 4px 24px rgba(0,0,0,0.06)',
+                overflow: 'hidden',
+              }}>
+              <motion.div style={{
+                position: 'absolute', right: -14, top: -14, fontSize: 84, fontWeight: 900,
+                fontFamily: 'JetBrains Mono, monospace', color: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(20,16,8,0.05)',
+                lineHeight: 1, userSelect: 'none', pointerEvents: 'none',
+              }}
+                animate={{ y: [0, 6, 0] }}
+                transition={{ duration: 5, repeat: Infinity, ease: 'easeInOut' }}>
+                {step}
+              </motion.div>
+              <motion.div
+                whileHover={{ rotate: 8, scale: 1.1 }}
+                style={{
+                  width: 44, height: 44, borderRadius: 12, marginBottom: 16,
+                  background: `${accent}1c`, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  boxShadow: `0 0 20px ${accent}22`,
+                }}>
+                <Icon size={18} color={accent} />
+              </motion.div>
+              <p style={{ fontSize: 15, fontWeight: 800, color: 'var(--text-primary)', marginBottom: 6 }}>
+                <span style={{ color: accent, fontFamily: 'JetBrains Mono, monospace', marginRight: 6 }}>{step}.</span>
+                {title}
+              </p>
+              <p style={{ fontSize: 12, color: 'var(--text-tertiary)', lineHeight: 1.6 }}>{desc}</p>
+            </motion.div>
+          ))}
+        </motion.div>
       </section>
 
       {/* ══ FINAL CTA ════════════════════════════════════════ */}
@@ -647,42 +892,59 @@ export default function Landing() {
         padding: 'clamp(3rem,8vw,6rem) clamp(1rem,5vw,2.5rem)',
         maxWidth: 640, margin: '0 auto', textAlign: 'center',
       }}>
-        <div style={{
-          padding: 'clamp(2rem,5vw,3rem)',
-          borderRadius: 24,
-          ...card,
-          border: '1px solid rgba(247,183,49,0.2)',
-          boxShadow: '0 0 60px rgba(247,183,49,0.07)',
-        }}>
-          <div style={{
-            width: 48, height: 48, borderRadius: 13, margin: '0 auto 18px',
-            background: 'linear-gradient(135deg,#F7B731,#e0a020)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-          }}>
-            <BarChart2 size={22} color="#070A0F" strokeWidth={2.5} />
-          </div>
-          <h2 style={{ fontSize: 'clamp(1.4rem,3vw,2rem)', fontWeight: 800,
-            color: 'var(--text-primary)', letterSpacing: '-0.02em', marginBottom: 10 }}>
-            Prêt à forger ton edge ?
-          </h2>
-          <p style={{ fontSize: 13, color: 'var(--text-tertiary)', marginBottom: 28, lineHeight: 1.65 }}>
-            Rejoins TradeForge et commence à comprendre vraiment ce qui fonctionne dans ton trading.
-          </p>
-          <button onClick={goSignup}
+        <Reveal>
+          <motion.div
+            whileHover={{ y: -4 }}
             style={{
-              width: '100%', maxWidth: 300, height: 48,
-              borderRadius: 13, fontSize: 14, fontWeight: 700, cursor: 'pointer',
-              background: '#F7B731', color: '#070A0F', border: 'none',
-              boxShadow: '0 0 28px rgba(247,183,49,0.35)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              gap: 8, margin: '0 auto',
-              transition: 'box-shadow 0.2s',
+              padding: 'clamp(2rem,5vw,3rem)',
+              borderRadius: 24,
+              ...card,
+              border: '1px solid rgba(247,183,49,0.2)',
+              boxShadow: '0 0 60px rgba(247,183,49,0.07)',
+              position: 'relative', overflow: 'hidden',
+            }}>
+            <motion.div style={{
+              position: 'absolute', top: '-40%', left: '50%', transform: 'translateX(-50%)',
+              width: 400, height: 400, borderRadius: '50%', pointerEvents: 'none',
+              background: 'radial-gradient(circle, rgba(247,183,49,0.15), transparent 65%)',
             }}
-            onMouseOver={e => e.currentTarget.style.boxShadow = '0 0 44px rgba(247,183,49,0.55)'}
-            onMouseOut={e => e.currentTarget.style.boxShadow = '0 0 28px rgba(247,183,49,0.35)'}>
-            Commencer maintenant <ArrowRight size={15} />
-          </button>
-        </div>
+              animate={{ opacity: [0.4, 0.9, 0.4] }}
+              transition={{ duration: 5, repeat: Infinity, ease: 'easeInOut' }} />
+            <motion.div style={{
+              width: 48, height: 48, borderRadius: 13, margin: '0 auto 18px',
+              background: 'linear-gradient(135deg,#F7B731,#e0a020)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              boxShadow: '0 0 24px rgba(247,183,49,0.4)',
+              position: 'relative', zIndex: 1,
+            }}
+              animate={{ scale: [1, 1.08, 1], rotate: [0, 4, 0] }}
+              transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}>
+              <BarChart2 size={22} color="#070A0F" strokeWidth={2.5} />
+            </motion.div>
+            <h2 style={{ fontSize: 'clamp(1.4rem,3vw,2rem)', fontWeight: 800,
+              color: 'var(--text-primary)', letterSpacing: '-0.02em', marginBottom: 10, position: 'relative', zIndex: 1 }}>
+              Prêt à forger ton edge ?
+            </h2>
+            <p style={{ fontSize: 13, color: 'var(--text-tertiary)', marginBottom: 28, lineHeight: 1.65, position: 'relative', zIndex: 1 }}>
+              Rejoins TradeForge et commence à comprendre vraiment ce qui fonctionne dans ton trading.
+            </p>
+            <motion.button
+              whileHover={{ scale: 1.05, y: -2 }} whileTap={{ scale: 0.96 }} onClick={goSignup}
+              style={{
+                width: '100%', maxWidth: 300, height: 48, position: 'relative', zIndex: 1,
+                borderRadius: 13, fontSize: 14, fontWeight: 700, cursor: 'pointer',
+                background: 'linear-gradient(135deg,#F7B731,#e0a020)', color: '#070A0F', border: 'none',
+                boxShadow: '0 8px 28px rgba(247,183,49,0.35)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                gap: 8, margin: '0 auto',
+                transition: 'box-shadow 0.2s',
+              }}
+              onMouseOver={e => e.currentTarget.style.boxShadow = '0 8px 44px rgba(247,183,49,0.55)'}
+              onMouseOut={e => e.currentTarget.style.boxShadow = '0 8px 28px rgba(247,183,49,0.35)'}>
+              Commencer maintenant <ArrowRight size={15} />
+            </motion.button>
+          </motion.div>
+        </Reveal>
       </section>
 
       {/* ══ FOOTER ═══════════════════════════════════════════ */}
@@ -693,6 +955,9 @@ export default function Landing() {
       }}>
         <p style={{ fontSize: 11, color: 'var(--text-tertiary)' }}>© 2026 TradeForge. Tous droits réservés.</p>
       </footer>
+
+      {/* Curseur personnalisé animé (desktop) */}
+      <CustomCursor />
     </div>
   )
 }

@@ -201,6 +201,7 @@ export default function AfterTrade() {
   const [trade, setTrade]             = useState(null)
   const [loading, setLoading]         = useState(true)
   const [saving, setSaving]           = useState(false)
+  const [loadError, setLoadError]     = useState('')
 
   const [form, setForm] = useState({
     main_error: '',
@@ -220,7 +221,9 @@ export default function AfterTrade() {
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
 
   // ── Load ─────────────────────────────────────────────
-  useEffect(() => {
+  const loadTrade = () => {
+    setLoading(true)
+    setLoadError('')
     getTradeById(id).then(t => {
       setTrade(t)
       if (t.hindsight?.[0]) {
@@ -243,8 +246,12 @@ export default function AfterTrade() {
           })))
         }
       }
+    }).catch(e => {
+      setLoadError(e.message || "Impossible de charger ce trade.")
     }).finally(() => setLoading(false))
-  }, [id])
+  }
+
+  useEffect(() => { loadTrade() }, [id])
 
   // ── Captures handlers ────────────────────────────────
   const addCapture = (cap) => { setCaptures(c => [...c, cap]); setShowAddPanel(false) }
@@ -318,6 +325,20 @@ export default function AfterTrade() {
   if (loading) return (
     <div className="page flex items-center justify-center h-64">
       <div className="w-6 h-6 border-2 border-forge-accent border-t-transparent rounded-full animate-spin" />
+    </div>
+  )
+
+  if (loadError) return (
+    <div className="page text-center py-20">
+      <p className="text-sm" style={{ color: 'var(--forge-muted)' }}>{loadError}</p>
+      <button onClick={loadTrade} className="mt-3 btn-primary mx-auto" style={{ padding: '8px 16px', fontSize: 12 }}>
+        Réessayer
+      </button>
+      <div className="mt-3">
+        <button onClick={() => navigate('/app/trades')} className="text-xs text-forge-accent hover:underline">
+          ← Retour aux trades
+        </button>
+      </div>
     </div>
   )
 

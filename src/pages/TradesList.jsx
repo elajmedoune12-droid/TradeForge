@@ -40,22 +40,36 @@ const CHART_MODES = [
 const toggle = (arr, val) =>
   arr.includes(val) ? arr.filter(v => v !== val) : [...arr, val]
 
-const StatCard = ({ label, value, sub, color, icon: Icon, glow }) => (
-  <div className="card flex flex-col gap-1 relative overflow-hidden"
-    style={{ borderColor: glow ? `${glow}33` : undefined }}>
-    {glow && (
-      <div className="absolute inset-0 opacity-[0.06] pointer-events-none rounded-2xl"
-        style={{ background: `radial-gradient(ellipse at top left, ${glow}, transparent 70%)` }} />
-    )}
-    <div className="flex items-center justify-between mb-1">
-      <p className="label mb-0">{label}</p>
-      {Icon && <Icon size={13} style={{ color: glow || '#8B949E', opacity: 0.7 }} />}
+const StatCard = ({ label, value, sub, color, icon: Icon, glow }) => {
+  const c = glow || '#8B949E'
+  return (
+    <div
+      className="group relative overflow-hidden rounded-2xl p-4 flex flex-col gap-1 transition-transform duration-200 hover:-translate-y-0.5"
+      style={{
+        background: 'linear-gradient(145deg, var(--surface-card), var(--surface-4))',
+        border: `1px solid ${c}26`,
+        boxShadow: `0 6px 24px -12px ${c}55, inset 0 1px 0 rgba(255,255,255,0.04)`,
+      }}
+    >
+      <div className="absolute inset-0 opacity-[0.07] pointer-events-none rounded-2xl"
+        style={{ background: `radial-gradient(ellipse at top left, ${c}, transparent 75%)` }} />
+      <div className="absolute -top-8 -right-6 w-24 h-24 rounded-full pointer-events-none opacity-20 blur-2xl"
+        style={{ background: c }} />
+      <div className="flex items-center justify-between mb-1.5 relative">
+        <p className="text-[11px] font-medium uppercase tracking-wide" style={{ color: 'var(--forge-muted)' }}>{label}</p>
+        {Icon && (
+          <div className="w-7 h-7 rounded-xl flex items-center justify-center"
+            style={{ background: `${c}1f`, color: c, border: `1px solid ${c}30` }}>
+            <Icon size={14} />
+          </div>
+        )}
+      </div>
+      <p className="text-[26px] font-mono font-semibold leading-none relative"
+        style={color ? { color: c } : { color: 'var(--text-primary)' }}>{value}</p>
+      {sub && <p className="text-[11px] text-forge-muted mt-1 relative">{sub}</p>}
     </div>
-    <p className={`text-2xl font-mono font-semibold leading-none ${color || ''}`}
-      style={color ? {} : { color: 'var(--text-primary)' }}>{value}</p>
-    {sub && <p className="text-[11px] text-forge-muted mt-0.5">{sub}</p>}
-  </div>
-)
+  )
+}
 
 const Badge = ({ result }) => {
   const map    = { tp: 'badge-tp', sl: 'badge-sl', be: 'badge-be', missed: 'badge-missed', manual_exit: 'badge-manual' }
@@ -68,7 +82,7 @@ const CustomTooltip = ({ active, payload, label }) => {
   const val = payload[0].value
   return (
     <div className="rounded-xl px-3 py-2 text-xs"
-      style={{ background: '#161B22', border: '1px solid rgba(247,183,49,0.2)', backdropFilter: 'blur(12px)' }}>
+      style={{ background: 'var(--modal-bg)', border: '1px solid rgba(247,183,49,0.2)', backdropFilter: 'blur(12px)' }}>
       <p className="text-forge-muted mb-0.5">{label}</p>
       <p className="font-mono font-semibold" style={{ color: val >= 0 ? '#2EA043' : '#F85149' }}>
         {val >= 0 ? '+' : ''}{typeof val === 'number' ? val.toFixed(2) : val}R
@@ -92,7 +106,7 @@ const ResultsTooltip = ({ active, payload, label }) => {
 
 export default function TradesList() {
   const navigate = useNavigate()
-  const { trades, loading } = useTrades()
+  const { trades, loading, error, refresh } = useTrades()
 
   const {
     search, filterResults, filterMarkets, filterTypes,
@@ -198,20 +212,44 @@ export default function TradesList() {
       <div className="flex items-center justify-between mb-4">
         <div>
           <div className="flex items-center gap-2 mb-0.5">
-            <div className="w-7 h-7 rounded-xl flex items-center justify-center"
-              style={{ background: 'rgba(247,183,49,0.15)' }}>
-              <List size={14} className="text-forge-accent" />
+            <div className="w-9 h-9 rounded-xl flex items-center justify-center relative overflow-hidden"
+              style={{
+                background: 'linear-gradient(135deg, rgba(247,183,49,0.25), rgba(247,183,49,0.08))',
+                border: '1px solid rgba(247,183,49,0.35)',
+                boxShadow: '0 4px 16px -6px rgba(247,183,49,0.5)',
+              }}>
+              <List size={17} className="text-forge-accent" />
+              <div className="absolute -top-4 -right-4 w-8 h-8 rounded-full blur-lg opacity-40" style={{ background: '#F7B731' }} />
             </div>
-            <h1 className="text-xl font-semibold" style={{ color: 'var(--text-primary)' }}>Trades</h1>
+            <div>
+              <h1 className="text-xl font-semibold leading-tight" style={{ color: 'var(--text-primary)' }}>Trades</h1>
+              <p className="text-[11px] text-forge-muted">{trades.length} trade{trades.length!==1?'s':''} au total</p>
+            </div>
           </div>
-          <p className="text-xs text-forge-muted">
-            {trades.length} trade{trades.length!==1?'s':''} au total
-          </p>
         </div>
-        <button onClick={() => navigate('/app/trades/new')} className="btn-primary flex items-center gap-1.5">
+        <button onClick={() => navigate('/app/trades/new')}
+          className="relative overflow-hidden btn-primary flex items-center gap-1.5">
           <Plus size={15} /> Nouveau
+          <div className="absolute inset-0 opacity-30 pointer-events-none rounded-xl" style={{ background: 'radial-gradient(circle at 80% -40%, #fff3, transparent 60%)' }} />
         </button>
       </div>
+
+      {error && (
+        <div className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs mb-4"
+          style={{ background: 'rgba(248,81,73,0.08)', border: '1px solid rgba(248,81,73,0.25)' }}>
+          <span style={{ color: '#F85149' }}>⚠️</span>
+          <span style={{ color: 'var(--text-secondary)' }}>
+            Impossible de charger tes trades. {error}
+          </span>
+          <button
+            onClick={() => refresh()}
+            className="ml-auto btn-primary"
+            style={{ padding: '5px 12px', fontSize: 11 }}
+          >
+            Réessayer
+          </button>
+        </div>
+      )}
 
       {loading ? (
         <>
@@ -232,7 +270,7 @@ export default function TradesList() {
               className="flex items-center gap-1.5 px-3 py-2.5 rounded-xl text-sm font-medium border transition-all active:scale-95"
               style={panelOpen||activeCount>0
                 ? { background:'rgba(247,183,49,0.12)', color:'#F7B731', borderColor:'rgba(247,183,49,0.4)' }
-                : { background:'var(--surface-3)', color:'#8B949E', borderColor:'var(--surface-10)' }
+                : { background:'var(--surface-3)', color:'var(--forge-muted)', borderColor:'var(--surface-10)' }
               }>
               <SlidersHorizontal size={14} />
               Filtres
@@ -362,7 +400,7 @@ export default function TradesList() {
                       className="px-2.5 py-1 rounded-lg text-[10px] font-medium border transition-all"
                       style={chartMode===m.value
                         ? { background:'rgba(247,183,49,0.15)', color:'#F7B731', borderColor:'rgba(247,183,49,0.4)' }
-                        : { background:'var(--surface-2)', color:'#8B949E', borderColor:'var(--surface-8)' }
+                        : { background:'var(--surface-2)', color:'var(--forge-muted)', borderColor:'var(--surface-8)' }
                       }>
                       {m.label}
                     </button>
@@ -391,8 +429,8 @@ export default function TradesList() {
                         </linearGradient>
                       </defs>
                       <CartesianGrid vertical={false} stroke="var(--surface-3)"/>
-                      <XAxis dataKey="label" tick={{fill:'#8B949E',fontSize:9}} axisLine={false} tickLine={false} interval="preserveStartEnd"/>
-                      <YAxis tick={{fill:'#8B949E',fontSize:9}} axisLine={false} tickLine={false} tickFormatter={v=>`${v}R`}/>
+                      <XAxis dataKey="label" tick={{fill:'var(--forge-muted)',fontSize:9}} axisLine={false} tickLine={false} interval="preserveStartEnd"/>
+                      <YAxis tick={{fill:'var(--forge-muted)',fontSize:9}} axisLine={false} tickLine={false} tickFormatter={v=>`${v}R`}/>
                       <ReferenceLine y={0} stroke="var(--surface-12)" strokeDasharray="4 4"/>
                       <Tooltip content={<CustomTooltip/>}/>
                       <Area type="monotone" dataKey="equity" stroke={isUp?'#2EA043':'#F85149'} strokeWidth={2}
@@ -409,8 +447,8 @@ export default function TradesList() {
                   <ResponsiveContainer width="100%" height={140}>
                     <BarChart data={chartData} margin={{top:4,right:0,left:-28,bottom:0}}>
                       <CartesianGrid vertical={false} stroke="var(--surface-3)"/>
-                      <XAxis dataKey="label" tick={{fill:'#8B949E',fontSize:9}} axisLine={false} tickLine={false} interval="preserveStartEnd"/>
-                      <YAxis tick={{fill:'#8B949E',fontSize:9}} axisLine={false} tickLine={false} tickFormatter={v=>`${v}R`}/>
+                      <XAxis dataKey="label" tick={{fill:'var(--forge-muted)',fontSize:9}} axisLine={false} tickLine={false} interval="preserveStartEnd"/>
+                      <YAxis tick={{fill:'var(--forge-muted)',fontSize:9}} axisLine={false} tickLine={false} tickFormatter={v=>`${v}R`}/>
                       <ReferenceLine y={0} stroke="var(--surface-12)"/>
                       <Tooltip content={<CustomTooltip/>}/>
                       <Bar dataKey="rr" radius={[3,3,0,0]}>
@@ -429,8 +467,8 @@ export default function TradesList() {
                   <ResponsiveContainer width="100%" height={140}>
                     <BarChart data={chartData} margin={{top:4,right:0,left:-28,bottom:0}}>
                       <CartesianGrid vertical={false} stroke="var(--surface-3)"/>
-                      <XAxis dataKey="label" tick={{fill:'#8B949E',fontSize:9}} axisLine={false} tickLine={false}/>
-                      <YAxis tick={{fill:'#8B949E',fontSize:9}} axisLine={false} tickLine={false} allowDecimals={false}/>
+                      <XAxis dataKey="label" tick={{fill:'var(--forge-muted)',fontSize:9}} axisLine={false} tickLine={false}/>
+                      <YAxis tick={{fill:'var(--forge-muted)',fontSize:9}} axisLine={false} tickLine={false} allowDecimals={false}/>
                       <Tooltip content={<ResultsTooltip/>}/>
                       <Bar dataKey="tp"          name="TP"     stackId="a" fill="#2EA043" fillOpacity={0.85}/>
                       <Bar dataKey="sl"          name="SL"     stackId="a" fill="#F85149" fillOpacity={0.85}/>
@@ -466,7 +504,7 @@ export default function TradesList() {
                         className="px-3 py-1.5 rounded-xl text-xs font-medium border transition-all active:scale-95"
                         style={active
                           ? { background:`${opt.color}22`, color:opt.color, borderColor:`${opt.color}66`, boxShadow:`0 0 8px ${opt.color}33` }
-                          : { background:'var(--surface-3)', color:'#8B949E', borderColor:'var(--surface-10)' }
+                          : { background:'var(--surface-3)', color:'var(--forge-muted)', borderColor:'var(--surface-10)' }
                         }>
                         {opt.label}
                       </button>
@@ -485,7 +523,7 @@ export default function TradesList() {
                         className="px-3 py-1.5 rounded-xl text-xs font-medium border transition-all active:scale-95"
                         style={active
                           ? { background:`${opt.color}22`, color:opt.color, borderColor:`${opt.color}66` }
-                          : { background:'var(--surface-3)', color:'#8B949E', borderColor:'var(--surface-10)' }
+                          : { background:'var(--surface-3)', color:'var(--forge-muted)', borderColor:'var(--surface-10)' }
                         }>
                         {opt.label}
                       </button>
@@ -508,7 +546,7 @@ export default function TradesList() {
                           className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium border transition-all active:scale-95"
                           style={active
                             ? { background:'rgba(247,183,49,0.15)', color:'#F7B731', borderColor:'rgba(247,183,49,0.5)' }
-                            : { background:'var(--surface-3)', color:'#8B949E', borderColor:'var(--surface-10)' }
+                            : { background:'var(--surface-3)', color:'var(--forge-muted)', borderColor:'var(--surface-10)' }
                           }>
                           {m}
                           <span className="opacity-50 text-[10px]">{count}</span>

@@ -20,18 +20,3 @@ export const SkeletonList = () => (
     ))}
   </div>
 )
-
-export const SkeletonCalendar = () => (
-  <div className="card animate-pulse">
-    <div className="flex justify-between mb-4">
-      <div className="w-8 h-8 rounded-xl" style={{ background: 'var(--skeleton-bg)' }} />
-      <div className="h-5 w-32 rounded-lg" style={{ background: 'var(--skeleton-bg)' }} />
-      <div className="w-8 h-8 rounded-xl" style={{ background: 'var(--skeleton-bg)' }} />
-    </div>
-    <div className="grid grid-cols-7 gap-1">
-      {[...Array(35)].map((_, i) => (
-        <div key={i} className="rounded-xl" style={{ aspectRatio: '1', background: 'var(--skeleton-bg-soft)' }} />
-      ))}
-    </div>
-  </div>
-)

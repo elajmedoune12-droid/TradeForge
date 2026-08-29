@@ -1,8 +1,9 @@
 import { useState, useRef, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { User, Mail, Lock, Check, AlertCircle, Eye, EyeOff, ArrowLeft, Shield, Camera, Trash2, AtSign } from 'lucide-react'
+import { User, Mail, Lock, Check, AlertCircle, Eye, EyeOff, Shield, Camera, Trash2, AtSign } from 'lucide-react'
 import { supabase } from '../services/supabase'
 import { useAuth } from '../hooks/useAuth'
+import { PageHeader } from '../components/PageHeader'
 
 // ── Toast ───────────────────────────────────────────────────
 const Toast = ({ message, type }) => (
@@ -148,12 +149,17 @@ export default function Profile() {
     if (newPwd.length < 6) { setPwdError('Minimum 6 caractères'); return }
     if (newPwd !== confirmPwd) { setPwdError('Les mots de passe ne correspondent pas'); return }
     setPwdLoading(true)
-    const { error: authError } = await supabase.auth.signInWithPassword({ email: user?.email, password: currentPwd })
-    if (authError) { setPwdLoading(false); setPwdError('Mot de passe actuel incorrect'); return }
-    const { error } = await supabase.auth.updateUser({ password: newPwd })
-    setPwdLoading(false)
-    if (error) setPwdError(error.message)
-    else { setCurrentPwd(''); setNewPwd(''); setConfirmPwd(''); showToast('Mot de passe mis à jour') }
+    try {
+      const { error: authError } = await supabase.auth.signInWithPassword({ email: user?.email, password: currentPwd })
+      if (authError) { setPwdError('Mot de passe actuel incorrect'); return }
+      const { error } = await supabase.auth.updateUser({ password: newPwd })
+      if (error) setPwdError(error.message)
+      else { setCurrentPwd(''); setNewPwd(''); setConfirmPwd(''); showToast('Mot de passe mis à jour') }
+    } catch (e) {
+      setPwdError(e.message || "Impossible de mettre à jour")
+    } finally {
+      setPwdLoading(false)
+    }
   }
 
   const pwdStrength = newPwd.length === 0 ? null
@@ -170,24 +176,11 @@ export default function Profile() {
     <div className="page">
       {toast && <Toast {...toast} />}
 
-      {/* Header */}
-      <div className="flex items-center gap-3 mb-6">
-        <button
-          onClick={() => navigate(-1)}
-          className="w-8 h-8 rounded-xl flex items-center justify-center transition-all active:scale-95"
-          style={{
-            background: 'var(--surface-6)',
-            border: '1px solid var(--border-soft)',
-            color: 'var(--text-primary)',
-          }}
-        >
-          <ArrowLeft size={15} />
-        </button>
-        <div>
-          <h1 className="text-lg font-medium" style={{ color: 'var(--text-primary)' }}>Profil</h1>
-          <p className="text-xs" style={{ color: 'var(--forge-muted)' }}>Modifier vos informations</p>
-        </div>
-      </div>
+      <PageHeader
+        title="Profil"
+        subtitle="Modifier vos informations"
+        icon={User}
+      />
 
       {/* ── Avatar + pseudo ── */}
       <div className="card mb-4">
@@ -487,7 +480,7 @@ export default function Profile() {
                     headers: { Authorization: `Bearer ${session.access_token}` }
                   })
                   await supabase.auth.signOut({ scope: 'local' })
-                  navigate('/app/login')
+                  navigate('/login')
                 }}
                 className="flex-1 py-2 rounded-xl text-xs font-medium transition-all active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed"
                 style={{ background: 'rgba(248,81,73,0.15)', color: '#F85149', border: '1px solid rgba(248,81,73,0.3)' }}

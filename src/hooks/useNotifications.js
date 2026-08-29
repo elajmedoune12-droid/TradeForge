@@ -70,7 +70,7 @@ export function useNotifications() {
           user_id: user.id,
           title: '⚡ TradeForge activé',
           body: 'Tu recevras des rappels pour journaliser tes trades.',
-          url: '/dashboard'
+          url: '/app/dashboard'
         })
       })
     } catch (err) {

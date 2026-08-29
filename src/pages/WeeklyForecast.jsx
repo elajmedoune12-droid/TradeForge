@@ -3,8 +3,8 @@ import { useState, useEffect, useMemo, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   ChevronLeft, ChevronRight, Plus, X, Upload, ExternalLink,
-  Image, Link, TrendingUp, TrendingDown, BarChart2, Zap,
-  Trophy, Newspaper, StickyNote, ChevronDown, ChevronUp,
+  Image, TrendingUp, TrendingDown, BarChart2, Zap,
+  Newspaper, StickyNote, ChevronDown, ChevronUp,
   Save, Eye, Calendar, Check,
 } from 'lucide-react'
 import { useTrades } from '../hooks/useTrades'
@@ -434,11 +434,10 @@ export default function WeeklyForecast() {
   const navigate  = useNavigate()
   const { trades, loading: tradesLoading } = useTrades()
 
-  const { currentWeek } = useUIStore(s => s.weekly)
-const setWeeklyState  = useUIStore(s => s.setWeeklyState)
-const [current, setCurrent] = useState(
-  currentWeek ? new Date(currentWeek) : new Date()
-)
+  const setWeeklyState  = useUIStore(s => s.setWeeklyState)
+  // On part toujours de la semaine courante à l'arrivée sur la page
+  // (le store garde la semaine de navigation, mais ne réinjecte pas l'ancienne au montage)
+  const [current, setCurrent] = useState(new Date())
   const [editMode, setEditMode]           = useState(false)
   const [lightbox, setLightbox]           = useState(null)
   const [showAddAnalysis, setShowAddAnalysis] = useState(false)
@@ -525,7 +524,7 @@ const [current, setCurrent] = useState(
     const file = e.target.files[0]
     if (!file) return
     try {
-      const path   = `${user.id}/weekly/${weekKey}/news_${Date.now()}_${file.name}`
+      const path   = `${user.id}/weekly/${weekKey}/news_${Date.now()}_${sanitizeFilename(file.name)}`
       const imgUrl = await uploadImage(file, path)
       setForm(f => ({ ...f, news_images: [...f.news_images, { url: imgUrl, path }] }))
     } catch (err) {

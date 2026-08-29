@@ -1,4 +1,4 @@
-const CACHE_NAME = 'tradeforge-v3'
+const CACHE_NAME = 'tradeforge-v4'
 
 const STATIC_ASSETS = [
   '/',
@@ -75,18 +75,29 @@ self.addEventListener('push', (event) => {
   event.waitUntil(self.registration.showNotification(title, options))
 })
 
-// Clic sur la notification → ouvre l'app
+// Clic sur la notification → ouvre l'app sur la bonne page
 self.addEventListener('notificationclick', (event) => {
   event.notification.close()
   const url = event.notification.data?.url || '/'
   event.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
-      for (const client of clientList) {
-        if (client.url.includes(self.location.origin) && 'focus' in client) {
-          client.navigate(url)
-          return client.focus()
-        }
+      const origin = self.location.origin
+
+      // 1. Client contrôlé par le SW → on peut le naviguer
+      const controlled = clientList.filter(c =>
+        c.url.startsWith(origin) && 'navigate' in c && 'focus' in c
+      )
+      controlled.sort((a, b) => (a.focused ? -1 : 1))
+      if (controlled.length > 0) {
+        const target = controlled[0]
+        return target.navigate(url).then(() => target.focus()).catch(() => target.focus())
       }
+
+      // 2. Client non contrôlé → on ne peut pas naviguer dessus, mieux vaut en ouvrir un neuf
+      const anyClient = clientList.find(c => c.url.startsWith(origin) && 'focus' in c)
+      if (anyClient) return anyClient.focus()
+
+      // 3. Aucun client → ouvre une nouvelle fenêtre
       if (clients.openWindow) return clients.openWindow(url)
     })
   )

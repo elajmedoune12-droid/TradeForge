@@ -159,17 +159,15 @@
   }
 
   .btn-ghost {
-  @apply border px-4 py-2.5 rounded-xl
-         hover:bg-white/5
-         active:scale-95 transition-all text-sm backdrop-blur-sm;
-  border-color: var(--forge-border);
-  color: var(--forge-muted);
-}
-.btn-ghost:hover {
-  border-color: var(--border-strong);
-  color: var(--text-primary);
-}
-  .btn-ghost:hover { color: var(--text-primary); }
+    @apply border px-4 py-2.5 rounded-xl active:scale-95 transition-all text-sm backdrop-blur-sm;
+    border-color: var(--forge-border);
+    color: var(--forge-muted);
+  }
+  .btn-ghost:hover {
+    background: var(--surface-6);
+    border-color: var(--border-strong);
+    color: var(--text-primary);
+  }
 
   .card {
     @apply rounded-2xl p-4 border transition-all;
@@ -180,7 +178,7 @@
   }
 
   .card-hover {
-    @apply card hover:border-white/20 hover:shadow-[0_4px_24px_rgba(0,0,0,0.4)] cursor-pointer;
+    @apply card hover:border-[var(--border-strong)] hover:shadow-[0_6px_24px_-8px_rgba(0,0,0,0.35)] cursor-pointer;
   }
 
   .glass {
@@ -241,4 +239,94 @@
     to   { opacity: 1; }
   }
   .animate-fade-in { animation: fade-in 0.2s ease-out forwards; }
+}
+
+/* ═══════════════════════════════════════════════════════════
+   Landing : animations de fond & curseur personnalisé
+   ═══════════════════════════════════════════════════════════ */
+.tf-bg-grid {
+  position: absolute; inset: 0; pointer-events: none; overflow: hidden;
+  background-image:
+    linear-gradient(rgba(247,183,49,0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(247,183,49,0.05) 1px, transparent 1px);
+  background-size: 56px 56px;
+  -webkit-mask-image: radial-gradient(ellipse 80% 60% at 50% 0%, black 30%, transparent 75%);
+          mask-image: radial-gradient(ellipse 80% 60% at 50% 0%, black 30%, transparent 75%);
+}
+
+.tf-bg-grid::after {
+  content: ''; position: absolute; inset: 0;
+  background-image:
+    linear-gradient(rgba(247,183,49,0.06) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(247,183,49,0.06) 1px, transparent 1px);
+  background-size: 56px 56px;
+  animation: tf-grid-move 14s linear infinite;
+}
+
+@keyframes tf-grid-move {
+  from { background-position: 0 0; }
+  to   { background-position: 0 56px; }
+}
+
+.tf-aurora {
+  position: absolute; border-radius: 50%; filter: blur(60px); pointer-events: none; mix-blend-mode: screen;
+  will-change: transform;
+}
+.tf-aurora--1 { animation: tf-float 12s ease-in-out infinite alternate; }
+.tf-aurora--2 { animation: tf-float 16s ease-in-out infinite alternate-reverse; }
+.tf-aurora--3 { animation: tf-float 10s ease-in-out infinite alternate; }
+
+@keyframes tf-float {
+  from { transform: translate(0, 0) scale(1); }
+  to   { transform: translate(40px, -30px) scale(1.15); }
+}
+
+/* Phase de particules flottantes */
+.tf-particle {
+  position: absolute; border-radius: 50%; pointer-events: none;
+  animation: tf-rise linear infinite; opacity: 0;
+}
+@keyframes tf-rise {
+  0%   { transform: translateY(20vh) scale(0.6); opacity: 0; }
+  15%  { opacity: var(--p-op, 0.5); }
+  85%  { opacity: var(--p-op, 0.5); }
+  100% { transform: translateY(-110vh) scale(1); opacity: 0; }
+}
+
+/* Curseur personnalisé (desktop) */
+@media (pointer: fine) {
+  .tf-cursor-dot,
+  .tf-cursor-ring {
+    position: fixed; top: 0; left: 0; pointer-events: none; z-index: 9999; border-radius: 50%;
+    transform: translate(-50%, -50%);
+  }
+  .tf-cursor-dot {
+    width: 8px; height: 8px; background: #F7B731; box-shadow: 0 0 12px rgba(247,183,49,0.8);
+  }
+  .tf-cursor-ring {
+    width: 36px; height: 36px; border: 1.5px solid rgba(247,183,49,0.45);
+    transition: width 0.25s ease, height 0.25s ease, border-color 0.25s ease, background 0.25s ease;
+  }
+  .tf-cursor-ring.is-hover {
+    width: 52px; height: 52px;
+    border-color: rgba(247,183,49,0.9);
+    background: rgba(247,183,49,0.08);
+  }
+}
+
+/* Accessibilité : désactive les animations décoratives si demandé */
+@media (prefers-reduced-motion: reduce) {
+  .tf-bg-grid, .tf-bg-grid::after,
+  .tf-aurora, .tf-aurora--1, .tf-aurora--2, .tf-aurora--3,
+  .tf-particle { animation: none !important; }
+  .animate-pulse, .animate-spin, .animate-slide-up, .animate-fade-in {
+    animation-duration: 0.001s !important;
+  }
+}
+
+/* Accessibilité : anneau de focus visible pour la navigation clavier */
+:where(a, button, [role="button"], select, [tabindex]):focus-visible {
+  outline: 2px solid #F7B731;
+  outline-offset: 2px;
+  border-radius: 6px;
 }

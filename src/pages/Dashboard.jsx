@@ -2,7 +2,7 @@ import { useUIStore } from '../store/useUIStore'
 import { useState, useMemo } from 'react'
 import { createPortal } from 'react-dom'
 import { useNavigate } from 'react-router-dom'
-import { Brain, TrendingUp, TrendingDown, Target, Zap, BarChart2, X, ChevronLeft, ChevronRight } from 'lucide-react'
+import { Brain, TrendingUp, TrendingDown, Target, Zap, BarChart2, LayoutDashboard, X, ChevronLeft, ChevronRight } from 'lucide-react'
 import {
   AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer,
   ReferenceLine, CartesianGrid
@@ -36,22 +36,37 @@ const CustomTooltip = ({ active, payload, label }) => {
   )
 }
 
-const StatCard = ({ label, value, sub, color, icon: Icon, glow }) => (
-  <div className="card flex flex-col gap-1 relative overflow-hidden"
-    style={{ borderColor: glow ? `${glow}33` : undefined }}>
-    {glow && (
-      <div className="absolute inset-0 opacity-[0.06] pointer-events-none rounded-2xl"
-        style={{ background: `radial-gradient(ellipse at top left, ${glow}, transparent 70%)` }} />
-    )}
-    <div className="flex items-center justify-between mb-1">
-      <p className="label mb-0">{label}</p>
-      {Icon && <Icon size={13} style={{ color: glow || '#8B949E', opacity: 0.7 }} />}
+const StatCard = ({ label, value, sub, color, icon: Icon, glow, t }) => {
+  const c = glow || '#8B949E'
+  return (
+    <div
+      className="group relative overflow-hidden rounded-2xl p-4 flex flex-col gap-1 transition-transform duration-200 hover:-translate-y-0.5"
+      style={{
+        background: 'linear-gradient(145deg, var(--surface-card), var(--surface-4))',
+        border: `1px solid ${c}26`,
+        boxShadow: `0 6px 24px -12px ${c}55, inset 0 1px 0 rgba(255,255,255,0.04)`,
+      }}
+    >
+      <div className="absolute inset-0 opacity-[0.07] pointer-events-none rounded-2xl"
+        style={{ background: `radial-gradient(ellipse at top left, ${c}, transparent 75%)` }} />
+      <div className="absolute -top-8 -right-6 w-24 h-24 rounded-full pointer-events-none opacity-20 blur-2xl"
+        style={{ background: c }} />
+      <div className="flex items-center justify-between mb-1.5 relative">
+        <p className="text-[11px] font-medium uppercase tracking-wide" style={{ color: 'var(--forge-muted)' }}>{label}</p>
+        {Icon && (
+          <div className="w-7 h-7 rounded-xl flex items-center justify-center"
+            style={{ background: `${c}1f`, color: c, border: `1px solid ${c}30` }}>
+            <Icon size={14} />
+          </div>
+        )}
+      </div>
+      <p className="text-[26px] font-mono font-semibold leading-none relative"
+        style={color ? { color: c } : { color: 'var(--text-primary)' }}>{value}</p>
+      {sub && <p className="text-[11px] text-forge-muted mt-1 relative">{sub}</p>}
+      {t}
     </div>
-    <p className={`text-2xl font-mono font-semibold leading-none ${color || ''}`}
-      style={color ? {} : { color: 'var(--text-primary)' }}>{value}</p>
-    {sub && <p className="text-[11px] text-forge-muted mt-0.5">{sub}</p>}
-  </div>
-)
+  )
+}
 
 // ── Calendrier de trades ────────────────────────────────────
 function TradeCalendar({ trades, allTrades, onDayClick }) {
@@ -150,7 +165,7 @@ const [currentMonth, setCurrentMonth] = useState(
   setDashboardState({ calendarMonth: next.toISOString() })
   return next
 })}
-            className="w-9 h-9 rounded-xl flex items-center justify-center transition-all active:scale-95 hover:bg-white/5"
+            className="w-9 h-9 rounded-xl flex items-center justify-center transition-all active:scale-95 hover:bg-[var(--surface-6)]"
             style={{ border: '1px solid var(--surface-8)' }}>
             <ChevronLeft size={16} style={{ color: '#8B949E' }} />
           </button>
@@ -163,7 +178,7 @@ const [currentMonth, setCurrentMonth] = useState(
   return next
 })}
             disabled={isSameMonth(currentMonth, new Date())}
-            className="w-9 h-9 rounded-xl flex items-center justify-center transition-all active:scale-95 hover:bg-white/5 disabled:opacity-20"
+            className="w-9 h-9 rounded-xl flex items-center justify-center transition-all active:scale-95 hover:bg-[var(--surface-6)] disabled:opacity-20"
             style={{ border: '1px solid var(--surface-8)' }}>
             <ChevronRight size={16} style={{ color: '#8B949E' }} />
           </button>
@@ -324,7 +339,7 @@ function DayTradesModal({ trades, onClose, navigate }) {
             return (
               <button key={t.id}
                 onClick={() => { onClose(); navigate(`/app/trades/${t.id}`) }}
-                className="w-full flex items-center gap-3 p-3 rounded-xl text-left transition-all active:scale-[0.98] hover:bg-white/5"
+                className="w-full flex items-center gap-3 p-3 rounded-xl text-left transition-all active:scale-[0.98] hover:bg-[var(--surface-6)]"
                 style={{ border: `1px solid ${color}25`, background: `${color}08` }}>
                 <div className="w-2 h-8 rounded-full flex-shrink-0" style={{ background: color }} />
                 <div className="flex-1 min-w-0">
@@ -359,7 +374,7 @@ function DayTradesModal({ trades, onClose, navigate }) {
 
 // ── Page principale ─────────────────────────────────────────
 export default function Dashboard() {
-  const { trades, loading } = useTrades()
+  const { trades, loading, error, refresh } = useTrades()
   const navigate = useNavigate()
   const [dayTrades, setDayTrades] = useState(null)
 
@@ -408,11 +423,7 @@ export default function Dashboard() {
   const equityData = [...Array(30)].map((_, i) => {
     const d   = subDays(new Date(), 29 - i)
     const iso = format(d, 'yyyy-MM-dd')
-    const pnl = trades.filter(t => t.date === iso).reduce((acc, t) => {
-      if (t.result === 'tp') return acc + (t.rr_won || 0)
-      if (t.result === 'sl') return acc - 1
-      return acc
-    }, 0)
+    const pnl = trades.filter(t => t.date === iso).reduce((acc, t) => acc + calcPnl(t), 0)
     cum += pnl
     return { label: format(d, 'dd/MM'), equity: +cum.toFixed(2) }
   })
@@ -424,28 +435,69 @@ export default function Dashboard() {
 
   const totalAll = trades.length
 
+  const hour = new Date().getHours()
+  const greeting = hour < 6 ? 'Bonne nuit' : hour < 12 ? 'Bonjour' : hour < 18 ? 'Bon après-midi' : 'Bonsoir'
+
   return (
     <div className="page animate-slide-up">
 
       {/* Header */}
-      <div className="flex items-center justify-between mb-5">
-        <div>
+      <div className="flex items-center justify-between mb-5" style={{ gap: 12 }}>
+        <div className="min-w-0">
           <div className="flex items-center gap-2 mb-0.5">
-            <div className="w-7 h-7 rounded-xl flex items-center justify-center"
-              style={{ background: 'rgba(247,183,49,0.15)' }}>
-              <BarChart2 size={14} className="text-forge-accent" />
+            <div className="w-9 h-9 rounded-xl flex items-center justify-center relative overflow-hidden flex-shrink-0"
+              style={{
+                background: 'linear-gradient(135deg, rgba(247,183,49,0.25), rgba(247,183,49,0.08))',
+                border: '1px solid rgba(247,183,49,0.35)',
+                boxShadow: '0 4px 16px -6px rgba(247,183,49,0.5)',
+              }}>
+              <LayoutDashboard size={17} className="text-forge-accent" />
+              <div className="absolute -top-4 -right-4 w-8 h-8 rounded-full blur-lg opacity-40" style={{ background: '#F7B731' }} />
             </div>
-            <h1 className="text-xl font-semibold" style={{ color: 'var(--text-primary)' }}>Dashboard</h1>
+            <div className="min-w-0">
+              <h1 className="text-xl font-semibold leading-tight truncate" style={{ color: 'var(--text-primary)' }}>
+                {greeting}, trader
+              </h1>
+              <p className="text-[11px] text-forge-muted truncate">
+                {totalAll} trade{totalAll !== 1 ? 's' : ''} au total
+              </p>
+            </div>
           </div>
-          <p className="text-xs text-forge-muted">
-            {totalAll} trade{totalAll !== 1 ? 's' : ''} au total
-          </p>
         </div>
-        <div className="flex items-center gap-2 text-xs text-forge-muted">
-          <span className="w-2 h-2 rounded-full bg-forge-green inline-block" style={{ boxShadow: '0 0 6px #2EA043' }} />
-          En ligne
+        <div className="flex-shrink-0">
+          <div className="flex items-center gap-2 text-[11px] px-2.5 py-1.5 rounded-full whitespace-nowrap"
+            style={{
+              background: 'var(--surface-4)',
+              border: `1px solid ${error ? 'rgba(248,81,73,0.35)' : 'rgba(46,160,67,0.35)'}`,
+              color: error ? '#F85149' : 'var(--forge-muted)',
+            }}>
+            <span className="w-1.5 h-1.5 rounded-full inline-block flex-shrink-0"
+              style={{
+                background: error ? '#F85149' : '#2EA043',
+                boxShadow: error ? '0 0 6px #F85149' : '0 0 6px #2EA043',
+              }} />
+            {error ? 'Hors ligne' : 'En ligne'}
+          </div>
         </div>
       </div>
+
+      {/* Erreur de chargement + retry */}
+      {error && (
+        <div className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs mb-4"
+          style={{ background: 'rgba(248,81,73,0.08)', border: '1px solid rgba(248,81,73,0.25)' }}>
+          <span style={{ color: '#F85149' }}>⚠️</span>
+          <span style={{ color: 'var(--text-secondary)' }}>
+            Impossible de charger tes trades. {error}
+          </span>
+          <button
+            onClick={() => refresh()}
+            className="ml-auto btn-primary"
+            style={{ padding: '5px 12px', fontSize: 11 }}
+          >
+            Réessayer
+          </button>
+        </div>
+      )}
 
       {/* Bandeau période */}
       <div className="flex items-center gap-2 mb-4 px-3 py-2 rounded-xl text-xs"

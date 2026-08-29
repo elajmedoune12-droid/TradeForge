@@ -8,6 +8,7 @@ import { useUIStore } from '../store/useUIStore'
 import { format, parseISO } from 'date-fns'
 import { fr } from 'date-fns/locale'
 import { SkeletonCard } from '../components/Skeleton'
+import { PageHeader } from '../components/PageHeader'
 
 const DEFAULT_TIMEFRAMES = ['Monthly', 'Weekly', 'Daily', 'H4', 'H2', 'H1', 'M30', 'M15', 'M5', 'M3', 'M1']
 const DEFAULT_MARKETS    = ['EURUSD', 'GBPUSD', 'DXY', 'NAS100', 'S&P 500', 'XAUUSD', 'XAGUSD', 'USDJPY']
@@ -486,20 +487,25 @@ function HindsightGoals({ items, user }) {
   useEffect(() => {
     if (!user?.id) return
     const load = async () => {
-      const { data } = await supabase
-        .from('hindsight_goals')
-        .select('*')
-        .eq('user_id', user.id)
-        .maybeSingle()
+      try {
+        const { data } = await supabase
+          .from('hindsight_goals')
+          .select('*')
+          .eq('user_id', user.id)
+          .maybeSingle()
 
-      if (data) {
-        setCycles(data.cycles || [])
-        setCurrentCycle(data.current_cycle || null)
-        if (!data.current_cycle) setEditing(true)
-      } else {
-        setEditing(true)
+        if (data) {
+          setCycles(data.cycles || [])
+          setCurrentCycle(data.current_cycle || null)
+          if (!data.current_cycle) setEditing(true)
+        } else {
+          setEditing(true)
+        }
+      } catch (e) {
+        console.error('Erreur chargement objectifs', e)
+      } finally {
+        setLoading(false)
       }
-      setLoading(false)
     }
     load()
   }, [user?.id])
@@ -556,10 +562,15 @@ function HindsightGoals({ items, user }) {
       monthly:   form.monthly ? +form.monthly : null,
       streak:    form.streak  ? +form.streak  : null,
     }
-    setCurrentCycle(newCycle)
-    setEditing(false)
-    await persist(newCycle, cycles)
-    setSaving(false)
+    try {
+      setCurrentCycle(newCycle)
+      setEditing(false)
+      await persist(newCycle, cycles)
+    } catch (e) {
+      console.error('Erreur sauvegarde objectif', e)
+    } finally {
+      setSaving(false)
+    }
   }
 
   const completeCycle = async () => {
@@ -572,19 +583,28 @@ function HindsightGoals({ items, user }) {
       achievedStreak:  streak,
     }
     const newCycles = [...cycles, completed]
-    setCycles(newCycles)
-    setCurrentCycle(null)
-    setForm({ weekly: '', monthly: '', streak: '' })
-    setShowNewCycle(false)
-    setEditing(true)
-    await persist(null, newCycles)
-    setSaving(false)
+    try {
+      setCycles(newCycles)
+      setCurrentCycle(null)
+      setForm({ weekly: '', monthly: '', streak: '' })
+      setShowNewCycle(false)
+      setEditing(true)
+      await persist(null, newCycles)
+    } catch (e) {
+      console.error('Erreur sauvegarde cycle', e)
+    } finally {
+      setSaving(false)
+    }
   }
 
   const deleteCycleFromHistory = async (id) => {
     const newCycles = cycles.filter(c => c.id !== id)
-    setCycles(newCycles)
-    await persist(currentCycle, newCycles)
+    try {
+      setCycles(newCycles)
+      await persist(currentCycle, newCycles)
+    } catch (e) {
+      console.error('Erreur suppression cycle', e)
+    }
   }
 
   const allDone = currentCycle && [
@@ -935,24 +955,18 @@ export default function HindsightsList() {
         />
       )}
 
-      {/* Header */}
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <div className="flex items-center gap-2 mb-0.5">
-            <div className="w-7 h-7 rounded-xl flex items-center justify-center" style={{ background: 'rgba(46,160,67,0.15)' }}>
-              <BookMarked size={14} className="text-forge-green" />
-            </div>
-            <h1 className="text-xl font-semibold" style={{ color: 'var(--text-primary)' }}>Hindsights</h1>
-          </div>
-          <p className="text-xs" style={{ color: 'var(--forge-muted)' }}>
-            {items.length} analyse{items.length !== 1 ? 's' : ''} de marché
-          </p>
-        </div>
-        <button onClick={() => navigate('/app/hindsights/new')} className="btn-primary flex items-center gap-1.5"
-          style={{ background: '#2EA043', boxShadow: '0 0 20px rgba(46,160,67,0.3)' }}>
-          <Plus size={15} /> Nouveau
-        </button>
-      </div>
+      <PageHeader
+        title="Hindsights"
+        subtitle={`${items.length} analyse${items.length !== 1 ? 's' : ''} de marché`}
+        icon={BookMarked}
+        accent="#2EA043"
+        right={
+          <button onClick={() => navigate('/app/hindsights/new')} className="btn-primary flex items-center gap-1.5"
+            style={{ background: '#2EA043', boxShadow: '0 0 20px rgba(46,160,67,0.3)' }}>
+            <Plus size={15} /> Nouveau
+          </button>
+        }
+      />
 
       <HindsightGoals items={items} user={user} />
 

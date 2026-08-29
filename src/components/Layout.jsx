@@ -165,7 +165,16 @@ function buildNotifications(trades, backtestDone, backtestHours, lastBacktestDat
     })
     const sortedDates = Object.keys(dateProfit).sort((a, b) => b.localeCompare(a))
     let streak = 0
-    for (const d of sortedDates) { if (dateProfit[d] > 0) streak++; else break }
+    let prev = null
+    for (const d of sortedDates) {
+      if (dateProfit[d] <= 0) break
+      if (prev !== null) {
+        const gap = Math.round((new Date(prev + 'T00:00:00') - new Date(d + 'T00:00:00')) / (1000 * 60 * 60 * 24))
+        if (gap !== 1) break
+      }
+      streak++
+      prev = d
+    }
     if (streak >= 3) notifs.push({
       id: 'best_session_streak', priority: 'success', icon: 'fire', color: '#2EA043',
       title: `${streak} jours consécutifs profitables`,
@@ -757,6 +766,9 @@ export default function Layout() {
   const location = useLocation()
   const navigate = useNavigate()
 
+  // Jour courant (local) utilisé pour étendre la validité des notifs lues/rejetées
+  const notifDay = new Date().toLocaleDateString('en-CA')
+
   const [sidebarOpen,       setSidebarOpen]       = useState(() => localStorage.getItem('sidebar_open') !== 'false')
   const [showMenu,          setShowMenu]          = useState(false)
   const [showNotif,         setShowNotif]         = useState(false)
@@ -771,13 +783,15 @@ export default function Layout() {
   const [hasWeeklyForecast, setHasWeeklyForecast] = useState(false)
 
   const [readIds, setReadIds] = useState(() => {
-    try { return JSON.parse(localStorage.getItem('tf_read_notifs') || '[]') } catch { return [] }
+    try {
+      const raw = JSON.parse(localStorage.getItem('tf_read_notifs') || '{}')
+      return (raw && raw.day === notifDay && Array.isArray(raw.ids)) ? raw.ids : []
+    } catch { return [] }
   })
   const [dismissedIds, setDismissedIds] = useState(() => {
     try {
-      const today = new Date().toISOString().slice(0, 10)
-      const saved = JSON.parse(localStorage.getItem('tf_dismissed_notifs') || '{}')
-      return saved.date !== today ? [] : (saved.ids || [])
+      const raw = JSON.parse(localStorage.getItem('tf_dismissed_notifs') || '{}')
+      return (raw && raw.day === notifDay && Array.isArray(raw.ids)) ? raw.ids : []
     } catch { return [] }
   })
 
@@ -837,7 +851,8 @@ export default function Layout() {
   useEffect(() => {
     if (!user || !trades.length) return
     const sentKey = `tf_sent_notifs_${new Date().toISOString().slice(0, 10)}`
-    const sent    = JSON.parse(localStorage.getItem(sentKey) || '[]')
+    let sent = []
+    try { sent = JSON.parse(localStorage.getItem(sentKey) || '[]') || [] } catch { sent = [] }
 
     const sendPush = async (id, title, body, url = '/') => {
   if (sent.includes(id)) return
@@ -846,37 +861,52 @@ export default function Layout() {
         await fetch('/api/send-notification', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ user_id: user.id, title, body, url }),
+          body: JSON.stringify({ user_id: user.id, title, body, url, tag: `tradeforge-${id}` }),
         })
       } catch {}
       const next = [...sent, id]
       localStorage.setItem(sentKey, JSON.stringify(next))
-      sent.push(id)
+      sent = next
     }
 
-    const last5  = trades.slice(0, 5)
-    const last10 = trades.slice(0, 10)
+    const evaluate = () => {
+      // Ne pas pousser de notification tant que l'app est ouverte et active :
+      // le panneau interne les affiche déjà.
+      if (document.visibilityState === 'visible' && document.hasFocus()) return
+      const last5  = trades.slice(0, 5)
+      const last10 = trades.slice(0, 10)
 
-    if (last5.filter(t => t.result === 'sl').length >= 3)
-      sendPush('sl_streak', '⚠️ 3 pertes consécutives', 'Arrêtez de trader. Revoyez votre plan.', '/app/trades')
-    if (last5.filter(t => t.session === 'Hors session').length >= 2)
-      sendPush('hors_session', '⚠️ Trades hors session', 'Vous tradez en dehors des sessions optimales.', '/app/rules')
-    if (last5.filter(t => t.discipline_score != null && t.discipline_score <= 4).length >= 2)
-      sendPush('low_disc', '📉 Discipline en baisse', 'Score moyen faible sur vos derniers trades.', '/app/rules')
-    if (last5.filter(t => t.respect_plan === false).length >= 3)
-      sendPush('no_plan', '❌ Plan non respecté', 'Relisez vos règles avant chaque trade.', '/app/rules')
-    if (last5.filter(t => t.emotion === 'Revenge').length >= 2)
-      sendPush('revenge', '😤 Revenge trading', 'Détecté sur vos derniers trades. Faites une pause.', '/app/trades')
-    if (last10.length >= 5 && Math.round((last10.filter(t => t.result === 'tp').length / last10.length) * 100) >= 65)
-      sendPush('wr_good', '🔥 Excellent win rate', `${Math.round((last10.filter(t => t.result === 'tp').length / last10.length) * 100)}% sur vos 10 derniers trades !`, '/app/monthly')
-    if (trades.slice(0, 7).filter(t => t.respect_plan === true).length >= 5)
-      sendPush('respect_streak', '✅ Super discipline', `${trades.slice(0,7).filter(t=>t.respect_plan).length} trades avec plan respecté !`, '/app/rules')
-    if (trades.slice(0, 10).filter(t => !t.hindsight?.length).length >= 3)
-      sendPush('no_hindsight', '📝 After Trade manquant', `${trades.slice(0,10).filter(t=>!t.hindsight?.length).length} trades sans analyse post-trade.`, '/app/hindsights')
-    if (backtestDone && backtestHours)
-      sendPush('backtest_done', '🎯 Objectif backtest atteint', `${backtestHours}h complétées ! Lancez un nouveau cycle.`, '/app/rules')
-    if (Math.floor((new Date() - new Date(trades[0].date)) / (1000 * 60 * 60 * 24)) >= 5)
-      sendPush('inactive', '💤 Inactivité détectée', `${Math.floor((new Date() - new Date(trades[0].date)) / (1000 * 60 * 60 * 24))} jours sans trade journalisé.`, '/app/trades/new')
+      if (last5.filter(t => t.result === 'sl').length >= 3)
+        sendPush('sl_streak', '⚠️ 3 pertes consécutives', 'Arrêtez de trader. Revoyez votre plan.', '/app/trades')
+      if (last5.filter(t => t.session === 'Hors session').length >= 2)
+        sendPush('hors_session', '⚠️ Trades hors session', 'Vous tradez en dehors des sessions optimales.', '/app/rules')
+      if (last5.filter(t => t.discipline_score != null && t.discipline_score <= 4).length >= 2)
+        sendPush('low_disc', '📉 Discipline en baisse', 'Score moyen faible sur vos derniers trades.', '/app/rules')
+      if (last5.filter(t => t.respect_plan === false).length >= 3)
+        sendPush('no_plan', '❌ Plan non respecté', 'Relisez vos règles avant chaque trade.', '/app/rules')
+      if (last5.filter(t => t.emotion === 'Revenge').length >= 2)
+        sendPush('revenge', '😤 Revenge trading', 'Détecté sur vos derniers trades. Faites une pause.', '/app/trades')
+      if (last10.length >= 5) {
+        const active10 = last10.filter(t => ['tp','sl','be'].includes(t.result))
+        const tp10 = last10.filter(t => t.result === 'tp').length
+        const wr = active10.length ? Math.round((tp10 / active10.length) * 100) : 0
+        if (wr >= 65)
+          sendPush('wr_good', '🔥 Excellent win rate', `${wr}% sur vos 10 derniers trades !`, '/app/monthly')
+      }
+      if (trades.slice(0, 7).filter(t => t.respect_plan === true).length >= 5)
+        sendPush('respect_streak', '✅ Super discipline', `${trades.slice(0,7).filter(t=>t.respect_plan).length} trades avec plan respecté !`, '/app/rules')
+      if (trades.slice(0, 10).filter(t => !t.hindsight?.length).length >= 3)
+        sendPush('no_hindsight', '📝 After Trade manquant', `${trades.slice(0,10).filter(t=>!t.hindsight?.length).length} trades sans analyse post-trade.`, '/app/trades')
+      if (backtestDone && backtestHours)
+        sendPush('backtest_done', '🎯 Objectif backtest atteint', `${backtestHours}h complétées ! Lancez un nouveau cycle.`, '/app/rules')
+      if (Math.floor((new Date() - new Date(trades[0].date)) / (1000 * 60 * 60 * 24)) >= 5)
+        sendPush('inactive', '💤 Inactivité détectée', `${Math.floor((new Date() - new Date(trades[0].date)) / (1000 * 60 * 60 * 24))} jours sans trade journalisé.`, '/app/trades/new')
+    }
+
+    evaluate()
+    const onVisibility = () => { if (document.visibilityState === 'hidden') evaluate() }
+    document.addEventListener('visibilitychange', onVisibility)
+    return () => document.removeEventListener('visibilitychange', onVisibility)
   }, [trades, user, backtestDone, backtestHours])
 
   useEffect(() => {
@@ -913,28 +943,26 @@ export default function Layout() {
   const markAllRead = useCallback(() => {
     const ids = allNotifs.map(n => n.id)
     setReadIds(ids)
-    localStorage.setItem('tf_read_notifs', JSON.stringify(ids))
-  }, [allNotifs])
+    localStorage.setItem('tf_read_notifs', JSON.stringify({ day: notifDay, ids }))
+  }, [allNotifs, notifDay])
 
   const markOneRead = useCallback((id) => {
-    const next = [...readIds, id]
+    const next = [...new Set([...readIds, id])]
     setReadIds(next)
-    localStorage.setItem('tf_read_notifs', JSON.stringify(next))
-  }, [readIds])
+    localStorage.setItem('tf_read_notifs', JSON.stringify({ day: notifDay, ids: next }))
+  }, [readIds, notifDay])
 
   const dismissNotif = useCallback((id) => {
-    const next  = [...dismissedIds, id]
-    const today = new Date().toISOString().slice(0, 10)
+    const next  = [...new Set([...dismissedIds, id])]
     setDismissedIds(next)
-    localStorage.setItem('tf_dismissed_notifs', JSON.stringify({ date: today, ids: next }))
-  }, [dismissedIds])
+    localStorage.setItem('tf_dismissed_notifs', JSON.stringify({ day: notifDay, ids: next }))
+  }, [dismissedIds, notifDay])
 
   const dismissAll = useCallback(() => {
-    const ids   = allNotifs.map(n => n.id)
-    const today = new Date().toISOString().slice(0, 10)
+    const ids = allNotifs.map(n => n.id)
     setDismissedIds(ids)
-    localStorage.setItem('tf_dismissed_notifs', JSON.stringify({ date: today, ids }))
-  }, [allNotifs])
+    localStorage.setItem('tf_dismissed_notifs', JSON.stringify({ day: notifDay, ids }))
+  }, [allNotifs, notifDay])
 
   const handleBell = (anchor) => {
     setNotifAnchor(anchor)

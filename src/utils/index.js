@@ -3,18 +3,23 @@ import { fr } from 'date-fns/locale'
 
 // ─── STATS ──────────────────────────────────────────────
 
-export const calcWinRate = (trades) => {
-  const beSetting = localStorage.getItem('winrate_be_mode') || 'neutral'
+// Émotions réellement "négatives" (erreurs potentielles de psychologie)
+const NEGATIVE_EMOTIONS = ['Anxieux', 'FOMO', 'Revenge', 'Impatient']
+
+export const calcWinRate = (trades, beSetting) => {
+  const be = beSetting || (typeof localStorage !== 'undefined'
+    ? (localStorage.getItem('winrate_be_mode') || 'neutral')
+    : 'neutral')
   const tp = trades.filter(t => t.result === 'tp').length
   const sl = trades.filter(t => t.result === 'sl').length
-  const be = trades.filter(t => t.result === 'be').length
+  const beCount = trades.filter(t => t.result === 'be').length
 
-  if (beSetting === 'win') {
-    const denom = tp + sl + be
-    return denom ? Math.round(((tp + be) / denom) * 100) : 0
+  if (be === 'win') {
+    const denom = tp + sl + beCount
+    return denom ? Math.round(((tp + beCount) / denom) * 100) : 0
   }
-  if (beSetting === 'loss') {
-    const denom = tp + sl + be
+  if (be === 'loss') {
+    const denom = tp + sl + beCount
     return denom ? Math.round((tp / denom) * 100) : 0
   }
   // neutre : BE ignoré des deux côtés
@@ -29,10 +34,10 @@ export const calcAvgRR = (trades) => {
   return +(sum / withRR.length).toFixed(2)
 }
 
-// TP → rr_won, SL → rr_won si renseigné sinon -1 (max -1R), BE/Missed → 0
+// TP → rr_won, SL → rr_won si renseigné sinon -1 (plafonné à -1 max), BE/Missed → 0
 export const calcPnl = (trade) => {
   if (trade.result === 'tp') return trade.rr_won || 0
-  if (trade.result === 'sl') return trade.rr_won != null ? Math.max(trade.rr_won, -1) : -1
+  if (trade.result === 'sl') return trade.rr_won != null ? Math.min(trade.rr_won, -1) : -1
   if (trade.result === 'manual_exit') return trade.rr_won != null ? trade.rr_won : 0
   return 0 // BE et Missed
 }
@@ -74,7 +79,8 @@ export const getMonthlyStats = (trades, year, month) => {
 export const getTopErrors = (trades) => {
   const errorMap = {}
   trades.forEach(t => {
-    if (t.emotion) {
+    // Ne compte que les émotions réellement à risque (pas Neutre/Confiant/Euphorique)
+    if (t.emotion && NEGATIVE_EMOTIONS.includes(t.emotion)) {
       errorMap[t.emotion] = (errorMap[t.emotion] || 0) + 1
     }
   })
@@ -151,15 +157,34 @@ export const generateFeedback = (trades) => {
 }
 
 // ─── FORMATTERS ─────────────────────────────────────────
-export const fmtDate = (d) => format(parseISO(d), 'dd MMM yyyy', { locale: fr })
+// Accepte string, Date ou null/undefined sans planter
+export const fmtDate = (d) => {
+  if (d == null || d === '') return '—'
+  let date
+  try {
+    date = typeof d === 'string' ? parseISO(d) : d
+    return format(date, 'dd MMM yyyy', { locale: fr })
+  } catch {
+    return '—'
+  }
+}
 export const fmtMonth = (y, m) => format(new Date(y, m - 1), 'MMMM yyyy', { locale: fr })
 
 export const EMOTIONS = ['Neutre', 'Confiant', 'Anxieux', 'FOMO', 'Revenge', 'Impatient', 'Euphorique']
 export const MARKETS = ['EUR/USD', 'GBP/USD', 'USD/JPY', 'XAU/USD', 'NAS100', 'SP500', 'BTC/USD', 'Autre']
+// Palette unique des résultats (partagée par les pages & exports)
+export const RESULT_COLORS = {
+  tp:          '#2EA043',
+  sl:          '#F85149',
+  be:          '#58a6ff',
+  missed:      '#8B949E',
+  manual_exit: '#D98411',
+}
 export const RESULTS = [
-  { value: 'tp',     label: 'Take Profit', color: 'text-forge-green' },
-  { value: 'sl',     label: 'Stop Loss',   color: 'text-forge-red'   },
-  { value: 'be',     label: 'Breakeven',   color: 'text-blue-400'    },
-  { value: 'missed', label: 'Missed',      color: 'text-forge-muted' },
+  { value: 'tp',          label: 'Take Profit',        color: RESULT_COLORS.tp },
+  { value: 'sl',          label: 'Stop Loss',          color: RESULT_COLORS.sl },
+  { value: 'be',          label: 'Breakeven',          color: RESULT_COLORS.be },
+  { value: 'missed',      label: 'Missed',             color: RESULT_COLORS.missed },
+  { value: 'manual_exit', label: 'Sortie manuelle',    color: RESULT_COLORS.manual_exit },
 ]
 export const TIMEFRAMES = ['Daily', 'H4', 'H1', 'M30', 'M15', 'M5', 'M1', 'Entrée', 'Clôture']

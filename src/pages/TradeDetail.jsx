@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import {
   ChevronLeft, ChevronRight, Edit2, Trash2, BookOpen, X,
@@ -6,14 +6,15 @@ import {
   Sparkles, ExternalLink, Upload,
   Brain, BarChart2, Shield, Calendar, Plus,
   AlertTriangle, FileText, Zap, Target, Clock,
-  TrendingUp, TrendingDown,
+  TrendingUp,
 } from 'lucide-react'
-import { getTradeById, deleteTrade, updateTrade } from '../services/supabase'
+import { getTradeById, deleteTrade } from '../services/supabase'
 import { fmtDate } from '../utils'
 import { useAuth } from '../hooks/useAuth'
 import AIAssistant from '../components/AIAssistant'
 import ExportModal from '../components/ExportModal'
 import { useUIStore } from '../store/useUIStore'
+import { PageHeader } from '../components/PageHeader'
 
 const RESULT_CONFIG = {
   tp:          { label: 'Take Profit',     bg: 'rgba(46,160,67,0.12)',   color: '#2EA043', border: 'rgba(46,160,67,0.3)',   glow: 'rgba(46,160,67,0.15)'  },
@@ -289,47 +290,63 @@ export default function TradeDetail() {
 
   const [trade, setTrade]           = useState(tradeCache[id] || null)
   const [loading, setLoading]       = useState(!tradeCache[id])
+  const [loadError, setLoadError]   = useState('')
+  const [deleteError, setDeleteError] = useState('')
   const [lightbox, setLightbox]     = useState(null)
   const [deleting, setDeleting]     = useState(false)
   const [showAI, setShowAI]         = useState(false)
   const [showExport, setShowExport] = useState(false)
 
+  // Charge le trade avec garde anti-race (évite qu'un fetch A→B
+  // écrase les données par un résultat en retard).
   useEffect(() => {
     if (!id) return
+    let ignore = false
+    setLoadError('')
+
+    const load = () => {
+      getTradeById(id)
+        .then(t => {
+          if (ignore) return
+          setTrade(t)
+          setTradeCache(id, t)
+          setLastTradeId(id)
+        })
+        .catch(e => {
+          if (ignore) return
+          setLoadError(e.message || "Impossible de charger ce trade.")
+        })
+        .finally(() => { if (!ignore) setLoading(false) })
+    }
+
     if (tradeCache[id]) {
       setTrade(tradeCache[id])
       setLoading(false)
       setLastTradeId(id)
-      getTradeById(id).then(t => { setTrade(t); setTradeCache(id, t) }).catch(console.error)
-      return
+      load() // rafraîchit en arrière-plan
+    } else {
+      setLoading(true)
+      setTrade(null)
+      load()
     }
-    setLoading(true)
-    setTrade(null)
-    getTradeById(id)
-      .then(t => { setTrade(t); setTradeCache(id, t); setLastTradeId(id) })
-      .catch(console.error)
-      .finally(() => setLoading(false))
+
+    return () => { ignore = true }
   }, [id])
 
   const handleDelete = async () => {
-    if (!confirm('Supprimer ce trade ?')) return
+    if (!window.confirm('Supprimer ce trade ?')) return
     setDeleting(true)
-    await deleteTrade(id)
-    clearCache(id)
-    clearLastTradeId()
-    navigate('/app/trades')
-  }
-
-  const refreshTrade = async () => {
-    const updated = await getTradeById(id)
-    setTrade(updated)
-    setTradeCache(id, updated)
-  }
-
-  const handleAttachImport = async (attachment) => {
-    const nextImages = [...(trade.images || []), attachment]
-    await updateTrade(id, { images: nextImages })
-    await refreshTrade()
+    setDeleteError('')
+    try {
+      await deleteTrade(id)
+      clearCache(id)
+      clearLastTradeId()
+      navigate('/app/trades')
+    } catch (e) {
+      setDeleteError(e.message || "Impossible de supprimer ce trade.")
+    } finally {
+      setDeleting(false)
+    }
   }
 
   // ── Loading skeleton ──────────────────────────────────────
@@ -350,7 +367,18 @@ export default function TradeDetail() {
 
   if (!trade) return (
     <div className="page text-center py-20">
-      <p className="text-sm" style={{ color: 'var(--forge-muted)' }}>Trade introuvable.</p>
+      <p className="text-sm" style={{ color: 'var(--forge-muted)' }}>
+        {loadError || 'Trade introuvable.'}
+      </p>
+      {loadError && loadError !== 'Trade introuvable.' && (
+        <button
+          onClick={() => { setLoadError(''); setLoading(true); setTrade(null); getTradeById(id).then(t => { setTrade(t); setTradeCache(id, t); setLastTradeId(id) }).finally(() => setLoading(false)) }}
+          className="mt-3 btn-primary mx-auto"
+          style={{ padding: '8px 16px', fontSize: 12 }}
+        >
+          Réessayer
+        </button>
+      )}
       <button onClick={() => navigate('/app/trades')} className="mt-4 text-xs text-forge-accent hover:underline">
         ← Retour aux trades
       </button>
@@ -382,38 +410,52 @@ export default function TradeDetail() {
       {lightbox && <Lightbox images={lightbox.images} startIndex={lightbox.startIndex} onClose={() => setLightbox(null)} />}
 
       {/* ── Header ── */}
-      <div className="flex items-center justify-between mb-5 gap-2">
-        <button onClick={() => navigate('/app/trades')}
-          className="w-9 h-9 rounded-xl flex items-center justify-center transition-all flex-shrink-0 active:scale-95"
-          style={{ border: '1px solid var(--border-soft)', background: 'var(--surface-2)', color: 'var(--forge-muted)' }}>
-          <ChevronLeft size={18} />
-        </button>
+      <PageHeader
+        title="Détail du trade"
+        icon={TrendingUp}
+        right={
+          <>
+            <button onClick={() => navigate('/app/trades')}
+              className="w-9 h-9 rounded-xl flex items-center justify-center transition-all flex-shrink-0 active:scale-95"
+              style={{ border: '1px solid var(--border-soft)', background: 'var(--surface-2)', color: 'var(--forge-muted)' }}>
+              <ChevronLeft size={18} />
+            </button>
+            <div className="flex gap-1.5">
+              <button onClick={() => setShowExport(true)} title="Exporter"
+                className="w-9 h-9 rounded-xl flex items-center justify-center transition-all active:scale-95"
+                style={{ background: 'rgba(46,160,67,0.1)', border: '1px solid rgba(46,160,67,0.25)', color: '#2EA043' }}>
+                <Upload size={14} />
+              </button>
+              <button onClick={() => setShowAI(true)}
+                className="flex items-center gap-1.5 px-3 h-9 rounded-xl text-xs font-semibold transition-all active:scale-95"
+                style={{ background: 'rgba(247,183,49,0.1)', border: '1px solid rgba(247,183,49,0.25)', color: '#F7B731' }}>
+                <Sparkles size={12} />
+                <span className="hidden sm:inline">Coach IA</span>
+                <span className="sm:hidden">IA</span>
+              </button>
+              <button onClick={() => navigate(`/app/trades/${id}/edit`)}
+                className="w-9 h-9 rounded-xl flex items-center justify-center transition-all active:scale-95"
+                style={{ background: 'var(--surface-4)', border: '1px solid var(--border-medium)', color: 'var(--text-primary)' }}>
+                <Edit2 size={14} />
+              </button>
+              <button onClick={handleDelete} disabled={deleting}
+                className="w-9 h-9 rounded-xl flex items-center justify-center transition-all active:scale-95 disabled:opacity-40"
+                style={{ border: '1px solid var(--border-soft)', background: 'var(--surface-2)', color: 'var(--forge-muted)' }}>
+                <Trash2 size={14} />
+              </button>
+            </div>
+          </>
+        }
+      />
 
-        <div className="flex gap-1.5 ml-auto">
-          <button onClick={() => setShowExport(true)} title="Exporter"
-            className="w-9 h-9 rounded-xl flex items-center justify-center transition-all active:scale-95"
-            style={{ background: 'rgba(46,160,67,0.1)', border: '1px solid rgba(46,160,67,0.25)', color: '#2EA043' }}>
-            <Upload size={14} />
-          </button>
-          <button onClick={() => setShowAI(true)}
-            className="flex items-center gap-1.5 px-3 h-9 rounded-xl text-xs font-semibold transition-all active:scale-95"
-            style={{ background: 'rgba(247,183,49,0.1)', border: '1px solid rgba(247,183,49,0.25)', color: '#F7B731' }}>
-            <Sparkles size={12} />
-            <span className="hidden sm:inline">Coach IA</span>
-            <span className="sm:hidden">IA</span>
-          </button>
-          <button onClick={() => navigate(`/app/trades/${id}/edit`)}
-            className="w-9 h-9 rounded-xl flex items-center justify-center transition-all active:scale-95"
-            style={{ background: 'var(--surface-4)', border: '1px solid var(--border-medium)', color: 'var(--text-primary)' }}>
-            <Edit2 size={14} />
-          </button>
-          <button onClick={handleDelete} disabled={deleting}
-            className="w-9 h-9 rounded-xl flex items-center justify-center transition-all active:scale-95 disabled:opacity-40"
-            style={{ border: '1px solid var(--border-soft)', background: 'var(--surface-2)', color: 'var(--forge-muted)' }}>
-            <Trash2 size={14} />
-          </button>
+      {/* Erreur de suppression */}
+      {deleteError && (
+        <div className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs mb-4"
+          style={{ background: 'rgba(248,81,73,0.08)', border: '1px solid rgba(248,81,73,0.25)' }}>
+          <span style={{ color: '#F85149' }}>⚠️</span>
+          <span style={{ color: 'var(--text-secondary)' }}>{deleteError}</span>
         </div>
-      </div>
+      )}
 
       {/* ── Hero ── */}
       <div className="rounded-2xl p-5 mb-4 relative overflow-hidden"

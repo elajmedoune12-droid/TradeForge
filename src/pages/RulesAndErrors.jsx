@@ -10,6 +10,7 @@ import { useAuth } from '../hooks/useAuth'
 import { useTrades } from '../hooks/useTrades'
 import AIAssistant from '../components/AIAssistant'
 import { SkeletonCard } from '../components/Skeleton'
+import { PageHeader } from '../components/PageHeader'
 
 // ── Catégories ───────────────────────────────────────────────
 const CATEGORIES = [
@@ -200,22 +201,27 @@ function TabBacktest({ user }) {
     if (!user) return
     const load = async () => {
       setLoading(true)
-      const { data: cycs } = await supabase
-        .from('backtest_cycles')
-        .select('*, backtest_sessions(*)')
-        .eq('user_id', user.id)
-        .order('started_at', { ascending: true })
-      if (cycs && cycs.length > 0) {
-        const sorted = cycs.map(c => ({
-          ...c,
-          sessions: (c.backtest_sessions || []).sort((a, b) => a.date.localeCompare(b.date)),
-        }))
-        const active = sorted.find(c => !c.ended_at) || sorted[sorted.length - 1]
-        const past   = sorted.filter(c => c.id !== active.id)
-        setCurrentCycle(active)
-        setCycles(past)
+      try {
+        const { data: cycs } = await supabase
+          .from('backtest_cycles')
+          .select('*, backtest_sessions(*)')
+          .eq('user_id', user.id)
+          .order('started_at', { ascending: true })
+        if (cycs && cycs.length > 0) {
+          const sorted = cycs.map(c => ({
+            ...c,
+            sessions: (c.backtest_sessions || []).sort((a, b) => a.date.localeCompare(b.date)),
+          }))
+          const active = sorted.find(c => !c.ended_at) || sorted[sorted.length - 1]
+          const past   = sorted.filter(c => c.id !== active.id)
+          setCurrentCycle(active)
+          setCycles(past)
+        }
+      } catch (e) {
+        console.error(e)
+      } finally {
+        setLoading(false)
       }
-      setLoading(false)
     }
     load()
   }, [user])
@@ -224,32 +230,37 @@ function TabBacktest({ user }) {
     const mins = parseInt(addMin)
     if (!mins || mins <= 0 || !addDate || !currentCycle) return
     setSaving(true)
-    const existing = currentCycle.sessions.find(s => s.date === addDate)
-    if (existing) {
-      const newMin = existing.minutes + mins
-      const { data } = await supabase
-        .from('backtest_sessions')
-        .update({ minutes: newMin })
-        .eq('id', existing.id)
-        .select()
-        .single()
-      if (data) setCurrentCycle(c => ({
-        ...c,
-        sessions: c.sessions.map(x => x.id === existing.id ? data : x),
-      }))
-    } else {
-      const { data } = await supabase
-        .from('backtest_sessions')
-        .insert({ user_id: user.id, cycle_id: currentCycle.id, date: addDate, minutes: mins })
-        .select()
-        .single()
-      if (data) setCurrentCycle(c => ({
-        ...c,
-        sessions: [...c.sessions, data].sort((a, b) => a.date.localeCompare(b.date)),
-      }))
+    try {
+      const existing = currentCycle.sessions.find(s => s.date === addDate)
+      if (existing) {
+        const newMin = existing.minutes + mins
+        const { data } = await supabase
+          .from('backtest_sessions')
+          .update({ minutes: newMin })
+          .eq('id', existing.id)
+          .select()
+          .single()
+        if (data) setCurrentCycle(c => ({
+          ...c,
+          sessions: c.sessions.map(x => x.id === existing.id ? data : x),
+        }))
+      } else {
+        const { data } = await supabase
+          .from('backtest_sessions')
+          .insert({ user_id: user.id, cycle_id: currentCycle.id, date: addDate, minutes: mins })
+          .select()
+          .single()
+        if (data) setCurrentCycle(c => ({
+          ...c,
+          sessions: [...c.sessions, data].sort((a, b) => a.date.localeCompare(b.date)),
+        }))
+      }
+      setAddMin('')
+    } catch (e) {
+      console.error(e)
+    } finally {
+      setSaving(false)
     }
-    setAddMin('')
-    setSaving(false)
   }
 
   const handleDelete = async (id) => {
@@ -1136,40 +1147,33 @@ export default function RulesAndErrors({ defaultTab = 'rules' }) {
   const { trades, loading: tradesLoading } = useTrades()
 
 useEffect(() => {
-  // Seulement si on arrive depuis une route forcée (/app/errors ou /app/rules)
-  // et que le defaultTab n'est pas 'rules' (valeur par défaut)
-  if (defaultTab && defaultTab !== 'rules') {
-    setDisciplineState({ activeTab: defaultTab })
-  }
+  // On force toujours l'affichage de l'onglet demandé à l'arrivée sur la page
+  // (rules par défaut, sinon celui porté par la route /app/errors, etc.)
+  // afin de ne pas retomber sur l'onglet quitté lors d'une visite précédente.
+  setDisciplineState({ activeTab: defaultTab || 'rules' })
 }, [])
 
   return (
     <div className="page">
-      <div className="flex items-center justify-between mb-5">
-  <div>
-    <div className="flex items-center gap-2 mb-0.5">
-      <div className="w-7 h-7 rounded-xl flex items-center justify-center"
-        style={{ background: 'rgba(247,183,49,0.15)' }}>
-        <Shield size={14} className="text-forge-accent" />
-      </div>
-      <h1 className="text-xl font-semibold" style={{ color: 'var(--text-primary)' }}>Discipline</h1>
-    </div>
-    <p className="text-xs" style={{ color: 'var(--forge-muted)' }}>Règles, erreurs & backtest</p>
-  </div>
-</div>
+      <PageHeader title="Discipline" subtitle="Règles, erreurs & backtest" icon={Shield} />
 
       {/* Tabs */}
       <div
         className="flex gap-1 p-1 rounded-2xl mb-6"
-        style={{ background: 'var(--surface-4)', border: '1px solid var(--border-soft)' }}
+        style={{ background: 'var(--surface-4)', border: '1px solid var(--border-soft)', backdropFilter: 'blur(8px)' }}
       >
         {TABS.map(({ id, label, icon: Icon }) => (
           <button
             key={id}
             onClick={() => setDisciplineState({ activeTab: id })}
-            className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-medium transition-all"
+            className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-medium transition-all active:scale-[0.98]"
             style={activeTab === id
-              ? { background: 'rgba(247,183,49,0.12)', color: '#F7B731', border: '1px solid rgba(247,183,49,0.25)', boxShadow: '0 0 12px rgba(247,183,49,0.1)' }
+              ? {
+                  background: 'linear-gradient(135deg, rgba(247,183,49,0.18), rgba(247,183,49,0.06))',
+                  color: '#F7B731',
+                  border: '1px solid rgba(247,183,49,0.4)',
+                  boxShadow: '0 4px 18px -8px rgba(247,183,49,0.6), inset 0 1px 0 rgba(255,255,255,0.05)',
+                }
               : { color: 'var(--forge-muted)', border: '1px solid transparent' }
             }
           >

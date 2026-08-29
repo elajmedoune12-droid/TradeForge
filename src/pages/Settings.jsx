@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { LogOut, Info, ChevronRight, BarChart2, Bell, BellOff, Sun, Moon, SunMoon } from 'lucide-react'
+import { LogOut, Info, ChevronRight, BarChart2, Bell, BellOff, Sun, Moon, SunMoon, SlidersHorizontal } from 'lucide-react'
 import { signOut } from '../services/supabase'
 import { useAuth } from '../hooks/useAuth'
 import { useNotifications } from '../hooks/useNotifications'
+import { PageHeader } from '../components/PageHeader'
 import { useTheme } from '../hooks/useTheme'
 
 export default function Settings() {
@@ -21,8 +22,13 @@ export default function Settings() {
 
   const handleLogout = async () => {
     setLoggingOut(true)
-    await signOut()
-    navigate('/login')
+    try {
+      await signOut()
+      navigate('/login')
+    } catch (e) {
+      console.error('Erreur déconnexion', e)
+      setLoggingOut(false)
+    }
   }
 
   const meta        = user?.user_metadata || {}
@@ -43,12 +49,12 @@ export default function Settings() {
 
   return (
     <div className="page">
-      <h1 className="text-lg font-medium mb-6" style={{ color: 'var(--text-primary)' }}>Réglages</h1>
+      <PageHeader title="Réglages" subtitle="Préférences, notifications & compte" icon={SlidersHorizontal} />
 
       {/* Profile card */}
       <div
         className="card mb-4 cursor-pointer active:scale-[0.99] transition-all"
-        onClick={() => navigate('/profile')}
+        onClick={() => navigate('/app/profile')}
         onMouseEnter={e => e.currentTarget.style.borderColor = 'var(--border-medium)'}
         onMouseLeave={e => e.currentTarget.style.borderColor = ''}
       >
