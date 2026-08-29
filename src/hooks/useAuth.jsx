@@ -8,16 +8,35 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
+    let active = true
+    const clearStaleSession = async () => {
+      // Session locale invalide (refresh token mort) : on vide le storage
+      // pour éviter des erreurs "Invalid Refresh Token" à répétition
+      await supabase.auth.signOut()
+    }
     supabase.auth.getSession()
       .then(({ data: { session } }) => {
+        if (!active) return
         setUser(session?.user ?? null)
       })
-      .catch((err) => console.error('Erreur récupération session', err))
-      .finally(() => setLoading(false))
+      .catch(async (err) => {
+        console.error('Erreur récupération session', err)
+        // Token de refresh invalide/expiré côté serveur → purge la session locale
+        if (active) {
+          setUser(null)
+          await clearStaleSession()
+        }
+      })
+      .finally(() => {
+        if (active) setLoading(false)
+      })
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null)
+      if (active) setUser(session?.user ?? null)
     })
-    return () => subscription.unsubscribe()
+    return () => {
+      active = false
+      subscription.unsubscribe()
+    }
   }, [])
 
   return (
