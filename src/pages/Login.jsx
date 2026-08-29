@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { Eye, EyeOff, BarChart2, Shield, TrendingUp, Zap } from 'lucide-react'
+import { Eye, EyeOff, Shield, TrendingUp, Zap } from 'lucide-react'
 import { signIn, signUp, supabase } from '../services/supabase'
 import { useTheme } from '../hooks/useTheme'
 import AnimatedBackground from '../components/AnimatedBackground'
@@ -98,16 +98,6 @@ export default function Login() {
         {/* Logo */}
         <motion.div variants={stagger} initial="hidden" animate="show" className="text-center mb-8">
           <motion.div variants={fadeUp} className="flex items-center justify-center gap-2 mb-2">
-            <motion.div whileHover={{ rotate: 8, scale: 1.08 }}
-              style={{
-                width: 28, height: 28, borderRadius: 8,
-                background: 'linear-gradient(135deg,#F7B731 0%,#e0a020 100%)',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                flexShrink: 0,
-                boxShadow: '0 0 20px rgba(247,183,49,0.35)',
-              }}>
-              <BarChart2 size={14} color="#070A0F" strokeWidth={2.5} />
-            </motion.div>
             <p className="font-mono text-xl font-bold tracking-tight">
               <span className="text-forge-accent">TRADE</span>
               <span style={{ color: 'var(--text-primary)' }}>FORGE</span>

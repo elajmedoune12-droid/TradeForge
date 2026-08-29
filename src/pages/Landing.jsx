@@ -292,16 +292,7 @@ export default function Landing() {
           padding: '0 clamp(1rem,5vw,2.5rem)',
         }}>
         {/* Logo */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1 }}>
-          <motion.div style={{
-            width: 28, height: 28, borderRadius: 8, flexShrink: 0,
-            background: 'linear-gradient(135deg,#F7B731,#e0a020)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            boxShadow: '0 0 18px rgba(247,183,49,0.4)',
-          }}
-            whileHover={{ rotate: -8, scale: 1.08 }}>
-            <BarChart2 size={14} color="#070A0F" strokeWidth={2.5} />
-          </motion.div>
+        <div style={{ display: 'flex', alignItems: 'center', flex: 1 }}>
           <span style={{ fontFamily: 'JetBrains Mono, monospace', fontWeight: 700, fontSize: 15, letterSpacing: '-0.3px' }}>
             <span style={{ color: '#F7B731' }}>TRADE</span>
             <span style={{ color: 'var(--text-primary)' }}>FORGE</span>

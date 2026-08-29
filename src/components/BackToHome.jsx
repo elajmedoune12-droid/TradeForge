@@ -10,8 +10,8 @@ export default function BackToHome({ position = 'top-left' }) {
   const topLeft = position === 'top-left'
   const style = {
     position: 'fixed',
-    top: 18,
-    [topLeft ? 'left' : 'right']: 18,
+    top: 'calc(env(safe-area-inset-top, 0px) + 18px)',
+    [topLeft ? 'left' : 'right']: 'calc(env(safe-area-inset-right, 0px) + 18px)',
     zIndex: 50,
     display: 'inline-flex', alignItems: 'center', gap: 8,
     padding: '9px 14px', borderRadius: 999,
