@@ -1,7 +1,7 @@
-import { useMemo } from 'react'
+import { useMemo, useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
-  Plus, Search, SlidersHorizontal, X, ChevronDown,
+  Plus, Search, SlidersHorizontal, X, ChevronDown, Download,
   BarChart2, Target, TrendingUp, TrendingDown, Clock, List,
 } from 'lucide-react'
 import {
@@ -35,10 +35,41 @@ const CHART_MODES = [
   { value: 'equity',  label: 'Courbe'     },
   { value: 'rr',      label: 'RR / Trade' },
   { value: 'results', label: 'Résultats'  },
+  { value: 'monthly', label: 'Mensuel'    },
 ]
 
 const toggle = (arr, val) =>
   arr.includes(val) ? arr.filter(v => v !== val) : [...arr, val]
+
+const RESULT_LABELS = { tp: 'TP', sl: 'SL', be: 'BE', missed: 'Missed', manual_exit: 'Manuel' }
+
+const exportCSV = (trades) => {
+  if (!trades.length) return
+  const cols = ['Date', 'Marché', 'Direction', 'Résultat', 'RR prévu', 'RR réalisé', 'Session', 'Tendance', 'Émotion', 'Discipline', 'Plan respecté']
+  const rows = trades.map(t => [
+    t.date,
+    t.market || '',
+    t.type === 'buy' ? 'Achat' : t.type === 'sell' ? 'Vente' : '',
+    RESULT_LABELS[t.result] || t.result || '',
+    t.rr_planned ?? '',
+    t.rr_won ?? '',
+    t.session || '',
+    t.trend || '',
+    t.emotion || '',
+    t.discipline_score ?? '',
+    t.respect_plan == null ? '' : t.respect_plan ? 'Oui' : 'Non',
+  ])
+  // Échappe les valeurs contenant un séparateur ; utilise le point-virgule (locale FR/Excel)
+  const escape = v => /[;"\n]/.test(String(v)) ? `"${String(v).replace(/"/g, '""')}"` : String(v)
+  const csv = '\uFEFF' + [cols, ...rows].map(r => r.map(escape).join(';')).join('\n')
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `tradeforge-export-${new Date().toISOString().slice(0, 10)}.csv`
+  a.click()
+  URL.revokeObjectURL(url)
+}
 
 const StatCard = ({ label, value, sub, color, icon: Icon, glow }) => {
   const c = glow || '#8B949E'
@@ -77,6 +108,21 @@ const Badge = ({ result }) => {
   return <span className={map[result] || 'badge-missed'}>{labels[result] ?? result}</span>
 }
 
+const MonthlyTooltip = ({ active, payload, label }) => {
+  if (!active || !payload?.length) return null
+  const val = payload[0].value
+  return (
+    <div className="rounded-xl px-3 py-2 text-xs"
+      style={{ background: 'var(--modal-bg)', border: '1px solid rgba(247,183,49,0.2)' }}>
+      <p className="text-forge-muted mb-0.5">{label}</p>
+      <p className="font-mono font-semibold" style={{ color: val >= 0 ? '#2EA043' : '#F85149' }}>
+        {val >= 0 ? '+' : ''}{val}R
+      </p>
+      <p className="text-[10px]" style={{ color: 'var(--forge-muted)' }}>{payload[0].payload.trades} trade{payload[0].payload.trades !== 1 ? 's' : ''}</p>
+    </div>
+  )
+}
+
 const CustomTooltip = ({ active, payload, label }) => {
   if (!active || !payload?.length) return null
   const val = payload[0].value
@@ -110,7 +156,7 @@ export default function TradesList() {
 
   const {
     search, filterResults, filterMarkets, filterTypes,
-    filterDateFrom, filterDateTo, filterMonth,
+    filterDateFrom, filterDateTo, filterMonth, filterYear,
     sortBy, panelOpen, chartMode,
   } = useUIStore(s => s.trades)
   const setS         = useUIStore(s => s.setTradesState)
@@ -121,12 +167,28 @@ export default function TradesList() {
     [trades]
   )
 
+  // Années disponibles dans les trades (ordre décroissant) + année en cours
+  const currentYear = new Date().getFullYear()
+  const availableYears = useMemo(() => {
+    const years = [...new Set(trades.map(t => (t.date || '').slice(0, 4)).filter(Boolean))]
+    if (!years.includes(String(currentYear))) years.push(String(currentYear))
+    return years.sort((a, b) => b.localeCompare(a))
+  }, [trades, currentYear])
+
+  // '' ou année précise = année(s) filtrée(s) ; 'all' = tout
+  const activeYear = filterYear === 'all' ? '' : (filterYear || String(currentYear))
+
   const filtered = useMemo(() => {
+    // Quand une période (from→to) est posée, elle PRIME et écrase l'année :
+    // on peut ainsi balayer déc 2026 → oct 2027 sans être contraint par l'année.
+    const periodActive = !!(filterDateFrom || filterDateTo)
+    const yearApplied  = periodActive ? '' : activeYear
     let list = trades.filter(t => {
+      if (yearApplied && (t.date || '').slice(0, 4) !== yearApplied) return false
+      if (!periodActive && filterMonth && !t.date.startsWith(filterMonth)) return false
       if (filterResults.length  && !filterResults.includes(t.result))  return false
       if (filterMarkets.length  && !filterMarkets.includes(t.market))  return false
       if (filterTypes.length    && !filterTypes.includes(t.type))      return false
-      if (filterMonth    && !t.date.startsWith(filterMonth))           return false
       if (filterDateFrom && t.date < filterDateFrom)                   return false
       if (filterDateTo   && t.date > filterDateTo)                     return false
       if (search && !t.market?.toLowerCase().includes(search.toLowerCase())) return false
@@ -139,7 +201,7 @@ export default function TradesList() {
       default: break
     }
     return list
-  }, [trades, filterResults, filterMarkets, filterTypes, filterMonth, filterDateFrom, filterDateTo, search, sortBy])
+  }, [trades, activeYear, filterResults, filterMarkets, filterTypes, filterMonth, filterDateFrom, filterDateTo, search, sortBy])
 
   const stats = useMemo(() => {
     const total      = filtered.length
@@ -194,17 +256,37 @@ export default function TradesList() {
       })
       return Object.values(byMonth)
     }
+    if (chartMode === 'monthly') {
+      const byMonth = {}
+      sorted.forEach(t => {
+        const m = t.date.slice(0,7)
+        if (!byMonth[m]) byMonth[m] = { label: format(parseISO(m+'-01'),'MMM yy'), pnl: 0, trades: 0 }
+        const pnl = t.result==='tp'?(t.rr_won||0):t.result==='sl'?(t.rr_won??-1):t.result==='manual_exit'?(t.rr_won||0):0
+        byMonth[m].pnl += pnl
+        byMonth[m].trades += 1
+      })
+      return Object.values(byMonth).map(m => ({ ...m, pnl: +m.pnl.toFixed(2) }))
+    }
     return []
   }, [filtered, chartMode])
 
   const lastEquity = chartMode==='equity' && chartData.length ? chartData[chartData.length-1].equity : 0
   const isUp = lastEquity >= 0
 
+  // Pagination "Charger plus"
+  const PAGE_SIZE = 15
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE)
+  useEffect(() => {
+    setVisibleCount(PAGE_SIZE)
+  }, [filtered.length])
+  const visibleTrades = filtered.slice(0, visibleCount)
+  const hasMore = filtered.length > visibleCount
+
   const hasFilters = filterResults.length||filterMarkets.length||filterTypes.length||
-    filterMonth||filterDateFrom||filterDateTo||search
+    filterMonth||filterDateFrom||filterDateTo||search||filterYear !== ''
 
   const activeCount = filterResults.length+filterMarkets.length+filterTypes.length+
-    (filterMonth?1:0)+(filterDateFrom?1:0)+(filterDateTo?1:0)
+    (filterMonth?1:0)+(filterDateFrom?1:0)+(filterDateTo?1:0)+(filterYear !== '' ? 1 : 0)
 
   return (
     <div className="page">
@@ -223,15 +305,30 @@ export default function TradesList() {
             </div>
             <div>
               <h1 className="text-xl font-semibold leading-tight" style={{ color: 'var(--text-primary)' }}>Trades</h1>
-              <p className="text-[11px] text-forge-muted">{trades.length} trade{trades.length!==1?'s':''} au total</p>
+              <p className="text-[11px] text-forge-muted">
+                {hasFilters
+                  ? `${filtered.length} trade${filtered.length !== 1 ? 's' : ''} affiché${filtered.length !== 1 ? 's' : ''} / ${trades.length} au total`
+                  : filterYear === 'all'
+                    ? `Toutes les années · ${trades.length} trade${trades.length !== 1 ? 's' : ''}`
+                    : `${activeYear} · ${filtered.length} trade${filtered.length !== 1 ? 's' : ''}${activeYear === String(currentYear) ? ' (année en cours)' : ''}`}
+              </p>
             </div>
           </div>
         </div>
-        <button onClick={() => navigate('/app/trades/new')}
-          className="relative overflow-hidden btn-primary flex items-center gap-1.5">
-          <Plus size={15} /> Nouveau
-          <div className="absolute inset-0 opacity-30 pointer-events-none rounded-xl" style={{ background: 'radial-gradient(circle at 80% -40%, #fff3, transparent 60%)' }} />
-        </button>
+        <div className="flex items-center gap-2 flex-shrink-0">
+          <button onClick={() => exportCSV(filtered)}
+            disabled={filtered.length === 0}
+            title="Exporter en CSV"
+            className="relative overflow-hidden btn-ghost flex items-center gap-1.5 disabled:opacity-40 disabled:cursor-not-allowed">
+            <Download size={15} />
+            <span className="hidden sm:inline">Export</span>
+          </button>
+          <button onClick={() => navigate('/app/trades/new')}
+            className="relative overflow-hidden btn-primary flex items-center gap-1.5">
+            <Plus size={15} /> Nouveau
+            <div className="absolute inset-0 opacity-30 pointer-events-none rounded-xl" style={{ background: 'radial-gradient(circle at 80% -40%, #fff3, transparent 60%)' }} />
+          </button>
+        </div>
       </div>
 
       {error && (
@@ -283,8 +380,15 @@ export default function TradesList() {
             </button>
           </div>
 
-          {(filterMarkets.length>0||filterResults.length>0||filterTypes.length>0||filterMonth||filterDateFrom||filterDateTo) && (
+          {(filterMarkets.length>0||filterResults.length>0||filterTypes.length>0||filterMonth||filterDateFrom||filterDateTo||filterYear !== '') && (
             <div className="flex flex-wrap gap-1.5 mb-3">
+              {filterYear !== '' && (
+                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-medium border"
+                  style={{ background:'rgba(247,183,49,0.12)', color:'#F7B731', borderColor:'rgba(247,183,49,0.35)' }}>
+                  {filterYear === 'all' ? 'Toutes les années' : `${filterYear}${filterYear === String(currentYear) ? ' (en cours)' : ''}`}
+                  <button onClick={() => setS({ filterYear: '' })}><X size={10}/></button>
+                </span>
+              )}
               {filterMarkets.map(m => (
                 <span key={m} className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-medium border"
                   style={{ background:'rgba(247,183,49,0.12)', color:'#F7B731', borderColor:'rgba(247,183,49,0.35)' }}>
@@ -326,6 +430,144 @@ export default function TradesList() {
               <button onClick={resetFilters} className="text-xs text-forge-muted hover-text-primary transition-colors px-1">
                 Tout effacer
               </button>
+            </div>
+          )}
+
+          {panelOpen && (
+            <div className="card mb-4 space-y-5"
+              style={{ border:'1px solid rgba(247,183,49,0.15)', background:'var(--surface-card)' }}>
+              <div>
+                <p className="section-title mb-2">Résultat <span className="normal-case font-normal text-forge-muted">(multi-sélection)</span></p>
+                <div className="flex flex-wrap gap-2">
+                  {RESULTS_OPTIONS.map(opt => {
+                    const active = filterResults.includes(opt.value)
+                    return (
+                      <button key={opt.value} type="button"
+                        onClick={() => setS({ filterResults: toggle(filterResults, opt.value) })}
+                        className="px-3 py-1.5 rounded-xl text-xs font-medium border transition-all active:scale-95"
+                        style={active
+                          ? { background:`${opt.color}22`, color:opt.color, borderColor:`${opt.color}66`, boxShadow:`0 0 8px ${opt.color}33` }
+                          : { background:'var(--surface-3)', color:'var(--forge-muted)', borderColor:'var(--surface-10)' }
+                        }>
+                        {opt.label}
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+              <div>
+                <p className="section-title mb-2">Direction</p>
+                <div className="flex gap-2">
+                  {TYPE_OPTIONS.map(opt => {
+                    const active = filterTypes.includes(opt.value)
+                    return (
+                      <button key={opt.value} type="button"
+                        onClick={() => setS({ filterTypes: toggle(filterTypes, opt.value) })}
+                        className="px-3 py-1.5 rounded-xl text-xs font-medium border transition-all active:scale-95"
+                        style={active
+                          ? { background:`${opt.color}22`, color:opt.color, borderColor:`${opt.color}66` }
+                          : { background:'var(--surface-3)', color:'var(--forge-muted)', borderColor:'var(--surface-10)' }
+                        }>
+                        {opt.label}
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+              <div>
+                <p className="section-title mb-2">Marché <span className="normal-case font-normal text-forge-muted">({availableMarkets.length} disponibles)</span></p>
+                {availableMarkets.length === 0 ? (
+                  <p className="text-xs" style={{ color:'var(--forge-muted)' }}>Aucun trade enregistré.</p>
+                ) : (
+                  <div className="flex flex-wrap gap-2">
+                    {availableMarkets.map(m => {
+                      const active = filterMarkets.includes(m)
+                      const count  = trades.filter(t=>t.market===m).length
+                      return (
+                        <button key={m} type="button"
+                          onClick={() => setS({ filterMarkets: toggle(filterMarkets, m) })}
+                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium border transition-all active:scale-95"
+                          style={active
+                            ? { background:'rgba(247,183,49,0.15)', color:'#F7B731', borderColor:'rgba(247,183,49,0.5)' }
+                            : { background:'var(--surface-3)', color:'var(--forge-muted)', borderColor:'var(--surface-10)' }
+                          }>
+                          {m}
+                          <span className="opacity-50 text-[10px]">{count}</span>
+                        </button>
+                      )
+                    })}
+                  </div>
+                )}
+              </div>
+              <div>
+                <p className="section-title mb-2">Année <span className="normal-case font-normal text-forge-muted">(journal)</span></p>
+                <div className="flex flex-wrap gap-2">
+                  <button type="button" onClick={() => setS({ filterYear: 'all' })}
+                    className="px-3 py-1.5 rounded-xl text-xs font-medium border transition-all active:scale-95"
+                    style={filterYear === 'all'
+                      ? { background:'rgba(247,183,49,0.15)', color:'#F7B731', borderColor:'rgba(247,183,49,0.5)' }
+                      : { background:'var(--surface-3)', color:'var(--forge-muted)', borderColor:'var(--surface-10)' }
+                    }>
+                    Toutes les années
+                  </button>
+                  {availableYears.map(y => {
+                    const isDefault = filterYear === '' || filterYear === 'all'
+                    const active = isDefault ? activeYear === y : filterYear === y
+                    return (
+                      <button key={y} type="button" onClick={() => setS({ filterYear: y })}
+                        className="px-3 py-1.5 rounded-xl text-xs font-medium border transition-all active:scale-95"
+                        style={active
+                          ? { background:'rgba(247,183,49,0.15)', color:'#F7B731', borderColor:'rgba(247,183,49,0.5)' }
+                          : { background:'var(--surface-3)', color:'var(--forge-muted)', borderColor:'var(--surface-10)' }
+                        }>
+                        {y}{y === String(currentYear) ? ' (en cours)' : ''}
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+              <div>
+                <p className="section-title mb-2">Période</p>
+                <div className="grid grid-cols-2 gap-2 mb-2">
+                  <div>
+                    <label className="label">Du</label>
+                    <input type="date" value={filterDateFrom}
+                      onChange={e => setS({ filterDateFrom: e.target.value, filterMonth: '' })}
+                      className="w-full text-xs"/>
+                  </div>
+                  <div>
+                    <label className="label">Au</label>
+                    <input type="date" value={filterDateTo}
+                      onChange={e => setS({ filterDateTo: e.target.value, filterMonth: '' })}
+                      className="w-full text-xs"/>
+                  </div>
+                </div>
+                <div>
+                  <label className="label">Ou par mois</label>
+                  <input type="month" value={filterMonth}
+                    onChange={e => setS({ filterMonth: e.target.value, filterDateFrom: '', filterDateTo: '' })}
+                    className="w-full text-xs"/>
+                </div>
+              </div>
+              <div>
+                <p className="section-title mb-2">Trier par</p>
+                <div className="relative">
+                  <select value={sortBy} onChange={e => setS({ sortBy: e.target.value })} className="w-full pr-8 appearance-none">
+                    {SORT_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                  </select>
+                  <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-forge-muted pointer-events-none"/>
+                </div>
+              </div>
+              <div className="flex items-center justify-between pt-1 border-t" style={{ borderColor:'var(--surface-5)' }}>
+                <button onClick={resetFilters} className="text-xs text-forge-muted hover-text-primary transition-colors">
+                  Réinitialiser
+                </button>
+                <button onClick={() => setS({ panelOpen: false })}
+                  className="text-xs font-medium px-3 py-1.5 rounded-lg transition-all active:scale-95"
+                  style={{ background:'rgba(247,183,49,0.15)', color:'#F7B731' }}>
+                  Voir {filtered.length} résultat{filtered.length!==1?'s':''}
+                </button>
+              </div>
             </div>
           )}
 
@@ -487,117 +729,26 @@ export default function TradesList() {
                   </div>
                 </>
               )}
-            </div>
-          )}
 
-          {panelOpen && (
-            <div className="card mb-4 space-y-5"
-              style={{ border:'1px solid rgba(247,183,49,0.15)', background:'var(--surface-card)' }}>
-              <div>
-                <p className="section-title mb-2">Résultat <span className="normal-case font-normal text-forge-muted">(multi-sélection)</span></p>
-                <div className="flex flex-wrap gap-2">
-                  {RESULTS_OPTIONS.map(opt => {
-                    const active = filterResults.includes(opt.value)
-                    return (
-                      <button key={opt.value} type="button"
-                        onClick={() => setS({ filterResults: toggle(filterResults, opt.value) })}
-                        className="px-3 py-1.5 rounded-xl text-xs font-medium border transition-all active:scale-95"
-                        style={active
-                          ? { background:`${opt.color}22`, color:opt.color, borderColor:`${opt.color}66`, boxShadow:`0 0 8px ${opt.color}33` }
-                          : { background:'var(--surface-3)', color:'var(--forge-muted)', borderColor:'var(--surface-10)' }
-                        }>
-                        {opt.label}
-                      </button>
-                    )
-                  })}
-                </div>
-              </div>
-              <div>
-                <p className="section-title mb-2">Direction</p>
-                <div className="flex gap-2">
-                  {TYPE_OPTIONS.map(opt => {
-                    const active = filterTypes.includes(opt.value)
-                    return (
-                      <button key={opt.value} type="button"
-                        onClick={() => setS({ filterTypes: toggle(filterTypes, opt.value) })}
-                        className="px-3 py-1.5 rounded-xl text-xs font-medium border transition-all active:scale-95"
-                        style={active
-                          ? { background:`${opt.color}22`, color:opt.color, borderColor:`${opt.color}66` }
-                          : { background:'var(--surface-3)', color:'var(--forge-muted)', borderColor:'var(--surface-10)' }
-                        }>
-                        {opt.label}
-                      </button>
-                    )
-                  })}
-                </div>
-              </div>
-              <div>
-                <p className="section-title mb-2">Marché <span className="normal-case font-normal text-forge-muted">({availableMarkets.length} disponibles)</span></p>
-                {availableMarkets.length === 0 ? (
-                  <p className="text-xs" style={{ color:'var(--forge-muted)' }}>Aucun trade enregistré.</p>
-                ) : (
-                  <div className="flex flex-wrap gap-2">
-                    {availableMarkets.map(m => {
-                      const active = filterMarkets.includes(m)
-                      const count  = trades.filter(t=>t.market===m).length
-                      return (
-                        <button key={m} type="button"
-                          onClick={() => setS({ filterMarkets: toggle(filterMarkets, m) })}
-                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium border transition-all active:scale-95"
-                          style={active
-                            ? { background:'rgba(247,183,49,0.15)', color:'#F7B731', borderColor:'rgba(247,183,49,0.5)' }
-                            : { background:'var(--surface-3)', color:'var(--forge-muted)', borderColor:'var(--surface-10)' }
-                          }>
-                          {m}
-                          <span className="opacity-50 text-[10px]">{count}</span>
-                        </button>
-                      )
-                    })}
-                  </div>
-                )}
-              </div>
-              <div>
-                <p className="section-title mb-2">Période</p>
-                <div className="grid grid-cols-2 gap-2 mb-2">
-                  <div>
-                    <label className="label">Du</label>
-                    <input type="date" value={filterDateFrom}
-                      onChange={e => setS({ filterDateFrom: e.target.value, filterMonth: '' })}
-                      className="w-full text-xs"/>
-                  </div>
-                  <div>
-                    <label className="label">Au</label>
-                    <input type="date" value={filterDateTo}
-                      onChange={e => setS({ filterDateTo: e.target.value, filterMonth: '' })}
-                      className="w-full text-xs"/>
-                  </div>
-                </div>
-                <div>
-                  <label className="label">Ou par mois</label>
-                  <input type="month" value={filterMonth}
-                    onChange={e => setS({ filterMonth: e.target.value, filterDateFrom: '', filterDateTo: '' })}
-                    className="w-full text-xs"/>
-                </div>
-              </div>
-              <div>
-                <p className="section-title mb-2">Trier par</p>
-                <div className="relative">
-                  <select value={sortBy} onChange={e => setS({ sortBy: e.target.value })} className="w-full pr-8 appearance-none">
-                    {SORT_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-                  </select>
-                  <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-forge-muted pointer-events-none"/>
-                </div>
-              </div>
-              <div className="flex items-center justify-between pt-1 border-t" style={{ borderColor:'var(--surface-5)' }}>
-                <button onClick={resetFilters} className="text-xs text-forge-muted hover-text-primary transition-colors">
-                  Réinitialiser
-                </button>
-                <button onClick={() => setS({ panelOpen: false })}
-                  className="text-xs font-medium px-3 py-1.5 rounded-lg transition-all active:scale-95"
-                  style={{ background:'rgba(247,183,49,0.15)', color:'#F7B731' }}>
-                  Voir {filtered.length} résultat{filtered.length!==1?'s':''}
-                </button>
-              </div>
+              {chartMode==='monthly' && (
+                <>
+                  <p className="text-xs text-forge-muted mb-3">Profit / perte cumulé par mois (R)</p>
+                  <ResponsiveContainer width="100%" height={140}>
+                    <BarChart data={chartData} margin={{top:4,right:0,left:-28,bottom:0}}>
+                      <CartesianGrid vertical={false} stroke="var(--surface-3)"/>
+                      <XAxis dataKey="label" tick={{fill:'var(--forge-muted)',fontSize:9}} axisLine={false} tickLine={false}/>
+                      <YAxis tick={{fill:'var(--forge-muted)',fontSize:9}} axisLine={false} tickLine={false} tickFormatter={v=>`${v}R`}/>
+                      <ReferenceLine y={0} stroke="var(--surface-12)"/>
+                      <Tooltip content={<MonthlyTooltip/>}/>
+                      <Bar dataKey="pnl" name="PNL" radius={[3,3,0,0]}>
+                        {chartData.map((entry,i) => (
+                          <Cell key={i} fill={entry.pnl>=0?'#2EA043':'#F85149'} fillOpacity={0.85}/>
+                        ))}
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
+                </>
+              )}
             </div>
           )}
 
@@ -614,7 +765,7 @@ export default function TradesList() {
                 )}
               </div>
             )}
-            {filtered.map(t => {
+            {visibleTrades.map(t => {
               const resultColor = {tp:'#2EA043',sl:'#F85149',be:'#58a6ff',missed:'#8B949E',manual_exit:'#F79009'}[t.result]||'#8B949E'
               return (
                 <div key={t.id} onClick={() => navigate(`/app/trades/${t.id}`)}
@@ -693,6 +844,17 @@ export default function TradesList() {
               )
             })}
           </div>
+
+          {hasMore && (
+            <div className="text-center py-4">
+              <button onClick={() => setVisibleCount(c => c + PAGE_SIZE)}
+                className="btn-ghost flex items-center gap-2 mx-auto"
+                style={{ padding: '10px 20px' }}>
+                <ChevronDown size={14} />
+                Charger plus ({filtered.length - visibleCount} restant{filtered.length - visibleCount > 1 ? 's' : ''})
+              </button>
+            </div>
+          )}
         </>
       )}
     </div>

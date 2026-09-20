@@ -912,8 +912,9 @@ export default function Layout() {
   useEffect(() => {
     const update = () => {
       if (!contentRef.current) return
-      contentRef.current.style.paddingLeft =
-        window.innerWidth >= 1024 ? `${sidebarOpen ? 224 : 64}px` : '0px'
+      const w = window.innerWidth >= 1024 ? (sidebarOpen ? 224 : 64) : 0
+      document.documentElement.style.setProperty('--sidebar-w', `${w}px`)
+      contentRef.current.style.paddingLeft = `${w}px`
     }
     update()
     window.addEventListener('resize', update)

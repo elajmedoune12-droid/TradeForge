@@ -28,6 +28,7 @@ export const useUIStore = create(
         filterDateFrom: '',
         filterDateTo:   '',
         filterMonth:    '',
+        filterYear:     '', // '' = année en cours, 'all' = toutes les années
         sortBy:         'date_desc',
         panelOpen:      false,
         chartMode:      'equity',
@@ -45,6 +46,7 @@ export const useUIStore = create(
             filterDateFrom: '',
             filterDateTo:   '',
             filterMonth:    '',
+            filterYear:     '',
           }
         })),
 
@@ -107,12 +109,13 @@ export const useUIStore = create(
     {
       name: 'tradeforge-ui',
       // Version du schéma : change en cas d'évolution de forme → migrate ci-dessous
-      version: 1,
+      version: 3,
       migrate: (persisted, version) => {
         const base = { ...persisted }
-        // En cas de stockage d'un ancien format, on ne conservera que
-        // ce qui est réconciliable ; les slices manquantes seront fournies
-        // par `merge` via les valeurs par défaut du state initial.
+        // v2→v3 : on a retiré `filterYear` de la persistance — l'année en cours
+        // est TOUJOURS le défaut au chargement. On purge donc toute valeur
+        // année morte stockée (ex. "Tous"/"all" choisie dans une vieille session).
+        if (base.trades) base.trades = { ...base.trades, filterYear: undefined }
         return base
       },
       // Fusionne le state persisté avec les valeurs par défaut du state initial,
@@ -133,8 +136,9 @@ export const useUIStore = create(
       },
       storage: createJSONStorage(() => safeStorage),
       // On ne persiste PAS les caches volumineux / éphémères (quota localStorage).
+      // L'année du journal (filterYear) n'est pas persistée : toujours année en cours par défaut.
       partialize: (s) => ({
-        trades:      s.trades,
+        trades:      { ...s.trades, filterYear: undefined },
         weekly:      s.weekly,
         monthly:     s.monthly,
         dashboard:   s.dashboard,

@@ -198,7 +198,7 @@
 
   /* Mobile-first page, desktop expands */
   .page {
-    @apply px-4 py-6 pb-28;
+    @apply px-4 py-6 pb-28 relative;
     max-width: min(680px, 100%);
     margin: 0 auto;
   }

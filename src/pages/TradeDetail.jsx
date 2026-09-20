@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import {
   ChevronLeft, ChevronRight, Edit2, Trash2, BookOpen, X,
@@ -14,6 +14,36 @@ import { useAuth } from '../hooks/useAuth'
 import AIAssistant from '../components/AIAssistant'
 import ExportModal from '../components/ExportModal'
 import { useUIStore } from '../store/useUIStore'
+import { useTrades } from '../hooks/useTrades'
+
+// ── Swipe horizontal pour naviguer entre les trades ─────────
+const useSwipeNav = (onPrev, onNext, enabled) => {
+  const touchStart = useRef(null)
+  useEffect(() => {
+    if (!enabled) return
+    const start = (e) => {
+      const t = e.touches?.[0] || e
+      touchStart.current = { x: t.clientX, y: t.clientY, id: e.touches?.[0]?.identifier ?? 0 }
+    }
+    const end = (e) => {
+      if (!touchStart.current) return
+      const t = e.changedTouches?.[0] || (e.touches?.[0] || e)
+      const dx = t.clientX - touchStart.current.x
+      const dy = t.clientY - touchStart.current.y
+      touchStart.current = null
+      // Glissement horizontal dominant (>= 60px)
+      if (Math.abs(dx) < 60 || Math.abs(dx) < Math.abs(dy) * 1.4) return
+      if (dx > 0) onPrev()
+      else onNext()
+    }
+    window.addEventListener('touchstart', start, { passive: true })
+    window.addEventListener('touchend', end, { passive: true })
+    return () => {
+      window.removeEventListener('touchstart', start)
+      window.removeEventListener('touchend', end)
+    }
+  }, [onPrev, onNext, enabled])
+}
 
 const RESULT_CONFIG = {
   tp:          { label: 'Take Profit',     bg: 'rgba(46,160,67,0.12)',   color: '#2EA043', border: 'rgba(46,160,67,0.3)',   glow: 'rgba(46,160,67,0.15)'  },
@@ -295,6 +325,26 @@ export default function TradeDetail() {
   const [deleting, setDeleting]     = useState(false)
   const [showAI, setShowAI]         = useState(false)
   const [showExport, setShowExport] = useState(false)
+
+  // Liste des trades (tri date décroissante) pour naviguer entre eux
+  const { trades } = useTrades()
+  const sortedIds = useMemo(() => {
+    return [...trades]
+      .sort((a, b) => (b.date || '').localeCompare(a.date || ''))
+      .map(t => t.id)
+  }, [trades])
+  const idx = sortedIds.indexOf(id)
+  const prevId = idx > 0 ? sortedIds[idx - 1] : null      // plus récent
+  const nextId = idx >= 0 && idx < sortedIds.length - 1 ? sortedIds[idx + 1] : null  // plus ancien
+
+  const goTo = (tid) => {
+    if (!tid) return
+    setLastTradeId(tid)
+    navigate(`/app/trades/${tid}`)
+  }
+  const goPrev = () => goTo(prevId)
+  const goNext = () => goTo(nextId)
+  useSwipeNav(goPrev, goNext, !lightbox && !!trade)
 
   // Charge le trade avec garde anti-race (évite qu'un fetch A→B
   // écrase les données par un résultat en retard).
@@ -591,11 +641,34 @@ export default function TradeDetail() {
         </Section>
       )}
 
-      {/* ── After Trade ── */}
+      {/* ── Afte Trade ── */}
       <AfterTradeSection hindsight={trade.hindsight} tradeId={id} navigate={navigate} />
 
       {showAI     && <AIAssistant trade={trade} onClose={() => setShowAI(false)} />}
       {showExport && <ExportModal trade={trade} onClose={() => setShowExport(false)} />}
+
+      {/* ── Flèches latérales desktop, dans les gouttières autour de la carte ── */}
+      {prevId && !lightbox && (
+        <button onClick={goPrev} title="Trade précédent"
+          className="hidden lg:flex fixed top-1/2 -translate-y-1/2 z-50 w-12 h-12 rounded-2xl items-center justify-center transition-all hover:scale-105 active:scale-95"
+          style={{
+            left: 'calc(var(--sidebar-w, 224px) + 16px)',
+            background: 'var(--surface-card)', border: '1px solid var(--border-soft)', color: 'var(--forge-muted)',
+            boxShadow: '0 8px 30px -12px rgba(0,0,0,0.5)',
+          }}>
+          <ChevronLeft size={22} />
+        </button>
+      )}
+      {nextId && !lightbox && (
+        <button onClick={goNext} title="Trade suivant"
+          className="hidden lg:flex fixed right-6 top-1/2 -translate-y-1/2 z-50 w-12 h-12 rounded-2xl items-center justify-center transition-all hover:scale-105 active:scale-95"
+          style={{
+            background: 'var(--surface-card)', border: '1px solid var(--border-soft)', color: 'var(--forge-muted)',
+            boxShadow: '0 8px 30px -12px rgba(0,0,0,0.5)',
+          }}>
+          <ChevronRight size={22} />
+        </button>
+      )}
     </div>
   )
 }
