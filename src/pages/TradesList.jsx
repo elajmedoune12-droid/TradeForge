@@ -434,7 +434,7 @@ export default function TradesList() {
           )}
 
           {panelOpen && (
-            <div className="card mb-4 space-y-5"
+            <div className="card mb-4 grid grid-cols-1 lg:grid-cols-2 gap-x-6 gap-y-4"
               style={{ border:'1px solid rgba(247,183,49,0.15)', background:'var(--surface-card)' }}>
               <div>
                 <p className="section-title mb-2">Résultat <span className="normal-case font-normal text-forge-muted">(multi-sélection)</span></p>
@@ -526,7 +526,7 @@ export default function TradesList() {
                   })}
                 </div>
               </div>
-              <div>
+              <div className="lg:col-span-2">
                 <p className="section-title mb-2">Période</p>
                 <div className="grid grid-cols-2 gap-2 mb-2">
                   <div>
@@ -549,7 +549,7 @@ export default function TradesList() {
                     className="w-full text-xs"/>
                 </div>
               </div>
-              <div>
+              <div className="lg:col-span-2">
                 <p className="section-title mb-2">Trier par</p>
                 <div className="relative">
                   <select value={sortBy} onChange={e => setS({ sortBy: e.target.value })} className="w-full pr-8 appearance-none">
@@ -558,7 +558,7 @@ export default function TradesList() {
                   <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-forge-muted pointer-events-none"/>
                 </div>
               </div>
-              <div className="flex items-center justify-between pt-1 border-t" style={{ borderColor:'var(--surface-5)' }}>
+              <div className="flex items-center justify-between pt-1 border-t lg:col-span-2" style={{ borderColor:'var(--surface-5)' }}>
                 <button onClick={resetFilters} className="text-xs text-forge-muted hover-text-primary transition-colors">
                   Réinitialiser
                 </button>
@@ -631,18 +631,18 @@ export default function TradesList() {
           {filtered.length > 1 && (
             <div className="card mb-4"
               style={{ borderColor: chartMode==='equity'?(isUp?'rgba(46,160,67,0.2)':'rgba(248,81,73,0.2)'):'var(--surface-6)' }}>
-              <div className="flex items-center justify-between mb-3">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-3">
                 <div className="flex items-center gap-2">
                   <BarChart2 size={13} className="text-forge-accent" />
-                  <p className="text-xs font-medium text-forge-muted uppercase tracking-wide">Graphique</p>
+                  <p className="text-xs font-medium text-forge-muted uppercase tracking-wide whitespace-nowrap">Graphique</p>
                 </div>
-                <div className="flex gap-1">
+                <div className="flex flex-wrap gap-1 w-full sm:w-auto justify-start sm:justify-end">
                   {CHART_MODES.map(m => (
                     <button key={m.value} onClick={() => setS({ chartMode: m.value })}
-                      className="px-2.5 py-1 rounded-lg text-[10px] font-medium border transition-all"
+                      className="px-2 py-1 rounded-lg text-[10px] font-medium transition-all whitespace-nowrap active:scale-95"
                       style={chartMode===m.value
-                        ? { background:'rgba(247,183,49,0.15)', color:'#F7B731', borderColor:'rgba(247,183,49,0.4)' }
-                        : { background:'var(--surface-2)', color:'var(--forge-muted)', borderColor:'var(--surface-8)' }
+                        ? { background:'rgba(247,183,49,0.15)', color:'#F7B731', border:'1px solid rgba(247,183,49,0.4)' }
+                        : { background:'var(--surface-2)', color:'var(--forge-muted)', border:'1px solid var(--surface-8)' }
                       }>
                       {m.label}
                     </button>
