@@ -790,8 +790,8 @@ export default function Layout() {
   })
   const [dismissedIds, setDismissedIds] = useState(() => {
     try {
-      const raw = JSON.parse(localStorage.getItem('tf_dismissed_notifs') || '{}')
-      return (raw && raw.day === notifDay && Array.isArray(raw.ids)) ? raw.ids : []
+      const raw = JSON.parse(localStorage.getItem('tf_dismissed_notifs') || '[]')
+      return Array.isArray(raw) ? raw : []
     } catch { return [] }
   })
 
@@ -849,67 +849,6 @@ export default function Layout() {
   }, [user?.id])
 
   useEffect(() => {
-    if (!user || !trades.length) return
-    const sentKey = `tf_sent_notifs_${new Date().toISOString().slice(0, 10)}`
-    let sent = []
-    try { sent = JSON.parse(localStorage.getItem(sentKey) || '[]') || [] } catch { sent = [] }
-
-    const sendPush = async (id, title, body, url = '/') => {
-  if (sent.includes(id)) return
-  if (!user?.id) return
-  try {
-        await fetch('/api/send-notification', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ user_id: user.id, title, body, url, tag: `tradeforge-${id}` }),
-        })
-      } catch {}
-      const next = [...sent, id]
-      localStorage.setItem(sentKey, JSON.stringify(next))
-      sent = next
-    }
-
-    const evaluate = () => {
-      // Ne pas pousser de notification tant que l'app est ouverte et active :
-      // le panneau interne les affiche déjà.
-      if (document.visibilityState === 'visible' && document.hasFocus()) return
-      const last5  = trades.slice(0, 5)
-      const last10 = trades.slice(0, 10)
-
-      if (last5.filter(t => t.result === 'sl').length >= 3)
-        sendPush('sl_streak', '⚠️ 3 pertes consécutives', 'Arrêtez de trader. Revoyez votre plan.', '/app/trades')
-      if (last5.filter(t => t.session === 'Hors session').length >= 2)
-        sendPush('hors_session', '⚠️ Trades hors session', 'Vous tradez en dehors des sessions optimales.', '/app/rules')
-      if (last5.filter(t => t.discipline_score != null && t.discipline_score <= 4).length >= 2)
-        sendPush('low_disc', '📉 Discipline en baisse', 'Score moyen faible sur vos derniers trades.', '/app/rules')
-      if (last5.filter(t => t.respect_plan === false).length >= 3)
-        sendPush('no_plan', '❌ Plan non respecté', 'Relisez vos règles avant chaque trade.', '/app/rules')
-      if (last5.filter(t => t.emotion === 'Revenge').length >= 2)
-        sendPush('revenge', '😤 Revenge trading', 'Détecté sur vos derniers trades. Faites une pause.', '/app/trades')
-      if (last10.length >= 5) {
-        const active10 = last10.filter(t => ['tp','sl','be'].includes(t.result))
-        const tp10 = last10.filter(t => t.result === 'tp').length
-        const wr = active10.length ? Math.round((tp10 / active10.length) * 100) : 0
-        if (wr >= 65)
-          sendPush('wr_good', '🔥 Excellent win rate', `${wr}% sur vos 10 derniers trades !`, '/app/monthly')
-      }
-      if (trades.slice(0, 7).filter(t => t.respect_plan === true).length >= 5)
-        sendPush('respect_streak', '✅ Super discipline', `${trades.slice(0,7).filter(t=>t.respect_plan).length} trades avec plan respecté !`, '/app/rules')
-      if (trades.slice(0, 10).filter(t => !t.hindsight?.length).length >= 3)
-        sendPush('no_hindsight', '📝 After Trade manquant', `${trades.slice(0,10).filter(t=>!t.hindsight?.length).length} trades sans analyse post-trade.`, '/app/trades')
-      if (backtestDone && backtestHours)
-        sendPush('backtest_done', '🎯 Objectif backtest atteint', `${backtestHours}h complétées ! Lancez un nouveau cycle.`, '/app/rules')
-      if (Math.floor((new Date() - new Date(trades[0].date)) / (1000 * 60 * 60 * 24)) >= 5)
-        sendPush('inactive', '💤 Inactivité détectée', `${Math.floor((new Date() - new Date(trades[0].date)) / (1000 * 60 * 60 * 24))} jours sans trade journalisé.`, '/app/trades/new')
-    }
-
-    evaluate()
-    const onVisibility = () => { if (document.visibilityState === 'hidden') evaluate() }
-    document.addEventListener('visibilitychange', onVisibility)
-    return () => document.removeEventListener('visibilitychange', onVisibility)
-  }, [trades, user, backtestDone, backtestHours])
-
-  useEffect(() => {
     const update = () => {
       if (!contentRef.current) return
       const w = window.innerWidth >= 1024 ? (sidebarOpen ? 224 : 64) : 0
@@ -931,6 +870,69 @@ export default function Layout() {
     () => buildNotifications(trades, backtestDone, backtestHours, lastBacktestDate, hasWeeklyForecast),
     [trades, backtestDone, backtestHours, lastBacktestDate, hasWeeklyForecast]
   )
+
+  useEffect(() => {
+    if (!user || !trades.length || !allNotifs.length) return
+
+    // Seules les alertes « utiles » déclenchent un push : urgent & warning.
+    const actionable = allNotifs.filter(n => n.priority === 'urgent' || n.priority === 'warning')
+    if (!actionable.length) return
+
+    const lastKey  = 'tf_last_ai_push'
+    const lastTsKey = 'tf_last_ai_push_ts'
+    // Signature de l'état actuel : évite de renvoyer la même alerte en boucle.
+    const fingerprint = actionable.map(n => `${n.id}:${n.title}`).join('|')
+
+    const sendAIPush = async () => {
+      if (!user?.id) return
+      try {
+        const { data: { session } } = await supabase.auth.getSession()
+        const userToken = session?.access_token
+
+        const promptRes = await fetch('/api/notify-ai', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ user_id: user.id, userName: profile?.username, trades, alerts: actionable.slice(0, 5) }),
+        })
+        const promptData = await promptRes.json()
+        const title = promptData.title || actionable[0].title
+        const body  = promptData.body  || actionable[0].body
+        const url   = promptData.url   || actionable[0].action || '/'
+        localStorage.setItem(lastKey, fingerprint)
+        localStorage.setItem(lastTsKey, String(Date.now()))
+        await fetch('/api/send-notification', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            user_id: user.id, title, body, url,
+            user_token: userToken,
+            tag: `tradeforge-ai-${new Date().toISOString().slice(0, 10)}`,
+          }),
+        })
+      } catch { /* pas d'erreur affichée : retente à la prochaine ouverture */ }
+    }
+
+    const evaluate = () => {
+      // 1. L'app est visible & active → le panneau interne suffit.
+      if (document.visibilityState === 'visible' && document.hasFocus()) return
+      // 2. Pas de répétition : même état déjà poussé → on ne renvoie rien.
+      if (localStorage.getItem(lastKey) === fingerprint) return
+      // 3. Espacement : minimum 6h entre deux notifications IA.
+      const lastTs = Number(localStorage.getItem(lastTsKey) || 0)
+      if (Date.now() - lastTs < 6 * 3600 * 1000) return
+      sendAIPush()
+    }
+
+    const onVisibilityChange = () => { if (document.visibilityState === 'hidden') evaluate() }
+    const onFocus = () => { evaluate() }
+    document.addEventListener('visibilitychange', onVisibilityChange)
+    window.addEventListener('focus', onFocus)
+    return () => {
+      document.removeEventListener('visibilitychange', onVisibilityChange)
+      window.removeEventListener('focus', onFocus)
+    }
+  }, [trades, user, allNotifs, profile, supabase])
+
   const notifications = useMemo(() =>
     allNotifs
       .filter(n => !dismissedIds.includes(n.id))
@@ -956,14 +958,14 @@ export default function Layout() {
   const dismissNotif = useCallback((id) => {
     const next  = [...new Set([...dismissedIds, id])]
     setDismissedIds(next)
-    localStorage.setItem('tf_dismissed_notifs', JSON.stringify({ day: notifDay, ids: next }))
-  }, [dismissedIds, notifDay])
+    try { localStorage.setItem('tf_dismissed_notifs', JSON.stringify(next)) } catch {}
+  }, [dismissedIds])
 
   const dismissAll = useCallback(() => {
     const ids = allNotifs.map(n => n.id)
     setDismissedIds(ids)
-    localStorage.setItem('tf_dismissed_notifs', JSON.stringify({ day: notifDay, ids }))
-  }, [allNotifs, notifDay])
+    try { localStorage.setItem('tf_dismissed_notifs', JSON.stringify(ids)) } catch {}
+  }, [allNotifs])
 
   const handleBell = (anchor) => {
     setNotifAnchor(anchor)

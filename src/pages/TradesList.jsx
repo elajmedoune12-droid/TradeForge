@@ -13,6 +13,7 @@ import { fmtDate, calcWinRate } from '../utils'
 import { format, parseISO } from 'date-fns'
 import { SkeletonCard, SkeletonList } from '../components/Skeleton'
 import { useUIStore } from '../store/useUIStore'
+import ExportModal from '../components/ExportModal'
 
 const RESULTS_OPTIONS = [
   { value: 'tp',          label: 'TP',      color: '#2EA043' },
@@ -276,6 +277,7 @@ export default function TradesList() {
   // Pagination "Charger plus"
   const PAGE_SIZE = 15
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE)
+  const [showExport, setShowExport]     = useState(false)
   useEffect(() => {
     setVisibleCount(PAGE_SIZE)
   }, [filtered.length])
@@ -316,9 +318,9 @@ export default function TradesList() {
           </div>
         </div>
         <div className="flex items-center gap-2 flex-shrink-0">
-          <button onClick={() => exportCSV(filtered)}
+          <button onClick={() => setShowExport(true)}
             disabled={filtered.length === 0}
-            title="Exporter en CSV"
+            title="Exporter (PDF / Excel / Sheets / Notion)"
             className="relative overflow-hidden btn-ghost flex items-center gap-1.5 disabled:opacity-40 disabled:cursor-not-allowed">
             <Download size={15} />
             <span className="hidden sm:inline">Export</span>
@@ -631,15 +633,15 @@ export default function TradesList() {
           {filtered.length > 1 && (
             <div className="card mb-4"
               style={{ borderColor: chartMode==='equity'?(isUp?'rgba(46,160,67,0.2)':'rgba(248,81,73,0.2)'):'var(--surface-6)' }}>
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-3">
-                <div className="flex items-center gap-2">
+<div className="flex items-center justify-between gap-2 mb-3">
+                <div className="flex items-center gap-2 flex-shrink-0">
                   <BarChart2 size={13} className="text-forge-accent" />
                   <p className="text-xs font-medium text-forge-muted uppercase tracking-wide whitespace-nowrap">Graphique</p>
                 </div>
-                <div className="flex flex-wrap gap-1 w-full sm:w-auto justify-start sm:justify-end">
+                <div className="flex flex-wrap gap-1 justify-end min-w-0">
                   {CHART_MODES.map(m => (
                     <button key={m.value} onClick={() => setS({ chartMode: m.value })}
-                      className="px-2 py-1 rounded-lg text-[10px] font-medium transition-all whitespace-nowrap active:scale-95"
+                      className="px-2 py-1 rounded-lg text-[10px] font-medium transition-all whitespace-nowrap active:scale-95 flex-shrink-0"
                       style={chartMode===m.value
                         ? { background:'rgba(247,183,49,0.15)', color:'#F7B731', border:'1px solid rgba(247,183,49,0.4)' }
                         : { background:'var(--surface-2)', color:'var(--forge-muted)', border:'1px solid var(--surface-8)' }
@@ -857,6 +859,14 @@ export default function TradesList() {
           )}
         </>
       )}
-    </div>
+
+    {showExport && (
+      <ExportModal
+        trades={filtered}
+        status={null}
+        onClose={() => { setShowExport(false); refresh() }}
+      />
+    )}
+        </div>
   )
 }

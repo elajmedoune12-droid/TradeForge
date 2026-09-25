@@ -63,6 +63,7 @@ export function useNotifications() {
       setSubscribed(true)
 
       // Notification de bienvenue
+      const { data: { session } } = await supabase.auth.getSession()
       await fetch('/api/send-notification', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -70,7 +71,8 @@ export function useNotifications() {
           user_id: user.id,
           title: '⚡ TradeForge activé',
           body: 'Tu recevras des rappels pour journaliser tes trades.',
-          url: '/app/dashboard'
+          url: '/app/dashboard',
+          user_token: session?.access_token
         })
       })
     } catch (err) {
