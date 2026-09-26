@@ -687,35 +687,79 @@ export default function Dashboard() {
               .sort((a, b) => b.date.localeCompare(a.date))
               .slice(0, 5)
               .map(t => {
-                const colors = { tp: '#2EA043', sl: '#F85149', be: '#58a6ff', missed: '#8B949E', manual_exit: '#F79009' }
-                const labels = { tp: 'TP', sl: 'SL', be: 'BE', missed: 'Missed', manual_exit: 'Manuel' }
-                const color = colors[t.result] || '#8B949E'
+                const resultColor = { tp:'#2EA043', sl:'#F85149', be:'#58a6ff', missed:'#8B949E', manual_exit:'#F79009' }[t.result] || '#8B949E'
+                const badge = { tp:'TP', sl:'SL', be:'BE', missed:'Missed', manual_exit:'Manuel' }[t.result] || t.result
                 return (
-                  <button key={t.id} onClick={() => navigate(`/app/trades/${t.id}`)}
-                    className="w-full flex items-center gap-3 p-3 rounded-2xl text-left transition-all active:scale-[0.99]"
-                    style={{ background: 'var(--surface-card)', border: '1px solid var(--surface-6)' }}>
-                    <div className="w-1.5 h-10 rounded-full flex-shrink-0" style={{ background: color }} />
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>{t.market}</span>
-                        <span className="text-xs font-mono" style={{ color: t.type === 'buy' ? '#2EA043' : '#F85149' }}>
-                          {t.type?.toUpperCase()}
+                  <div key={t.id} onClick={() => navigate(`/app/trades/${t.id}`)}
+                    className="card cursor-pointer hover:border-forge-muted/30 active:scale-[0.99] transition-all"
+                    style={{ borderLeft: `3px solid ${resultColor}` }}>
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <p className="text-sm font-semibold truncate" style={{ color:'var(--text-primary)' }}>{t.market}</p>
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-lg flex-shrink-0"
+                          style={{
+                            background:t.type==='buy'?'rgba(46,160,67,0.15)':'rgba(248,81,73,0.15)',
+                            color:t.type==='buy'?'#2EA043':'#F85149',
+                            border:`1px solid ${t.type==='buy'?'rgba(46,160,67,0.3)':'rgba(248,81,73,0.3)'}`,
+                          }}>
+                          {t.type==='buy'?'↑ BUY':'↓ SELL'}
                         </span>
                       </div>
-                      <p className="text-[10px] text-forge-muted">{fmtDate(t.date)}</p>
-                    </div>
-                    <div className="text-right flex-shrink-0">
-                      <span className="text-xs font-semibold px-2 py-0.5 rounded-lg"
-                        style={{ background: `${color}20`, color, border: `1px solid ${color}30` }}>
-                        {labels[t.result] || t.result}
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-lg flex-shrink-0"
+                        style={{ background:`${resultColor}20`, color:resultColor, border:`1px solid ${resultColor}30` }}>
+                        {badge}
                       </span>
-                      {t.rr_won != null && (
-                        <p className="text-xs font-mono mt-0.5" style={{ color }}>
-                          {t.rr_won >= 0 ? '+' : ''}{t.rr_won}R
-                        </p>
-                      )}
                     </div>
-                  </button>
+                    <div className="flex items-center justify-between mb-1.5">
+                      <p className="text-xs" style={{ color:'var(--forge-muted)' }}>{fmtDate(t.date)}</p>
+                      <div className="flex items-center gap-2">
+                        {t.rr_planned!=null && (
+                          <span className="text-[10px] font-mono" style={{ color:'var(--forge-muted)' }}>Plan {t.rr_planned}R</span>
+                        )}
+                        {t.rr_won!=null && (
+                          <span className="text-xs font-mono font-semibold" style={{ color:resultColor }}>
+                            {t.rr_won>=0?'+':''}{t.rr_won}R
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    {(t.emotion||t.discipline_score!=null||t.respect_plan!=null||t.session) && (
+                      <div className="flex items-center gap-1.5 flex-wrap mt-1">
+                        {t.session && (
+                          <span className="text-[10px] px-2 py-0.5 rounded-lg"
+                            style={{ background:'var(--surface-4)', color:'var(--forge-muted)', border:'1px solid var(--border-soft)' }}>
+                            {t.session}
+                          </span>
+                        )}
+                        {t.emotion && t.emotion!=='Neutre' && (
+                          <span className="text-[10px] px-2 py-0.5 rounded-lg"
+                            style={{ background:'rgba(247,183,49,0.08)', color:'#F7B731', border:'1px solid rgba(247,183,49,0.2)' }}>
+                            {t.emotion}
+                          </span>
+                        )}
+                        {t.discipline_score!=null && (
+                          <span className="text-[10px] px-2 py-0.5 rounded-lg font-mono"
+                            style={{
+                              background:t.discipline_score>=7?'rgba(46,160,67,0.08)':t.discipline_score>=5?'rgba(247,183,49,0.08)':'rgba(248,81,73,0.08)',
+                              color:t.discipline_score>=7?'#2EA043':t.discipline_score>=5?'#F7B731':'#F85149',
+                              border:`1px solid ${t.discipline_score>=7?'rgba(46,160,67,0.2)':t.discipline_score>=5?'rgba(247,183,49,0.2)':'rgba(248,81,73,0.2)'}`,
+                            }}>
+                            {t.discipline_score}/10
+                          </span>
+                        )}
+                        {t.respect_plan!=null && (
+                          <span className="text-[10px] px-2 py-0.5 rounded-lg"
+                            style={{
+                              background:t.respect_plan?'rgba(46,160,67,0.08)':'rgba(248,81,73,0.08)',
+                              color:t.respect_plan?'#2EA043':'#F85149',
+                              border:`1px solid ${t.respect_plan?'rgba(46,160,67,0.2)':'rgba(248,81,73,0.2)'}`,
+                            }}>
+                            {t.respect_plan?'✓ Plan':'✗ Plan'}
+                          </span>
+                        )}
+                      </div>
+                    )}
+                  </div>
                 )
               })}
           </div>

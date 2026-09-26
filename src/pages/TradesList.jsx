@@ -634,14 +634,14 @@ export default function TradesList() {
             <div className="card mb-4"
               style={{ borderColor: chartMode==='equity'?(isUp?'rgba(46,160,67,0.2)':'rgba(248,81,73,0.2)'):'var(--surface-6)' }}>
 <div className="flex items-center justify-between gap-2 mb-3">
-                <div className="flex items-center gap-2 flex-shrink-0">
+                <div className="flex items-center gap-1.5 flex-shrink-0">
                   <BarChart2 size={13} className="text-forge-accent" />
                   <p className="text-xs font-medium text-forge-muted uppercase tracking-wide whitespace-nowrap">Graphique</p>
                 </div>
-                <div className="flex flex-wrap gap-1 justify-end min-w-0">
+                <div className="flex items-center gap-1 min-w-0 flex-1 justify-end">
                   {CHART_MODES.map(m => (
                     <button key={m.value} onClick={() => setS({ chartMode: m.value })}
-                      className="px-2 py-1 rounded-lg text-[10px] font-medium transition-all whitespace-nowrap active:scale-95 flex-shrink-0"
+                      className="flex-1 sm:flex-none px-1 sm:px-2 py-1 rounded-lg text-[9px] sm:text-[10px] font-medium transition-all whitespace-nowrap active:scale-95 text-center"
                       style={chartMode===m.value
                         ? { background:'rgba(247,183,49,0.15)', color:'#F7B731', border:'1px solid rgba(247,183,49,0.4)' }
                         : { background:'var(--surface-2)', color:'var(--forge-muted)', border:'1px solid var(--surface-8)' }
