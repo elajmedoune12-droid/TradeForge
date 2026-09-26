@@ -23,18 +23,15 @@ import { SkeletonCard } from '../components/Skeleton'
 const DAYS_FR = ['Dim', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam']
 
 // ── Motivation locale (fallback quand l'IA est indisponible) ──
-// Court, sans chiffre, sans jugement, sans supposition.
+// Court, factuel, sans chiffre, sans jugement, sans cliché.
 function fallbackMotivation(trades) {
-  if (!trades.length) return 'Votre journal est vide pour le moment. Le premier trade noté sera déjà une référence.'
+  if (!trades.length) return 'Aucun trade noté sur les 30 derniers jours. Le journal est prêt à recevoir le premier.'
   const last = trades[0]
-  const note = last?.hindsight?.[0]?.main_error
-  if (note) {
-    return `Votre dernier trade est accompagné d’une note : « ${note} ». Elle est notée, c’est déjà beaucoup.`
-  }
-  if (last?.notes) {
-    return `Vous avez pris le temps d’écrire quelques mots sur votre dernier trade. Ce genre de trace vaut de l’or plus tard.`
-  }
-  return 'Vous notez vos trades un par un. C’est une habitude rare, et elle finira par payer.'
+  const h = last?.hindsight?.[0]
+  if (h?.rule) return `Dans son After Trade du ${last.date}, il a écrit comme règle : « ${h.rule} ».`
+  if (h?.lesson) return `Dans son After Trade du ${last.date}, il a noté cette leçon : « ${h.lesson} ».`
+  if (last?.notes) return `Sur son trade du ${last.date}, il a écrit : « ${String(last.notes).slice(0, 90)} ».`
+  return `Sur les 30 derniers jours, chaque trade est daté et renseigné. Le journal est tenu.`
 }
 
 // ── Custom tooltip ──────────────────────────────────────────

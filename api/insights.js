@@ -30,6 +30,20 @@ export default async function handler(req, res) {
 
   const nameRef = userName ? `L'utilisateur s'appelle ${userName}.` : ''
 
+  // Angle tiré au sort à chaque appel : deux générations successives
+  // n'empruntent jamais le même angle, comme l'exige le cahier des charges.
+  const ANGLES = [
+    `Partie uniquement de ce qu'il a écrit lui-même dans ses notes de trade.`,
+    `Partie des règles qu'il s'est fixées dans ses After Trade.`,
+    `Partie de ce qu'il a noté comme leçon après ses trades.`,
+    `Partie du simple fait que son journal est tenu et à jour.`,
+    `Partie d'un instrument sur lequel il a travaillé.`,
+    `Partie du soin apporté à sa saisie : il note le plan, la discipline et le résultat à chaque trade.`,
+    `Partie des questions qu'il se pose dans ses notes, sans y répondre.`,
+    `Partie d'un moment précis de sa période, décrit strictement tel qu'il l'a écrit.`,
+  ]
+  const angle = ANGLES[Math.floor(Math.random() * ANGLES.length)]
+
   const last30 = Array.isArray(trades) ? trades.slice(0, 30) : []
   const total = last30.length
   const wins  = last30.filter(t => t.result === 'tp').length
@@ -100,25 +114,24 @@ DONNÉES RÉELLES FOURNIES. RÈGLES STRICTES :
 - Ne répète pas les patterns déjà détectés tels quels : approfondis-les ou complète avec ce que tu vois.
 
 MOTIVATION (règles opposables, aucune exception) :
-- La motivation ACCOMPAGNE le trader. Elle n'analyse pas ses performances, n'enseigne pas, ne donne aucun conseil, ne tire aucune leçon.
+- La motivation ENCOURAGE le trader. Elle n'analyse pas, n'interprète pas et ne juge jamais son comportement.
 - Longueur : 1 à 2 phrases, entre 90 et 190 caractères.
-- INTERDIT ABSOLU : tout chiffre, pourcentage, montant, résultat, P&L, win rate, nombre de trades, série. Tu n'écris AUCUN chiffre.
-- Elle ne paraphrase pas les données et ne répète pas les constats des insights.
-- UTILISE EXCLUSIVEMENT les informations réellement présentes dans les données des 30 derniers jours. Voici la liste des seuls éléments vérifiables dont tu disposes :
+- INTERDIT ABSOLU de chiffre : ni chiffre, ni pourcentage, ni montant, ni résultat, ni P&L, ni win rate, ni nombre de trades, ni série. Tu n'écris AUCUN chiffre.
+- SOURCE UNIQUE : utilise uniquement les éléments vérifiables listés ci-dessous, repris tels quels. Ne paraphrase pas les données et ne répète pas les constats des insights.
 ${groundingLines}
-- Ancre la motivation sur UN de ces éléments, repris tel quel ou reformulé sans le trahir. Ne laisse pas la motivation flotter dans le vide : elle doit faire référence à quelque chose de réel et de vérifiable chez ce trader.
-- Si cette liste ne t'inspire rien de pertinent, écris alors un message simple et sincère, sans ancrage et sans analyse, plutôt que d'inventer.
-- N'invente jamais un setup, une stratégie, un événement, une intention, une émotion ou un comportement.
-- Ne suppose JAMAIS qu'un trade est un breakout, un pullback, une cassure, un rejet, du FOMO ou du revenge trading, sauf si cette information est explicitement présente et vérifiable dans les données. En cas de doute, ne le mentionne pas.
-- Si une information n'est pas identifiable avec certitude, ne la mentionne pas.
-- Ne généralise jamais : si une note, une règle ou une leçon ne concerne qu'un seul trade, ne la présente pas comme une habitude générale du trader ni comme un schéma récurrent. Reprends-la pour ce qu'elle est : une observation portant sur ce trade-là.
-- Ne transforme jamais une action observée en jugement sur la personnalité du trader.
-- N'attribue aucune qualité ("audacieux", "patient", "discipliné", "confiant", "courageux", "exigeant", "lucide") sans éléments concrets et répétés dans les données qui la soutiennent.
-- Évite toute formulation dramatique, romancée ou artificielle, par exemple "ressentir l'impulsion du marché" ou "danser avec le marché". Écris simplement, comme un humain qui connaît le contexte du trader, sans surinterpréter son comportement.
-- Ne cherche pas à être positif à tout prix : si le contexte est dur, reconnais-le sobrement, sans dramatiser ni consoler bêtement.
-- Varie naturellement le ton, la structure et l'angle à chaque génération. Ne commence pas systématiquement par son prénom.
-- FORMULES INTERDITES (et leurs variantes) : "reste discipliné", "continue d'avancer", "chaque trade est une leçon", "un mauvais mois ne te définit pas", "tu es sur la bonne voie", "courage", "tu peux le faire", "crois en toi", "la pratique paiera", "tu progresses", "félicitations".
-- Ne force jamais la motivation. Si aucune observation pertinente ne permet d'en produire une naturellement, écris un message simple et sincère plutôt que d'inventer ou de surinterpréter.
+- ANGLE OBLIGATOIRE pour cette génération (respecte-le) : ${angle}
+- Écris comme si tu venais d'ouvrir le journal et que tu n'en retenais qu'une seule chose. Une phrase sobre, concrète, naturelle.
+- N'invente JAMAIS aucun setup, mouvement de marché, intention, émotion, pensée ni ressenti.
+- N'écris JAMAIS « il a senti », « il a pensé », « il a hésité », « il a cru », « il a voulu », « il a eu peur », « il a ressenti », ni aucune variante. Ces mots ne sont autorisés que si le trader les a écrits mot pour mot dans ses notes. Un fait ne devient jamais un état d'âme.
+- N'attribue AUCUNE qualité personnelle au trader ("discipliné", "patient", "confiant", "courageux", "lucide", "rigoureux", "audacieux", "exigeant") et ne transforme jamais une action en jugement psychologique. Décris ce qui est noté, jamais ce que cela révèle de lui.
+- Ne suppose jamais qu'un trade est un breakout, un pullback, un rejet, une cassure, du FOMO ou du revenge trading, sauf si l'information est explicitement enregistrée dans les données. En cas de doute, ne le mentionne pas.
+- Ne généralise jamais : une note qui ne concerne qu'un seul trade n'est pas une habitude du trader. Reprends-la pour ce qu'elle est.
+- PHRASES VAGUES, PHILOSOPHIQUES, DRAMATIQUES ou ARTIFICIELLES INTERDITES, et toutes leurs variantes : "cela peut changer la donne", "chaque trade est une leçon", "chaque échec rapproche de la réussite", "l'impulsion du marché", "danser avec le marché", "il reste disciplined", "continue d'avancer", "un mauvais mois ne te définit pas", "tu es sur la bonne voie", "courage", "crois en toi", "la pratique paiera", "tu progresses", "félicitations", "gardez votre cap".
+- Si un élément de la liste est trop long et se termine par « […] », n'en cite qu'un court extrait et ne reproduis jamais les crochets.
+- N'adresse JAMAIS au trader un ordre, une consigne ou un conseil (« continuez à… », « appliquez… », « renforcez… », « Vous devez… »). La motivation n'est pas une consigne. Et n'écris jamais « votre discipline », « votre patience », « votre lucidité » : ce sont des qualités, et les qualités sont interdites.
+- Ne fais pas semblant d'être positif si le contexte est dur, et ne console pas non plus : reste strictement factuel.
+- Ne commence pas par son prénom. Ne fais jamais commencer la motivation par une formule de politesse creuse.
+- Ne force jamais : si la liste ne t'inspire rien de pertinent, écris une phrase simple et sincère, sans interprétation, plutôt que d'inventer.
 
 RETOUR : uniquement du JSON valide, sans markdown :
 {"insights": [{"type": "success|warning", "title": "...", "desc": "..."}], "motivation": "..."}`
@@ -133,7 +146,7 @@ RETOUR : uniquement du JSON valide, sans markdown :
 Patterns déjà détectés :
 ${patternLines}`
 
-  const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+  const callGroq = () => fetch('https://api.groq.com/openai/v1/chat/completions', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -150,6 +163,14 @@ ${patternLines}`
       ]
     })
   })
+
+  // Un 429 (rate limit) est transitoire : on réessaie une fois après une courte
+  // pause, sinon le Dashboard retomberait immédiatement sur le fallback local.
+  let response = await callGroq()
+  if (response.status === 429) {
+    await new Promise(r => setTimeout(r, 9000))
+    response = await callGroq()
+  }
 
   const data = await response.json()
   if (!response.ok) {
