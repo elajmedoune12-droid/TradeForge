@@ -394,6 +394,7 @@ export default function Dashboard() {
   const [aiInsights, setAiInsights] = useState(null)
   const [aiMotivation, setAiMotivation] = useState(null)
   const [aiLoading, setAiLoading] = useState(false)
+  const [aiReady, setAiReady] = useState(false)
 
   // ── Fenêtre 30 jours ──────────────────────────────────────
   const cutoff30 = format(subDays(new Date(), 29), 'yyyy-MM-dd')
@@ -403,28 +404,38 @@ export default function Dashboard() {
   )
 
   // ── IA Insights (Groq) avec fallback local ────────────────
+  // L'affichage ne dépend jamais de l'IA : les patterns et la motivation
+  // locales sont rendus immédiatement, l'IA les remplace dès qu'elle répond.
   const localPatterns = useMemo(() => detectPatterns(trades30), [trades30])
-  const patterns = aiInsights || localPatterns
+  const localMotivation = useMemo(() => fallbackMotivation(trades30), [trades30])
+  const patterns = aiInsights?.length ? aiInsights : localPatterns
+  const motivation = aiMotivation || localMotivation
 
   useEffect(() => {
     if (loading || !trades30.length) return
     let cancelled = false
-    setAiLoading(true)
-    fetch('/api/insights', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ userName: user?.user_metadata?.username || null, trades: trades30, patterns: localPatterns }),
-    })
-      .then(r => r.json())
-      .then(data => {
-        if (cancelled) return
-        if (Array.isArray(data.insights) && data.insights.length) setAiInsights(data.insights)
-        if (data.motivation) setAiMotivation(data.motivation)
-        else setAiMotivation(fallbackMotivation(trades30))
+
+    const load = () => {
+      fetch('/api/insights', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userName: user?.user_metadata?.username || null, trades: trades30, patterns: localPatterns }),
       })
-      .catch(() => setAiMotivation(fallbackMotivation(trades30)))
-      .finally(() => { if (!cancelled) setAiLoading(false) })
-    return () => { cancelled = true }
+        .then(r => r.json())
+        .then(data => {
+          if (cancelled) return
+          if (Array.isArray(data.insights) && data.insights.length) setAiInsights(data.insights)
+          if (data.motivation) setAiMotivation(data.motivation)
+          setAiReady(true)
+        })
+        .catch(() => { if (!cancelled) setAiReady(true) })
+    }
+
+    setAiLoading(true)
+    load()
+    // Rafraîchissement périodique : le message change à chaque minute.
+    const id = setInterval(load, 60000)
+    return () => { cancelled = true; clearInterval(id) }
   }, [loading, trades30, localPatterns])
 
   if (loading) return (
@@ -661,12 +672,12 @@ export default function Dashboard() {
       )}
 
       {/* IA Insights + Motivation + Top erreurs — 30j */}
-      {(patterns.length > 0 && aiMotivation) && (
+      {(patterns.length > 0 || motivation) && (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-5 items-start">
           <div className="flex flex-col">
             <p className="section-title flex items-center gap-1.5">
               <Brain size={12} /> IA Insights · 30j
-              {aiLoading && <span className="text-[9px] font-medium px-1.5 py-0.5 rounded-full" style={{ background:'rgba(88,166,255,0.1)', color:'#58a6ff' }}>...</span>}
+              {aiLoading && !aiReady && <span className="text-[9px] font-medium px-1.5 py-0.5 rounded-full" style={{ background:'rgba(88,166,255,0.1)', color:'#58a6ff' }}>...</span>}
             </p>
             <div className="space-y-2 flex-1">
               {patterns.map((p, i) => (
@@ -684,11 +695,11 @@ export default function Dashboard() {
           <div className="flex flex-col">
             <p className="section-title flex items-center gap-1.5">
               <Sparkles size={12} /> IA MOTIVATION
-              {aiLoading && <span className="text-[9px] font-medium px-1.5 py-0.5 rounded-full" style={{ background:'rgba(88,166,255,0.1)', color:'#58a6ff' }}>...</span>}
+              {aiLoading && !aiReady && <span className="text-[9px] font-medium px-1.5 py-0.5 rounded-full" style={{ background:'rgba(88,166,255,0.1)', color:'#58a6ff' }}>...</span>}
             </p>
             <div className="card border-l-2 py-4" style={{ borderLeftColor:'#F7B731' }}>
               <p className="text-xs leading-relaxed" style={{ color:'var(--text-secondary)' }}>
-                {aiMotivation || 'Analyse en cours...'}
+                {motivation}
               </p>
             </div>
           </div>

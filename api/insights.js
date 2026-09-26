@@ -188,33 +188,63 @@ ${patternLines}`
     })
   })
 
-  // Un 429 (rate limit) est transitoire : on réessaie une fois après une courte
-  // pause, sinon le Dashboard retomberait immédiatement sur le fallback local.
-  let response = await callGroq()
-  if (response.status === 429) {
-    await new Promise(r => setTimeout(r, 9000))
-    response = await callGroq()
+  // Génération réelle, isolée pour pouvoir être lancée en tâche de fond.
+  const generate = async () => {
+    let response = await callGroq()
+    // Un 429 est transitoire : on réessaie une fois, brièvement.
+    if (response.status === 429) {
+      await new Promise(r => setTimeout(r, 2500))
+      response = await callGroq()
+    }
+    const data = await response.json()
+    if (!response.ok) {
+      return { insights: [], motivation: '', error: data.error?.message || 'Erreur Groq' }
+    }
+    const content = data.choices?.[0]?.message?.content || ''
+    try {
+      const parsed = JSON.parse(content)
+      const insights = Array.isArray(parsed.insights) ? parsed.insights.slice(0, 1) : []
+      return {
+        insights: insights.map(i => ({
+          type: i.type === 'success' ? 'success' : 'warning',
+          title: i.title || '',
+          desc: i.desc || '',
+        })).filter(i => i.title && i.desc),
+        motivation: typeof parsed.motivation === 'string' ? trimAtSentence(parsed.motivation, 190) : '',
+      }
+    } catch {
+      return { insights: [], motivation: '' }
+    }
   }
 
-  const data = await response.json()
-  if (!response.ok) {
-    // Dégradation silencieuse : le Dashboard retombe sur detectPatterns + motivation locale.
-    return res.status(200).json({ insights: [], motivation: '', error: data.error?.message || 'Erreur Groq' })
+  // ── Cache serveur, stale-while-revalidate ──────────────────
+  // Le but : répondre instantanément et régénérer en tâche de fond, pour que
+  // le Dashboard n'affiche jamais une page vide et qu'un message change chaque minute.
+  // Stocké sur globalThis car server.js réimporte le handler à chaque requête
+  // (cache-busting) : un module-level serait réinitialisé en permanence.
+  const FRESH_MS = 60_000
+  const CACHE = (globalThis.__tfInsightsCache ||= new Map())
+
+  // Clé = empreinte des trades reçus : un journal modifié invalide l'entrée.
+  const key = last30.map(t => `${t.date}|${t.result}|${t.discipline_score}|${t.rr_won}`).join(';')
+  const entry = CACHE.get(key)
+
+  if (entry && Date.now() - entry.ts < FRESH_MS) {
+    return res.status(200).json(entry.payload)            // frais : réponse immédiate
+  }
+  if (entry) {
+    if (!entry.inflight) {                                // obsolète : on rafraîchit en fond
+      entry.inflight = generate()
+        .then(p => { entry.payload = p; entry.ts = Date.now(); return p })
+        .catch(() => null)
+        .finally(() => { entry.inflight = null })
+    }
+    return res.status(200).json({ ...entry.payload, refreshing: true })
   }
 
-  const content = data.choices?.[0]?.message?.content || ''
-  try {
-    const parsed = JSON.parse(content)
-    const insights = Array.isArray(parsed.insights) ? parsed.insights.slice(0, 1) : []
-    return res.status(200).json({
-      insights: insights.map(i => ({
-        type: i.type === 'success' ? 'success' : 'warning',
-        title: i.title || '',
-        desc: i.desc || '',
-      })).filter(i => i.title && i.desc),
-      motivation: typeof parsed.motivation === 'string' ? trimAtSentence(parsed.motivation, 190) : '',
-    })
-  } catch {
-    return res.status(200).json({ insights: [], motivation: '' })
-  }
+  // Premier appel pour ce journal : il faut attendre, sinon il n'y a rien à montrer.
+  const payload = await generate()
+  if (CACHE.size > 50) CACHE.clear()
+  CACHE.set(key, { payload, ts: Date.now(), inflight: null })
+  return res.status(200).json(payload)
 }
