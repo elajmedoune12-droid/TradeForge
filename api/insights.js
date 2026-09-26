@@ -104,9 +104,9 @@ export default async function handler(req, res) {
 Tu analyses les 30 derniers jours de trading d'un trader.
 
 DONNÉES RÉELLES FOURNIES. RÈGLES STRICTES :
-- Rédige UNIQUEMENT 2 insights IA, les plus importants et actionnables, en français, vouvoiement. N'en produis pas plus : uniquement les plus utiles, jamais de remplissage.
-- Priorise ce qui change réellement le résultat du trader : le levier de profit principal (RR vs win rate), l'erreur la plus coûteuse, la discipline, ou une dérive comportementale.
-- Chaque insight : type ("success" si c'est un point fort positif, sinon "warning"), un titre court (≤ 50 caractères) et une description précise et concrète (≤ 140 caractères).
+- Rédige UNIQUEMENT 1 insight IA, en français, vouvoiement. Un seul, jamais deux : pas de liste, pas de second point, pas de remplissage. Si deux problèmes semblent importants, garde le plus déterminant et l'explique pleinement.
+- Choisis le levier qui change réellement le résultat du trader, par ordre de priorité : le ratio gain/perte et le win rate, l'erreur la plus coûteuse, la discipline, puis une dérive comportementale.
+- L'insight doit pouvoir se lire seul, comme un message complet : un titre court (≤ 60 caractères) et une description précise et concrète (≤ 180 caractères).
 - Évite les insights vagues du type "restez discipliné" ou "faites attention" : chaque phrase doit nommer un problème ou un levier précis, avec un chiffre.
 - Base-toi sur les chiffres réels fournis, pas de généralités vides.
 - Identifie les vrais points faibles : win rate, RR, discipline, émotions, erreurs récurrentes, violations du plan.
@@ -181,7 +181,7 @@ ${patternLines}`
   const content = data.choices?.[0]?.message?.content || ''
   try {
     const parsed = JSON.parse(content)
-    const insights = Array.isArray(parsed.insights) ? parsed.insights.slice(0, 2) : []
+    const insights = Array.isArray(parsed.insights) ? parsed.insights.slice(0, 1) : []
     return res.status(200).json({
       insights: insights.map(i => ({
         type: i.type === 'success' ? 'success' : 'warning',

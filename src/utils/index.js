@@ -95,6 +95,23 @@ export const getTopErrors = (trades) => {
 export const detectPatterns = (trades) => {
   const patterns = []
 
+  // L'ordre suit la priorité de l'IA Insights : le levier qui change le
+  // résultat d'abord, le point fort positif en dernier. Un seul insight est
+  // affiché, donc seul le premier détecté compte.
+  const decided = trades.filter(t => t.result === 'tp' || t.result === 'sl')
+  if (decided.length >= 3) {
+    const wins = decided.filter(t => t.result === 'tp').length
+    const wr = Math.round((wins / decided.length) * 100)
+    const profit = trades.reduce((acc, t) => acc + (calcPnl(t) || 0), 0)
+    if (wr <= 40 && profit < 0) {
+      patterns.push({
+        type: 'warning',
+        title: 'Ratio gain/perte défavorable',
+        desc: `${wr}% de réussite et ${profit.toFixed(1)}R sur la période : les pertes dépassent les objectifs. Revois tes critères d'entrée.`,
+      })
+    }
+  }
+
   const lowDiscipline = trades.filter(t => t.discipline_score != null && t.discipline_score <= 5)
   const lowDisciplineLosses = lowDiscipline.filter(t => t.result === 'sl').length
   if (lowDiscipline.length >= 3) {
@@ -106,6 +123,16 @@ export const detectPatterns = (trades) => {
         desc: `${ratio}% de tes trades avec discipline ≤5 sont des pertes. Améliore ta préparation.`,
       })
     }
+  }
+
+  const fomo = trades.filter(t => t.emotion === 'FOMO')
+  const fomoLosses = fomo.filter(t => t.result === 'sl').length
+  if (fomo.length >= 2 && fomoLosses / fomo.length >= 0.5) {
+    patterns.push({
+      type: 'warning',
+      title: 'FOMO détecté',
+      desc: `Tu perds souvent quand tu trades sous FOMO (${fomo.length} trades). Attends la prochaine setup.`,
+    })
   }
 
   const respectPlan = trades.filter(t => t.respect_plan === true)
@@ -121,17 +148,7 @@ export const detectPatterns = (trades) => {
     }
   }
 
-  const fomo = trades.filter(t => t.emotion === 'FOMO')
-  const fomoLosses = fomo.filter(t => t.result === 'sl').length
-  if (fomo.length >= 2 && fomoLosses / fomo.length >= 0.5) {
-    patterns.push({
-      type: 'warning',
-      title: 'FOMO détecté',
-      desc: `Tu perds souvent quand tu trades sous FOMO (${fomo.length} trades). Attends la prochaine setup.`,
-    })
-  }
-
-  return patterns.slice(0, 2)
+  return patterns.slice(0, 1)
 }
 
 export const generateFeedback = (trades) => {
