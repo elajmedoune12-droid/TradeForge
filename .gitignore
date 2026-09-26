@@ -9,3 +9,7 @@ dist/
 
 # secrets locaux
 note.txt
+
+# artefacts locaux
+dump.bat
+.payload.json

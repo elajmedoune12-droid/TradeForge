@@ -69,7 +69,7 @@ Choisissez l'index de l'alerte la plus pertinente et rédigez le message.`
     },
     body: JSON.stringify({
       model: 'openai/gpt-oss-120b',
-      max_tokens: 300,
+      max_tokens: 1024,
       temperature: 0.4,
       response_format: { type: 'json_object' },
       messages: [

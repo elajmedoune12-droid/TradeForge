@@ -131,7 +131,7 @@ export const detectPatterns = (trades) => {
     })
   }
 
-  return patterns
+  return patterns.slice(0, 2)
 }
 
 export const generateFeedback = (trades) => {

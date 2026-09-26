@@ -19,7 +19,8 @@ function loadEnv() {
 }
 
 async function loadHandler(file) {
-  const mod = await import(pathToFileURL(join(API_DIR, file)).href)
+  const url = pathToFileURL(join(API_DIR, file)).href + `?t=${Date.now()}`
+  const mod = await import(url)
   return mod.default
 }
 

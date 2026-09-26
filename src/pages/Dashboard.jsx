@@ -1,13 +1,14 @@
 import { useUIStore } from '../store/useUIStore'
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { useNavigate } from 'react-router-dom'
-import { Brain, TrendingUp, TrendingDown, Target, Zap, BarChart2, LayoutDashboard, X, ChevronLeft, ChevronRight } from 'lucide-react'
+import { Brain, TrendingUp, TrendingDown, Target, Zap, BarChart2, LayoutDashboard, X, ChevronLeft, ChevronRight, Sparkles } from 'lucide-react'
 import {
   AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer,
   ReferenceLine, CartesianGrid
 } from 'recharts'
 import { useTrades } from '../hooks/useTrades'
+import { useAuth } from '../hooks/useAuth'
 import {
   calcWinRate, calcAvgRR, calcTotalProfit, calcDisciplineScore,
   getTopErrors, detectPatterns, calcPnl, fmtDate
@@ -20,6 +21,21 @@ import { fr } from 'date-fns/locale'
 import { SkeletonCard } from '../components/Skeleton'
 
 const DAYS_FR = ['Dim', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam']
+
+// ── Motivation locale (fallback quand l'IA est indisponible) ──
+// Court, sans chiffre, sans jugement, sans supposition.
+function fallbackMotivation(trades) {
+  if (!trades.length) return 'Votre journal est vide pour le moment. Le premier trade noté sera déjà une référence.'
+  const last = trades[0]
+  const note = last?.hindsight?.[0]?.main_error
+  if (note) {
+    return `Votre dernier trade est accompagné d’une note : « ${note} ». Elle est notée, c’est déjà beaucoup.`
+  }
+  if (last?.notes) {
+    return `Vous avez pris le temps d’écrire quelques mots sur votre dernier trade. Ce genre de trace vaut de l’or plus tard.`
+  }
+  return 'Vous notez vos trades un par un. C’est une habitude rare, et elle finira par payer.'
+}
 
 // ── Custom tooltip ──────────────────────────────────────────
 const CustomTooltip = ({ active, payload, label }) => {
@@ -375,8 +391,12 @@ function DayTradesModal({ trades, onClose, navigate }) {
 // ── Page principale ─────────────────────────────────────────
 export default function Dashboard() {
   const { trades, loading, error, refresh } = useTrades()
+  const { user } = useAuth()
   const navigate = useNavigate()
   const [dayTrades, setDayTrades] = useState(null)
+  const [aiInsights, setAiInsights] = useState(null)
+  const [aiMotivation, setAiMotivation] = useState(null)
+  const [aiLoading, setAiLoading] = useState(false)
 
   // ── Fenêtre 30 jours ──────────────────────────────────────
   const cutoff30 = format(subDays(new Date(), 29), 'yyyy-MM-dd')
@@ -384,6 +404,31 @@ export default function Dashboard() {
     () => trades.filter(t => t.date >= cutoff30),
     [trades, cutoff30]
   )
+
+  // ── IA Insights (Groq) avec fallback local ────────────────
+  const localPatterns = useMemo(() => detectPatterns(trades30), [trades30])
+  const patterns = aiInsights || localPatterns
+
+  useEffect(() => {
+    if (loading || !trades30.length) return
+    let cancelled = false
+    setAiLoading(true)
+    fetch('/api/insights', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userName: user?.user_metadata?.username || null, trades: trades30, patterns: localPatterns }),
+    })
+      .then(r => r.json())
+      .then(data => {
+        if (cancelled) return
+        if (Array.isArray(data.insights) && data.insights.length) setAiInsights(data.insights)
+        if (data.motivation) setAiMotivation(data.motivation)
+        else setAiMotivation(fallbackMotivation(trades30))
+      })
+      .catch(() => setAiMotivation(fallbackMotivation(trades30)))
+      .finally(() => { if (!cancelled) setAiLoading(false) })
+    return () => { cancelled = true }
+  }, [loading, trades30, localPatterns])
 
   if (loading) return (
     <div className="page space-y-4">
@@ -409,7 +454,6 @@ export default function Dashboard() {
   const profit    = calcTotalProfit(trades30)
   const discScore = calcDisciplineScore(trades30)
   const topErrors = getTopErrors(trades30)
-  const patterns  = detectPatterns(trades30)
 
   const tp         = trades30.filter(t => t.result === 'tp').length
   const sl         = trades30.filter(t => t.result === 'sl').length
@@ -619,14 +663,15 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* IA Insights + Top erreurs — 30j */}
-      <div className={`mb-5 ${patterns.length > 0 && topErrors.length > 0 ? 'lg:grid lg:grid-cols-2 lg:gap-4' : ''}`}>
-        {patterns.length > 0 && (
-          <div className="mb-5">
+      {/* IA Insights + Motivation + Top erreurs — 30j */}
+      {(patterns.length > 0 && aiMotivation) && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-5 items-start">
+          <div className="flex flex-col">
             <p className="section-title flex items-center gap-1.5">
               <Brain size={12} /> IA Insights · 30j
+              {aiLoading && <span className="text-[9px] font-medium px-1.5 py-0.5 rounded-full" style={{ background:'rgba(88,166,255,0.1)', color:'#58a6ff' }}>...</span>}
             </p>
-            <div className="space-y-2">
+            <div className="space-y-2 flex-1">
               {patterns.map((p, i) => (
                 <div key={i} className="card border-l-2 py-3"
                   style={{ borderLeftColor: p.type === 'success' ? '#2EA043' : '#F7B731' }}>
@@ -638,30 +683,43 @@ export default function Dashboard() {
               ))}
             </div>
           </div>
-        )}
-        {topErrors.length > 0 && (
-          <div className="mb-5">
-            <p className="section-title">Top erreurs · 30j</p>
-            <div className="card space-y-3">
-              {topErrors.map(({ label, count }) => (
-                <div key={label}>
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="text-xs text-forge-muted">{label}</span>
-                    <span className="font-mono text-xs text-forge-muted">{count}×</span>
-                  </div>
-                  <div className="h-1.5 bg-forge-border rounded-full overflow-hidden">
-                    <div className="h-full rounded-full transition-all"
-                      style={{
-                        width: `${Math.min((count / total30) * 100 * 3, 100)}%`,
-                        background: 'linear-gradient(90deg,rgba(247,183,49,0.8),rgba(247,183,49,0.4))',
-                      }} />
-                  </div>
-                </div>
-              ))}
+
+          <div className="flex flex-col">
+            <p className="section-title flex items-center gap-1.5">
+              <Sparkles size={12} /> IA MOTIVATION
+              {aiLoading && <span className="text-[9px] font-medium px-1.5 py-0.5 rounded-full" style={{ background:'rgba(88,166,255,0.1)', color:'#58a6ff' }}>...</span>}
+            </p>
+            <div className="card border-l-2 py-4" style={{ borderLeftColor:'#F7B731' }}>
+              <p className="text-xs leading-relaxed" style={{ color:'var(--text-secondary)' }}>
+                {aiMotivation || 'Analyse en cours...'}
+              </p>
             </div>
           </div>
-        )}
-      </div>
+        </div>
+      )}
+
+      {topErrors.length > 0 && (
+        <div className="mb-5">
+          <p className="section-title">Top erreurs · 30j</p>
+          <div className="card space-y-3">
+            {topErrors.map(({ label, count }) => (
+              <div key={label}>
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-xs text-forge-muted">{label}</span>
+                  <span className="font-mono text-xs text-forge-muted">{count}×</span>
+                </div>
+                <div className="h-1.5 bg-forge-border rounded-full overflow-hidden">
+                  <div className="h-full rounded-full transition-all"
+                    style={{
+                      width: `${Math.min((count / total30) * 100 * 3, 100)}%`,
+                      background: 'linear-gradient(90deg,rgba(247,183,49,0.8),rgba(247,183,49,0.4))',
+                    }} />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Calendrier — sur tous les trades, desktop only */}
       {totalAll > 0 && (

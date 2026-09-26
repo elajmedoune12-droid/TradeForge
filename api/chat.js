@@ -19,19 +19,108 @@ export default async function handler(req, res) {
   // Règle absolue commune à tous les contextes
   const regleAbsolue = `RÈGLE ABSOLUE : Vous êtes exclusivement spécialisé dans le trading, la psychologie du trader et la gestion du risque. Pour toute question non liée à ces domaines (code informatique, cuisine, sport, politique, etc.), répondez UNIQUEMENT : "Je suis TradeForge Coach, spécialisé uniquement dans le trading et la psychologie du trader. Je ne peux pas répondre à cette question." Ne faites aucune exception.`
 
-  // Stats globales depuis allTrades
+  // ── Sérialisation : TOUTES les données de TOUS les trades ──────────
+  // Source de vérité = trade-forge.sql (20 colonnes) + table hindsight.
+  // Aucun champ stocké n'est oublié : la liste ci-dessous est exhaustive.
+  // Seuls les identifiants techniques (id, user_id, trade_id, created_at,
+  // updated_at) sont omis : ils n'apportent aucune information d'analyse.
+  const MAX_TEXT = 300   // protection contre un textarea géant
+  const MAX_TF = 8        //Nb de timeframes listés par trade
+  const MAX_HISTORY = 200 // plafond de sécurité du contexte (déclaration honnête si atteint)
+
+  const hindsightOf = t => (Array.isArray(t.hindsight) ? t.hindsight[0] : t.hindsight) || null
+
+  const clip = v => {
+    if (v === null || v === undefined) return null
+    const s = String(v).replace(/\s+/g, ' ').trim()
+    if (!s) return null
+    return s.length > MAX_TEXT ? s.slice(0, MAX_TEXT) + ' […]' : s
+  }
+
+  // Les images ne sont PAS lisibles par le modèle texte : on donne le factuel
+  // (timeframes, nombre de captures, nombre de liens) sans prétendre les analyser.
+  const imagesOf = arr => {
+    const list = Array.isArray(arr) ? arr : []
+    if (!list.length) return null
+    const tfs = [...new Set(list.map(i => i?.timeframe || i?.label).filter(Boolean))]
+    const links = list.filter(i => i?.isLink || !i?.path).length
+    const p = []
+    if (tfs.length) p.push(`timeframes: ${tfs.slice(0, MAX_TF).join(', ')}`)
+    p.push(`${list.length - links} capture(s), ${links} lien(s), contenu visuel non lisible par le modèle`)
+    return p.join(' | ')
+  }
+
+  // Retire les champs synthétiques « _xxx » (calculés côté client) qui
+  // embarqueraient des tableaux de trades entiers et feraient exploser le prompt.
+  const stripSynthetic = o => {
+    const c = { ...(o || {}) }
+    Object.keys(c).forEach(k => { if (k.startsWith('_')) delete c[k] })
+    return c
+  }
+
+  // Un trade = un objet JSON complet. Même format pour le trade analysé et
+  // pour l'historique : impossible d'oublier un champ dans l'un des deux.
+  const serializeTrade = t => {
+    const s = stripSynthetic(t)
+    const h = hindsightOf(t)
+    const out = {
+      date: s.date || null,
+      jour: s.day || null,
+      marche: s.market || null,
+      sens: s.type || null,
+      resultat: s.result || null,
+      rr_prevu: s.rr_planned ?? null,
+      rr_realise: s.rr_won ?? null,
+      session: s.session || null,
+      style: s.style || null,
+      tendance: s.trend || null,
+      structure: s.market_structure || null,
+      emotion: s.emotion || null,
+      discipline: s.discipline_score ?? null,
+      plan_respecte: s.respect_plan ?? null,
+      notes: clip(s.notes),
+      captures: imagesOf(s.images),
+    }
+    if (h) {
+      out.after_trade = {
+        erreur_principale: clip(h.main_error),
+        lecon: clip(h.lesson),
+        regle: clip(h.rule),
+        notes: clip(h.notes),
+        tags: Array.isArray(h.tags) && h.tags.length ? h.tags : null,
+        captures: imagesOf(h.images),
+      }
+    }
+    return JSON.stringify(out, (k, v) => (v === null || v === '' ? undefined : v))
+  }
+
+  // Stats globales + historique COMPLET, du plus ancien au plus récent
   let globalContext = ''
   if (allTrades?.length) {
     const total  = allTrades.length
     const wins   = allTrades.filter(t => t.result === 'tp').length
     const wr     = Math.round((wins / total) * 100)
     const profit = allTrades.reduce((acc, t) => {
-  if (t.result === 'tp') return acc + (t.rr_won || 0)
-  if (t.result === 'sl') return acc + (t.rr_won ?? -1)
-  if (t.result === 'manual_exit') return acc + (t.rr_won || 0)
-  return acc
-}, 0).toFixed(2)
-    globalContext = `\n\nCONTEXTE GLOBAL DU TRADER${nameRef} : ${total} trades au total, win rate global ${wr}%, profit cumulé ${profit}R.`
+      if (t.result === 'tp') return acc + (t.rr_won || 0)
+      if (t.result === 'sl') return acc + (t.rr_won ?? -1)
+      if (t.result === 'manual_exit') return acc + (t.rr_won || 0)
+      return acc
+    }, 0).toFixed(2)
+    const withHindsight = allTrades.filter(t => hindsightOf(t)).length
+
+    const sorted = [...allTrades].sort((a, b) => String(a?.date || '').localeCompare(String(b?.date || '')))
+    const truncated = Math.max(0, sorted.length - MAX_HISTORY)
+    const kept = truncated ? sorted.slice(-MAX_HISTORY) : sorted
+    const oldest = kept[0]?.date || '?'
+    const newest = kept[kept.length - 1]?.date || '?'
+
+    globalContext = `
+
+CONTEXTE GLOBAL DU TRADER${nameRef} : ${total} trades au total, win rate global ${wr}%, profit cumulé ${profit}R. After Trade renseigné sur ${withHindsight} trade(s) sur ${total}.
+
+HISTORIQUE COMPLET — un objet JSON par trade, avec TOUTES ses données (du plus ancien au plus récent). Ces données sont la source de vérité : toute affirmation doit s'appuyer dessus, et tu peux comparer le trade analysé à cet historique :
+${kept.map(serializeTrade).join('\n')}${truncated ? `\n[ATTENTION : seules les ${MAX_HISTORY} entrées les plus récentes ont pu être transmises ; ${truncated} trade(s) plus ancien(s) ont été omis pour ne pas dépasser la taille de contexte. Ne prétends donc jamais avoir une vision exhaustive si une question porte sur cette période.]` : ''}
+Période couverte : ${oldest} → ${newest}.${truncated ? ` (tronquée : la période la plus ancienne manque)` : ' (historique complet, non tronqué)'}`
   }
 
   // System prompt selon le contexte
@@ -80,22 +169,28 @@ INSTRUCTIONS :
 
 Vous êtes TradeForge Coach, un coach trading professionnel spécialisé en analyse post-trade. ${userRef}
 
-Trade analysé :
-- Instrument : ${trade.market} | Direction : ${trade.type?.toUpperCase() || '—'} | Résultat : ${trade.result?.toUpperCase() || '—'}
-- RR prévu : ${trade.rr_planned ?? '—'}R | RR réalisé : ${trade.rr_won ?? '—'}R
-- Session : ${trade.session || '—'} | Style : ${trade.style || '—'}
-- Tendance : ${trade.trend || '—'} | Structure : ${trade.market_structure || '—'}
-- État émotionnel : ${trade.emotion || '—'} | Discipline : ${trade.discipline_score ?? '—'}/10
-- Plan respecté : ${trade.respect_plan ? 'Oui' : 'Non'}
-${trade.notes ? `- Notes du trader : ${trade.notes}` : ''}
+TRADE ANALYSÉ (toutes ses données, format identique à celui de l'historique) :
+${serializeTrade(trade)}
 ${globalContext}
 
+CYCLE DE L'ANALYSE POST-TRADE — suis ces étapes dans l'ordre :
+1. Entrée : le sens, la session, le style, la tendance et la structure étaient-ils cohérents entre eux ? La décision d'entrer était-elle alignée sur le plan du trader ?
+2. SL et TP : compare le RR prévu au RR réellement obtenu. Un écart important indique soit une sortie anticipée, soit un TP déplacé, soit une mauvaise gestion.
+3. Sortie : le résultat obtenu est-il cohérent avec le RR réalisé ? Un trade gagnant mal exécuté (RR réalisé faible) est un signal d'exécution, pas de chance.
+4. Recul : le journal ne stocke AUCUN prix. Le schéma confirmed ne contient ni prix d'entrée, ni prix de sortie, ni niveau de SL ou de TP chiffré, ni taille de position, ni horodatage d'entrée/sortie, ni données OHLC. Le P&L n'existe qu'en multiples de R (rr_prevu / rr_realise). Tu n'as donc aucun cours à analyser et aucun mouvement post-trade à observer. Les captures sont listées mais leur contenu visuel t'est inaccessible. N'invente jamais ce qui s'est passé sur le graphique après la sortie : si l'information manque, dis-le simplement et poursuis l'analyse sur ce qui est réellement mesurable (écart RR prévu/réalisé, discipline, respect du plan, notes, After Trade, historique).
+5. Verdict : ce qui a été bien exécuté, et ce qui aurait pu être amélioré. Ne juge pas la personne, juge l'exécution. N'invente jamais un prix, un niveau, un chiffre ou un fait qui ne figure pas dans les données fournies.
+
 INSTRUCTIONS :
-- Adoptez un ton professionnel, précis et constructif
-- Vouvoiements requis
-- Répondez en français, concis mais complet (4-6 phrases ou liste structurée)
-- Basez votre analyse sur les données du trade, pas des généralités
-- Si le plan n'a pas été respecté, abordez l'aspect psychologique avec bienveillance`
+- Sois précis, humain, naturel et concis. Écris comme un vrai coach, pas comme un rapport automatique.
+- Écris en prose fluide ou en 3-5 puces au maximum. Pas de rubrique ni de titre par étape du cycle : le lecteur n'a pas besoin de la structure, il a besoin du fond.
+- Vise 120 mots maximum. Chaque phrase doit apporter quelque chose ; supprime tout ce qui pourrait se dire de n'importe quel trade.
+- Ne mentionne que les observations réellement pertinentes : ignore ce qui est correct et sans enjeu. Pas de remplissage, pas de banalités.
+- Sans juger ni réécrire l'histoire : tu n'as pas le droit de réinterpréter les intentions du trader ou de réécrire ce qu'il a décidé. Décris ce qui s'est passé, puis ce qui pouvait mieux fonctionner.
+- Appuie chaque observation sur une donnée précise du trade ou de l'historique (un chiffre, une date, une récurrence).
+- Si l'After Trade est rempli, exploite ce que le trader en a tiré au lieu de répéter ce qu'il sait déjà. S'il est vide, dis-le franchement : l'analyse est faite à froid.
+- Ne demande jamais d'information déjà présente dans les données.
+${trade.result === 'tp' ? '- Trade gagnant : ne gâche pas le résultat avec des critiques sans fondement. Ne souligne que ce qui est réellement perfectible.' : '- Trade perdant : ne lui reproche ni ses intentions ni sa faute. Décris la mécanique de la perte et le point de réparation exact sur lequel le prochain trade peut être mieux exécuté.'}
+- Vouvoiement, français.`
 
   } else {
     systemPrompt = `${regleAbsolue}
